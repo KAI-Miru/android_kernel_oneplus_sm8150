@@ -35,3 +35,121 @@ source "drivers/soc/oplus/lowmem_dbg/Kconfig"
 #Add for svelte
 source "drivers/soc/oplus/svelte/Kconfig"
 #endif /* OPLUS_FEATURE_MEMLEAK_DETECT */
+
+menu "Legacy OnePlus H.40 configuration compatibility"
+
+config OPPO_ARCH_FILE
+	bool "Accept legacy CONFIG_OPPO_ARCH_FILE"
+	select OPLUS_ARCH_FILE
+	help
+	  Compatibility alias for the configuration embedded in the
+	  GM1911_11_H.40 production kernel. The published source renamed
+	  this option to OPLUS_ARCH_FILE.
+
+config OPPO_COMMON_SOFT
+	bool "Accept legacy CONFIG_OPPO_COMMON_SOFT"
+	select OPLUS_COMMON_SOFT
+
+config OPPO_DEVICE_IFNO
+	bool "Accept legacy CONFIG_OPPO_DEVICE_IFNO"
+	select OPLUS_DEVICE_IFNO
+
+config OPPO_FG_IO_OPT
+	bool "Accept legacy CONFIG_OPPO_FG_IO_OPT"
+	select OPLUS_FG_IO_OPT
+
+config OPPO_HANS
+	bool "Accept legacy CONFIG_OPPO_HANS"
+	select OPLUS_HANS
+
+config OPPO_HEALTHINFO
+	bool "Accept legacy CONFIG_OPPO_HEALTHINFO"
+	select OPLUS_HEALTHINFO
+
+config OPPO_JANK_INFO
+	bool "Accept legacy CONFIG_OPPO_JANK_INFO"
+	select OPLUS_JANK_INFO
+
+config OPPO_MEM_MONITOR
+	bool "Accept legacy CONFIG_OPPO_MEM_MONITOR"
+	select OPLUS_MEM_MONITOR
+
+config OPPO_MOTOR
+	bool "Accept legacy CONFIG_OPPO_MOTOR"
+	select OPLUS_MOTOR
+
+config OPPO_NFC
+	bool "Accept legacy CONFIG_OPPO_NFC"
+	select OPLUS_NFC
+
+config OPLUS_OPPO_GPIO
+	bool "Accept legacy CONFIG_OPLUS_OPPO_GPIO"
+	select OPLUS_OPLUS_GPIO
+
+config OPPO_CALL_MODE_SUPPORT
+	bool "Accept legacy CONFIG_OPPO_CALL_MODE_SUPPORT"
+	select OPLUS_CALL_MODE_SUPPORT
+
+config OPPO_CHECK_CHARGERID_VOLT
+	bool "Accept legacy CONFIG_OPPO_CHECK_CHARGERID_VOLT"
+	select OPLUS_CHECK_CHARGERID_VOLT
+
+config OPPO_CHIP_SOC_NODE
+	bool "Accept legacy CONFIG_OPPO_CHIP_SOC_NODE"
+	select OPLUS_CHIP_SOC_NODE
+
+config OPPO_CRITICALLOG
+	bool "Accept legacy CONFIG_OPPO_CRITICALLOG"
+	select OPLUS_CRITICALLOG
+
+config OPPO_RTC_DET_SUPPORT
+	bool "Accept legacy CONFIG_OPPO_RTC_DET_SUPPORT"
+	select OPLUS_RTC_DET_SUPPORT
+
+config OPPO_SHIP_MODE_SUPPORT
+	bool "Accept legacy CONFIG_OPPO_SHIP_MODE_SUPPORT"
+	select OPLUS_SHIP_MODE_SUPPORT
+
+config OPPO_SHORT_C_BATT_CHECK
+	bool "Accept legacy CONFIG_OPPO_SHORT_C_BATT_CHECK"
+	select OPLUS_SHORT_C_BATT_CHECK
+
+config OPPO_SHORT_HW_CHECK
+	bool "Accept legacy CONFIG_OPPO_SHORT_HW_CHECK"
+	select OPLUS_SHORT_HW_CHECK
+
+config OPPO_SHORT_IC_CHECK
+	bool "Accept legacy CONFIG_OPPO_SHORT_IC_CHECK"
+	select OPLUS_SHORT_IC_CHECK
+
+config OPPO_SHORT_USERSPACE
+	bool "Accept legacy CONFIG_OPPO_SHORT_USERSPACE"
+	select OPLUS_SHORT_USERSPACE
+
+config OPPO_SM7125R_CHARGER
+	bool "Accept legacy CONFIG_OPPO_SM7125R_CHARGER"
+	select OPLUS_SM7125R_CHARGER
+
+config OPPO_SM7150R_CHARGER
+	bool "Accept legacy CONFIG_OPPO_SM7150R_CHARGER"
+	select OPLUS_SM7150R_CHARGER
+
+config OPPO_SM8150Q_CHARGER
+	bool "Accept legacy CONFIG_OPPO_SM8150Q_CHARGER"
+	select OPLUS_SM8150Q_CHARGER
+
+config OPPO_SMART_CHARGER_SUPPORT
+	bool "Accept legacy CONFIG_OPPO_SMART_CHARGER_SUPPORT"
+	select OPLUS_SMART_CHARGER_SUPPORT
+
+config OPPO_SMOOTH_SOC
+	bool "Accept legacy CONFIG_OPPO_SMOOTH_SOC"
+	select OPLUS_SMOOTH_SOC
+
+config TOUCHPANEL_ALGORITHM
+	bool "Accept legacy CONFIG_TOUCHPANEL_ALGORITHM"
+	help
+	  Retain the obsolete H.40 configuration symbol. The published source
+	  replaced this generic option with controller-specific selections.
+
+endmenu
