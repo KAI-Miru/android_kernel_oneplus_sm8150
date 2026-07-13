@@ -115,6 +115,28 @@ from the stock `4.14.180-perf+` kernel without modifying the checked-in stock
 IKCONFIG reference. Set `KERNEL_LOCALVERSION=-perf` when repeating the original
 reproducibility comparison.
 
+### Stock-module compatibility diagnostic
+
+The first Miru runtime capture proved that the stock external audio and WLAN
+modules were rejected before ABI checking: the kernel trusted a newly generated
+build key, while every stock module was signed with OnePlus's unpublished key.
+It consequently loaded zero external modules and created no ALSA card. See
+`h40-repro/reports/miru-runtime-module-failure.txt`.
+
+Use the following only for a controlled boot diagnostic:
+
+```bash
+KERNEL_LOCALVERSION=-perf \
+MODULE_SIG_POLICY=permit-untrusted \
+h40-repro/build-h40.sh --clean
+```
+
+This retains `CONFIG_MODULE_SIG`, `CONFIG_MODULE_SIG_ALL`, and
+`CONFIG_MODVERSIONS`, but disables `CONFIG_MODULE_SIG_FORCE`. The resulting
+`4.14.180-perf+` kernel can proceed past the unavailable signing-key gate and
+test the stock H.40 modules against the rebuilt kernel's symbol CRCs. Do not
+use this diagnostic signature policy as a permanent production configuration.
+
 The script records the fully expanded `make` command. Its core invocation is:
 
 ```bash
