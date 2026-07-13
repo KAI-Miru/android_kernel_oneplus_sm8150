@@ -1,0 +1,692 @@
+H.40 vendor module MODVERSIONS comparison
+=========================================
+
+module_directory: analysis-v2-modules/modules
+module_count: 32
+reference_symvers: restored/miru-h40-module-compat-test-package/build/Module.symvers
+reference_symvers_sha256: 80b740c67c9bd62c621b39a59e66e01a714dbbfb3258355ebc0cac8b466acf55
+import_records: 2528
+unique_import_symbols: 1019
+
+Vermagic
+--------
+32 module(s): 4.14.180-perf+ SMP preempt mod_unload modversions aarch64
+
+Compiler comments
+-----------------
+32 occurrence(s): Snapdragon LLVM ARM Compiler 10.0.7 for Android NDK
+
+Comparison summary
+------------------
+core_match_records: 1116
+core_match_unique: 348
+core_mismatch_records: 1353
+core_mismatch_unique: 614
+vendor_match_records: 59
+vendor_match_unique: 57
+vendor_mismatch_records: 0
+vendor_mismatch_unique: 0
+reference_module_only_records: 0
+reference_module_only_unique: 0
+unresolved_records: 0
+unresolved_unique: 0
+
+Core CRC mismatches
+-------------------
+module_layout	expected=0xcadd18c7	reference=0xa9c6dadd	modules=32	audio_adsp_loader.ko,audio_apr.ko,audio_extend.ko,audio_hdmi.ko,audio_machine_msmnile.ko,audio_max98937.ko,audio_mbhc.ko,audio_native.ko,audio_pinctrl_wcd.ko,audio_platform.ko,audio_q6.ko,audio_q6_notifier.ko,audio_q6_pdr.ko,audio_stub.ko,audio_swr.ko,audio_swr_ctrl.ko,audio_tfa9894.ko,audio_usf.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,audio_wcd_spi.ko,audio_wglink.ko,audio_wsa881x.ko,mpq-adapter.ko,mpq-dmx-hw-plugin.ko,msm_11ad_proxy.ko,qca_cld3_wlan.ko,rdbg.ko,tspp.ko,wil6210.ko
+mutex_unlock	expected=0xce2fe15b	reference=0xd729fb9d	modules=25	audio_apr.ko,audio_hdmi.ko,audio_machine_msmnile.ko,audio_max98937.ko,audio_mbhc.ko,audio_native.ko,audio_platform.ko,audio_q6.ko,audio_q6_notifier.ko,audio_swr.ko,audio_swr_ctrl.ko,audio_tfa9894.ko,audio_usf.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,audio_wcd_spi.ko,audio_wsa881x.ko,mpq-adapter.ko,mpq-dmx-hw-plugin.ko,qca_cld3_wlan.ko,rdbg.ko,tspp.ko,wil6210.ko
+__mutex_init	expected=0xc02184e5	reference=0xfa779688	modules=24	audio_apr.ko,audio_hdmi.ko,audio_machine_msmnile.ko,audio_mbhc.ko,audio_native.ko,audio_platform.ko,audio_q6.ko,audio_q6_notifier.ko,audio_swr.ko,audio_swr_ctrl.ko,audio_tfa9894.ko,audio_usf.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,audio_wcd_spi.ko,audio_wsa881x.ko,mpq-adapter.ko,mpq-dmx-hw-plugin.ko,qca_cld3_wlan.ko,rdbg.ko,tspp.ko,wil6210.ko
+mutex_lock	expected=0xe7aa25e2	reference=0x7e27c140	modules=23	audio_apr.ko,audio_hdmi.ko,audio_machine_msmnile.ko,audio_max98937.ko,audio_mbhc.ko,audio_native.ko,audio_platform.ko,audio_q6.ko,audio_q6_notifier.ko,audio_swr.ko,audio_swr_ctrl.ko,audio_tfa9894.ko,audio_usf.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,audio_wcd_spi.ko,audio_wsa881x.ko,mpq-dmx-hw-plugin.ko,qca_cld3_wlan.ko,rdbg.ko,wil6210.ko
+dev_err	expected=0x8d08525e	reference=0x5ca14c1f	modules=22	audio_adsp_loader.ko,audio_apr.ko,audio_hdmi.ko,audio_machine_msmnile.ko,audio_max98937.ko,audio_mbhc.ko,audio_pinctrl_wcd.ko,audio_platform.ko,audio_q6.ko,audio_swr.ko,audio_swr_ctrl.ko,audio_tfa9894.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,audio_wcd_spi.ko,audio_wglink.ko,audio_wsa881x.ko,msm_11ad_proxy.ko,rdbg.ko,wil6210.ko
+kmalloc_caches	expected=0x55129316	reference=0xd7bb3110	modules=20	audio_apr.ko,audio_hdmi.ko,audio_machine_msmnile.ko,audio_max98937.ko,audio_native.ko,audio_platform.ko,audio_q6.ko,audio_q6_notifier.ko,audio_swr.ko,audio_swr_ctrl.ko,audio_tfa9894.ko,audio_usf.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,audio_wglink.ko,qca_cld3_wlan.ko,tspp.ko,wil6210.ko
+kmem_cache_alloc_trace	expected=0xc190bb34	reference=0xb0d86db8	modules=20	audio_apr.ko,audio_hdmi.ko,audio_machine_msmnile.ko,audio_max98937.ko,audio_native.ko,audio_platform.ko,audio_q6.ko,audio_q6_notifier.ko,audio_swr.ko,audio_swr_ctrl.ko,audio_tfa9894.ko,audio_usf.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,audio_wglink.ko,qca_cld3_wlan.ko,tspp.ko,wil6210.ko
+__platform_driver_register	expected=0x2872568f	reference=0xb44de719	modules=19	audio_adsp_loader.ko,audio_apr.ko,audio_extend.ko,audio_hdmi.ko,audio_machine_msmnile.ko,audio_pinctrl_wcd.ko,audio_platform.ko,audio_q6.ko,audio_stub.ko,audio_swr_ctrl.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,audio_wglink.ko,mpq-dmx-hw-plugin.ko,msm_11ad_proxy.ko,rdbg.ko,tspp.ko
+platform_driver_unregister	expected=0x9348095d	reference=0x34ee4269	modules=18	audio_adsp_loader.ko,audio_apr.ko,audio_extend.ko,audio_hdmi.ko,audio_machine_msmnile.ko,audio_pinctrl_wcd.ko,audio_platform.ko,audio_q6.ko,audio_stub.ko,audio_swr_ctrl.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,audio_wglink.ko,mpq-dmx-hw-plugin.ko,msm_11ad_proxy.ko,tspp.ko
+devm_kmalloc	expected=0x384271e2	reference=0x25360490	modules=16	audio_adsp_loader.ko,audio_apr.ko,audio_extend.ko,audio_machine_msmnile.ko,audio_max98937.ko,audio_pinctrl_wcd.ko,audio_platform.ko,audio_tfa9894.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,audio_wcd_spi.ko,audio_wglink.ko,audio_wsa881x.ko,msm_11ad_proxy.ko
+of_property_read_variable_u32_array	expected=0x16fc8e4b	reference=0x539f58c7	modules=15	audio_adsp_loader.ko,audio_extend.ko,audio_machine_msmnile.ko,audio_max98937.ko,audio_mbhc.ko,audio_pinctrl_wcd.ko,audio_platform.ko,audio_q6.ko,audio_swr_ctrl.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,audio_wcd_spi.ko,msm_11ad_proxy.ko
+_dev_info	expected=0x2c4ae41b	reference=0xf3ad40a4	modules=14	audio_apr.ko,audio_extend.ko,audio_machine_msmnile.ko,audio_mbhc.ko,audio_platform.ko,audio_tfa9894.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,audio_wglink.ko,audio_wsa881x.ko,msm_11ad_proxy.ko,wil6210.ko
+devm_kfree	expected=0xed83fb76	reference=0x45205f23	modules=9	audio_machine_msmnile.ko,audio_max98937.ko,audio_pinctrl_wcd.ko,audio_platform.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,audio_wcd_spi.ko
+of_find_property	expected=0x9fff7994	reference=0x453c8daa	modules=8	audio_machine_msmnile.ko,audio_mbhc.ko,audio_platform.ko,audio_q6.ko,audio_wcd_core.ko,msm_11ad_proxy.ko,rdbg.ko,tspp.ko
+param_ops_int	expected=0x2ae5f9c1	reference=0x9270a022	modules=8	audio_swr_ctrl.ko,audio_tfa9894.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wsa881x.ko,mpq-dmx-hw-plugin.ko,qca_cld3_wlan.ko,wil6210.ko
+snd_soc_info_enum_double	expected=0xa1713a01	reference=0xbba1a367	modules=8	audio_hdmi.ko,audio_machine_msmnile.ko,audio_max98937.ko,audio_platform.ko,audio_q6.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wsa881x.ko
+dma_alloc_from_dev_coherent	expected=0xc7058fec	reference=0x775e12e6	modules=7	audio_platform.ko,audio_q6.ko,audio_wcd9xxx.ko,mpq-dmx-hw-plugin.ko,qca_cld3_wlan.ko,tspp.ko,wil6210.ko
+dma_release_from_dev_coherent	expected=0x5a391c3d	reference=0xaca44877	modules=7	audio_platform.ko,audio_q6.ko,audio_wcd9xxx.ko,mpq-dmx-hw-plugin.ko,qca_cld3_wlan.ko,tspp.ko,wil6210.ko
+dummy_dma_ops	expected=0xfbd1baa1	reference=0x9b1523a6	modules=7	audio_platform.ko,audio_q6.ko,audio_wcd9xxx.ko,mpq-dmx-hw-plugin.ko,qca_cld3_wlan.ko,tspp.ko,wil6210.ko
+of_property_read_string	expected=0x8efa4a15	reference=0x53680c06	modules=7	audio_adsp_loader.ko,audio_apr.ko,audio_extend.ko,audio_machine_msmnile.ko,audio_platform.ko,audio_wcd9xxx.ko,audio_wcd_core.ko
+regmap_read	expected=0xac80291f	reference=0x37e3e5fb	modules=7	audio_max98937.ko,audio_pinctrl_wcd.ko,audio_tfa9894.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_core.ko
+release_firmware	expected=0x0f508492	reference=0x843b0bc5	modules=7	audio_mbhc.ko,audio_tfa9894.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,qca_cld3_wlan.ko,wil6210.ko
+snd_soc_info_volsw	expected=0x8537d618	reference=0x891d806a	modules=7	audio_hdmi.ko,audio_max98937.ko,audio_platform.ko,audio_q6.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wsa881x.ko
+snd_soc_register_codec	expected=0xfcf069e9	reference=0xe974f1bd	modules=7	audio_hdmi.ko,audio_max98937.ko,audio_stub.ko,audio_tfa9894.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wsa881x.ko
+snd_soc_unregister_codec	expected=0x46626dc2	reference=0xfb1aa541	modules=7	audio_hdmi.ko,audio_max98937.ko,audio_stub.ko,audio_tfa9894.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wsa881x.ko
+misc_deregister	expected=0x534ec61a	reference=0xbe8473a7	modules=6	audio_max98937.ko,audio_native.ko,audio_q6.ko,audio_usf.ko,audio_wcd934x.ko,audio_wcd9360.ko
+misc_register	expected=0xe4264521	reference=0xf687f96d	modules=6	audio_max98937.ko,audio_native.ko,audio_q6.ko,audio_usf.ko,audio_wcd934x.ko,audio_wcd9360.ko
+of_get_named_gpio_flags	expected=0x925f746e	reference=0xef442d90	modules=6	audio_max98937.ko,audio_mbhc.ko,audio_tfa9894.ko,audio_wcd_core.ko,audio_wsa881x.ko,msm_11ad_proxy.ko
+of_parse_phandle	expected=0xe2bcc202	reference=0x5c28d125	modules=6	audio_machine_msmnile.ko,audio_mbhc.ko,audio_q6.ko,audio_wcd_core.ko,audio_wsa881x.ko,msm_11ad_proxy.ko
+regmap_update_bits_base	expected=0xb6799d3b	reference=0xc1d6008b	modules=6	audio_max98937.ko,audio_pinctrl_wcd.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wcd_spi.ko
+regmap_write	expected=0xc220b173	reference=0xc6557287	modules=6	audio_max98937.ko,audio_tfa9894.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd_core.ko,audio_wcd_spi.ko
+regulator_set_voltage	expected=0x38c25f2e	reference=0xb0640aa8	modules=6	audio_adsp_loader.ko,audio_max98937.ko,audio_wcd934x.ko,audio_wcd_core.ko,msm_11ad_proxy.ko,tspp.ko
+request_firmware	expected=0x88ea08de	reference=0x8aff7212	modules=6	audio_mbhc.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,qca_cld3_wlan.ko,wil6210.ko
+snd_soc_dapm_ignore_suspend	expected=0x2cecb5bf	reference=0x364f7f48	modules=6	audio_extend.ko,audio_machine_msmnile.ko,audio_max98937.ko,audio_platform.ko,audio_wcd934x.ko,audio_wcd9360.ko
+dev_warn	expected=0x1faf8e75	reference=0xa5b4bd2e	modules=5	audio_machine_msmnile.ko,audio_platform.ko,audio_q6.ko,audio_wcd934x.ko,msm_11ad_proxy.ko
+gpio_to_desc	expected=0x8d0172d0	reference=0x34fa3366	modules=5	audio_max98937.ko,audio_tfa9894.ko,audio_wcd_core.ko,audio_wsa881x.ko,msm_11ad_proxy.ko
+kernel_kobj	expected=0x9ef773be	reference=0x9254ee1c	modules=5	audio_adsp_loader.ko,audio_q6.ko,audio_wcd934x.ko,audio_wcd9360.ko,qca_cld3_wlan.ko
+regulator_enable	expected=0x11b1d881	reference=0xd64e6f9b	modules=5	audio_adsp_loader.ko,audio_max98937.ko,audio_wcd_core.ko,msm_11ad_proxy.ko,tspp.ko
+regulator_set_load	expected=0xbcf96d05	reference=0x6aca3941	modules=5	audio_adsp_loader.ko,audio_max98937.ko,audio_wcd934x.ko,audio_wcd_core.ko,msm_11ad_proxy.ko
+snd_soc_add_codec_controls	expected=0x0f4fa548	reference=0x096f247c	modules=5	audio_machine_msmnile.ko,audio_max98937.ko,audio_tfa9894.ko,audio_wcd934x.ko,audio_wsa881x.ko
+snd_soc_dapm_sync	expected=0x3666904c	reference=0x31eb42ab	modules=5	audio_extend.ko,audio_machine_msmnile.ko,audio_max98937.ko,audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_read	expected=0x845f25b4	reference=0xa9370e49	modules=5	audio_mbhc.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wsa881x.ko
+snd_soc_update_bits	expected=0x81b6f318	reference=0xef188c38	modules=5	audio_mbhc.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wsa881x.ko
+__class_create	expected=0xdbc2bd99	reference=0x37c96ae2	modules=4	audio_q6.ko,audio_wglink.ko,qca_cld3_wlan.ko,rdbg.ko
+__pm_runtime_resume	expected=0x9997b8ac	reference=0x0bfd2735	modules=4	audio_q6.ko,audio_swr_ctrl.ko,tspp.ko,wil6210.ko
+cdev_add	expected=0x2b16eac6	reference=0x0efb0e66	modules=4	audio_q6.ko,audio_wglink.ko,qca_cld3_wlan.ko,rdbg.ko
+cdev_del	expected=0xdfe49640	reference=0xde67e3fd	modules=4	audio_q6.ko,audio_wglink.ko,qca_cld3_wlan.ko,rdbg.ko
+cdev_init	expected=0x54164c34	reference=0x5f3c52e8	modules=4	audio_q6.ko,audio_wglink.ko,qca_cld3_wlan.ko,rdbg.ko
+class_destroy	expected=0x6827f149	reference=0x36473152	modules=4	audio_q6.ko,audio_wglink.ko,qca_cld3_wlan.ko,rdbg.ko
+device_create	expected=0xb008618c	reference=0x87604699	modules=4	audio_q6.ko,audio_wglink.ko,qca_cld3_wlan.ko,rdbg.ko
+device_destroy	expected=0xa287ff08	reference=0x559f3b5e	modules=4	audio_q6.ko,audio_wglink.ko,qca_cld3_wlan.ko,rdbg.ko
+devm_pinctrl_get	expected=0xb6e9fd90	reference=0xa526bf8d	modules=4	audio_machine_msmnile.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,tspp.ko
+kobject_put	expected=0x11be0be3	reference=0x758ef844	modules=4	audio_q6.ko,audio_wcd934x.ko,audio_wcd9360.ko,qca_cld3_wlan.ko
+mutex_lock_interruptible	expected=0xb181cf77	reference=0x32cee252	modules=4	audio_q6.ko,mpq-adapter.ko,mpq-dmx-hw-plugin.ko,tspp.ko
+of_get_property	expected=0xa685e7f0	reference=0x565be21b	modules=4	audio_platform.ko,audio_q6.ko,audio_wcd934x.ko,audio_wcd_core.ko
+of_platform_populate	expected=0xf9ff36eb	reference=0xdca0a1bc	modules=4	audio_apr.ko,audio_machine_msmnile.ko,audio_platform.ko,audio_q6.ko
+of_property_read_string_helper	expected=0x09891c78	reference=0x35d9c373	modules=4	audio_extend.ko,audio_machine_msmnile.ko,audio_wcd_core.ko,audio_wglink.ko
+pinctrl_lookup_state	expected=0x8752d08b	reference=0x3095fedb	modules=4	audio_machine_msmnile.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,tspp.ko
+pinctrl_select_state	expected=0xcc5a2814	reference=0x02ec55e1	modules=4	audio_machine_msmnile.ko,audio_wcd9xxx.ko,audio_wcd_core.ko,tspp.ko
+regcache_mark_dirty	expected=0xb65dcf5b	reference=0xa5fa00fa	modules=4	audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd_spi.ko,audio_wsa881x.ko
+regcache_sync	expected=0xb894c159	reference=0x707441b6	modules=4	audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd_spi.ko,audio_wsa881x.ko
+snd_info_create_subdir	expected=0xadc29ea6	reference=0xb8a191b7	modules=4	audio_machine_msmnile.ko,audio_wcd934x.ko,audio_wcd9360.ko,audio_wsa881x.ko
+snd_soc_dapm_add_routes	expected=0x062f1da3	reference=0xab7f6ec7	modules=4	audio_machine_msmnile.ko,audio_platform.ko,audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_info_multi_ext	expected=0xbcb0c309	reference=0xc208f57b	modules=4	audio_machine_msmnile.ko,audio_platform.ko,audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_write	expected=0xa5361996	reference=0x675eb2ae	modules=4	audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd9xxx.ko,audio_wsa881x.ko
+sysfs_create_file_ns	expected=0xc9308bef	reference=0x3585efac	modules=4	audio_tfa9894.ko,audio_wcd934x.ko,audio_wcd9360.ko,qca_cld3_wlan.ko
+sysfs_create_group	expected=0x64ed933f	reference=0x78b29ad5	modules=4	audio_adsp_loader.ko,audio_platform.ko,audio_q6.ko,wil6210.ko
+wakeup_source_add	expected=0x1ee86ea5	reference=0xfad58a48	modules=4	audio_q6.ko,audio_usf.ko,qca_cld3_wlan.ko,tspp.ko
+wakeup_source_drop	expected=0x136c38da	reference=0xd07a1634	modules=4	audio_q6.ko,audio_usf.ko,qca_cld3_wlan.ko,tspp.ko
+wakeup_source_prepare	expected=0xb01e8618	reference=0x0e28d25a	modules=4	audio_q6.ko,audio_usf.ko,qca_cld3_wlan.ko,tspp.ko
+wakeup_source_remove	expected=0x68048b2f	reference=0xebd99a92	modules=4	audio_q6.ko,audio_usf.ko,qca_cld3_wlan.ko,tspp.ko
+__devm_regmap_init	expected=0xbb147243	reference=0x347b4be2	modules=3	audio_swr.ko,audio_wcd_core.ko,audio_wcd_spi.ko
+__pm_relax	expected=0x391bd2df	reference=0xedd2c360	modules=3	audio_q6.ko,qca_cld3_wlan.ko,tspp.ko
+arm_iommu_attach_device	expected=0x36ebc669	reference=0x49df202a	modules=3	audio_q6.ko,msm_11ad_proxy.ko,tspp.ko
+arm_iommu_create_mapping	expected=0xdce6169f	reference=0x1154c38d	modules=3	audio_q6.ko,msm_11ad_proxy.ko,tspp.ko
+arm_iommu_detach_device	expected=0x6572445d	reference=0x640e09f9	modules=3	audio_q6.ko,msm_11ad_proxy.ko,tspp.ko
+arm_iommu_release_mapping	expected=0x0d1d7fa6	reference=0x194350cd	modules=3	audio_q6.ko,msm_11ad_proxy.ko,tspp.ko
+blocking_notifier_call_chain	expected=0x76681b4c	reference=0x6e9aa585	modules=3	audio_q6.ko,audio_wcd934x.ko,qca_cld3_wlan.ko
+blocking_notifier_chain_register	expected=0x1fac1b61	reference=0x0519e492	modules=3	audio_q6.ko,audio_wcd934x.ko,qca_cld3_wlan.ko
+blocking_notifier_chain_unregister	expected=0x643fd539	reference=0x0ba7a7ea	modules=3	audio_q6.ko,audio_wcd934x.ko,qca_cld3_wlan.ko
+clk_get	expected=0xb1eaa45c	reference=0xe853ce9d	modules=3	audio_wcd934x.ko,audio_wcd9360.ko,tspp.ko
+component_add	expected=0xc5fe1939	reference=0x67f6bf1a	modules=3	audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd_spi.ko
+component_del	expected=0xde1c3ce4	reference=0x1864cbed	modules=3	audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd_spi.ko
+device_init_wakeup	expected=0x27f94e0f	reference=0xefe790f3	modules=3	audio_native.ko,audio_wcd_core.ko,qca_cld3_wlan.ko
+devm_pinctrl_put	expected=0x9a1ed320	reference=0x688e00b8	modules=3	audio_machine_msmnile.ko,audio_wcd9xxx.ko,audio_wcd_core.ko
+dma_buf_detach	expected=0xcbe0f171	reference=0x1de2cd03	modules=3	audio_q6.ko,mpq-dmx-hw-plugin.ko,tspp.ko
+dma_buf_get	expected=0xe9f9b0ff	reference=0xe8e9ad4e	modules=3	audio_platform.ko,audio_q6.ko,mpq-dmx-hw-plugin.ko
+dma_buf_put	expected=0xd5bbb8cd	reference=0x6413fcf1	modules=3	audio_q6.ko,mpq-dmx-hw-plugin.ko,tspp.ko
+dma_buf_unmap_attachment	expected=0x633bc892	reference=0x4c5a4319	modules=3	audio_q6.ko,mpq-dmx-hw-plugin.ko,tspp.ko
+gpiod_direction_output_raw	expected=0x3d8a1d34	reference=0x4e51bfa6	modules=3	audio_max98937.ko,audio_wsa881x.ko,msm_11ad_proxy.ko
+i2c_del_driver	expected=0x0bee89a9	reference=0x00c06e38	modules=3	audio_max98937.ko,audio_tfa9894.ko,audio_wcd_core.ko
+i2c_register_driver	expected=0xf2436869	reference=0xe9ccc5a3	modules=3	audio_max98937.ko,audio_tfa9894.ko,audio_wcd_core.ko
+input_allocate_device	expected=0xd217e989	reference=0x358b41a9	modules=3	audio_q6.ko,audio_tfa9894.ko,audio_usf.ko
+input_event	expected=0xb1cabedd	reference=0x9f4f47c1	modules=3	audio_q6.ko,audio_tfa9894.ko,audio_usf.ko
+input_free_device	expected=0x36710236	reference=0x7d8e150f	modules=3	audio_q6.ko,audio_tfa9894.ko,audio_usf.ko
+input_register_device	expected=0x5bff5210	reference=0xd53baa51	modules=3	audio_q6.ko,audio_tfa9894.ko,audio_usf.ko
+input_unregister_device	expected=0x1738ff7a	reference=0xe24ebaee	modules=3	audio_q6.ko,audio_tfa9894.ko,audio_usf.ko
+kobject_create_and_add	expected=0x91af93f2	reference=0xc319b3ce	modules=3	audio_adsp_loader.ko,audio_q6.ko,qca_cld3_wlan.ko
+kobject_init_and_add	expected=0xd8f303d9	reference=0xb593c8b7	modules=3	audio_q6.ko,audio_wcd934x.ko,audio_wcd9360.ko
+of_find_device_by_node	expected=0x13c4c3bf	reference=0x6b59fe48	modules=3	audio_hdmi.ko,audio_wcd_core.ko,audio_wsa881x.ko
+of_modalias_node	expected=0xff61e121	reference=0x36945d11	modules=3	audio_swr.ko,audio_wcd934x.ko,audio_wcd9360.ko
+of_platform_depopulate	expected=0xea6b99bb	reference=0x0bc4f35f	modules=3	audio_apr.ko,audio_platform.ko,audio_q6.ko
+platform_bus_type	expected=0x4e7315f1	reference=0x04aec501	modules=3	audio_q6.ko,msm_11ad_proxy.ko,tspp.ko
+pm_wakeup_ws_event	expected=0x1d36383f	reference=0xa701f913	modules=3	audio_q6.ko,audio_usf.ko,qca_cld3_wlan.ko
+proc_mkdir	expected=0x9e4b7df6	reference=0x9f97f155	modules=3	audio_max98937.ko,audio_q6.ko,qca_cld3_wlan.ko
+put_device	expected=0xee4c3db2	reference=0x1d1602b1	modules=3	audio_swr.ko,audio_wcd934x.ko,audio_wcd9360.ko
+regmap_bulk_read	expected=0xe1cd7815	reference=0xa25a9082	modules=3	audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd_core.ko
+regmap_bulk_write	expected=0x60ed77d6	reference=0x64717011	modules=3	audio_wcd934x.ko,audio_wcd9360.ko,audio_wcd_core.ko
+regmap_multi_reg_write	expected=0xe243c44d	reference=0x5d16380a	modules=3	audio_wcd934x.ko,audio_wcd_core.ko,audio_wsa881x.ko
+regulator_count_voltages	expected=0xeacbe618	reference=0xb7acb819	modules=3	audio_max98937.ko,audio_wcd_core.ko,msm_11ad_proxy.ko
+regulator_disable	expected=0xa8fab7f8	reference=0xf5be68a6	modules=3	audio_wcd_core.ko,msm_11ad_proxy.ko,tspp.ko
+regulator_get	expected=0x70988b7d	reference=0xde844e05	modules=3	audio_adsp_loader.ko,audio_max98937.ko,audio_wcd934x.ko
+slim_driver_register	expected=0x0bca2a41	reference=0x5713e21a	modules=3	audio_platform.ko,audio_q6.ko,audio_wcd_core.ko
+slim_driver_unregister	expected=0xcd465f49	reference=0xbfa52b2d	modules=3	audio_platform.ko,audio_q6.ko,audio_wcd_core.ko
+snd_info_create_card_entry	expected=0x619dbc11	reference=0x1839c388	modules=3	audio_wcd934x.ko,audio_wcd9360.ko,audio_wsa881x.ko
+snd_info_free_entry	expected=0x8eab5887	reference=0xb3624964	modules=3	audio_wcd934x.ko,audio_wcd9360.ko,audio_wsa881x.ko
+snd_info_register	expected=0xd26721d9	reference=0xbe83acea	modules=3	audio_wcd934x.ko,audio_wcd9360.ko,audio_wsa881x.ko
+snd_soc_dapm_get_volsw	expected=0x5316ef74	reference=0xc11e60d4	modules=3	audio_wcd934x.ko,audio_wcd9360.ko,audio_wsa881x.ko
+snd_soc_dapm_kcontrol_widget	expected=0x59c73034	reference=0x88455357	modules=3	audio_platform.ko,audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_dapm_mixer_update_power	expected=0x434831f4	reference=0xbffda589	modules=3	audio_platform.ko,audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_dapm_mux_update_power	expected=0xc8d197dc	reference=0x70bc1617	modules=3	audio_platform.ko,audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_dapm_new_controls	expected=0x95d8cdca	reference=0xbbaf857b	modules=3	audio_machine_msmnile.ko,audio_platform.ko,audio_wcd934x.ko
+snd_soc_dapm_put_volsw	expected=0x6058a330	reference=0x2a61d420	modules=3	audio_wcd934x.ko,audio_wcd9360.ko,audio_wsa881x.ko
+sysfs_remove_file_ns	expected=0xd2056551	reference=0x0871b8d0	modules=3	audio_wcd934x.ko,audio_wcd9360.ko,qca_cld3_wlan.ko
+sysfs_remove_group	expected=0x248a3cc2	reference=0x9fc9fb3b	modules=3	audio_adsp_loader.ko,audio_platform.ko,wil6210.ko
+PDE_DATA	expected=0xb9b671bb	reference=0x2e7f0edb	modules=2	audio_max98937.ko,qca_cld3_wlan.ko
+__alloc_skb	expected=0x831290f6	reference=0x6b222a3c	modules=2	qca_cld3_wlan.ko,wil6210.ko
+__cfg80211_alloc_event_skb	expected=0xd05253f8	reference=0x940f823f	modules=2	qca_cld3_wlan.ko,wil6210.ko
+__cfg80211_alloc_reply_skb	expected=0x20376bec	reference=0x1002a19d	modules=2	qca_cld3_wlan.ko,wil6210.ko
+__cfg80211_send_event_skb	expected=0x8e24eff6	reference=0x2039a2b1	modules=2	qca_cld3_wlan.ko,wil6210.ko
+__dev_kfree_skb_any	expected=0x456d8434	reference=0x750351a3	modules=2	qca_cld3_wlan.ko,wil6210.ko
+__devm_regmap_init_i2c	expected=0xe06078e2	reference=0x165b66ff	modules=2	audio_max98937.ko,audio_tfa9894.ko
+__init_rwsem	expected=0x0c85ed19	reference=0xac4964a9	modules=2	audio_wcd934x.ko,wil6210.ko
+__napi_schedule	expected=0xee0ec888	reference=0x2f6e630c	modules=2	qca_cld3_wlan.ko,wil6210.ko
+__netdev_alloc_skb	expected=0x05652aff	reference=0x798596ad	modules=2	qca_cld3_wlan.ko,wil6210.ko
+__pm_runtime_disable	expected=0x64ddba63	reference=0x3c6e0cb9	modules=2	audio_swr_ctrl.ko,tspp.ko
+__pm_runtime_idle	expected=0x2fe8b94a	reference=0x74def5b6	modules=2	audio_q6.ko,tspp.ko
+__pm_runtime_set_status	expected=0xca5a2175	reference=0x93f22d8b	modules=2	audio_swr_ctrl.ko,tspp.ko
+__pm_runtime_suspend	expected=0x15222dfd	reference=0x2838a05e	modules=2	audio_swr_ctrl.ko,wil6210.ko
+__pm_runtime_use_autosuspend	expected=0x1f5ae6ff	reference=0x8347aff7	modules=2	audio_swr_ctrl.ko,wil6210.ko
+__pm_stay_awake	expected=0x48e85037	reference=0x78c3297b	modules=2	qca_cld3_wlan.ko,tspp.ko
+__register_rpmsg_driver	expected=0x2a6e338a	reference=0x55da9ec0	modules=2	audio_apr.ko,audio_wglink.ko
+alloc_netdev_mqs	expected=0xd5e4e5b1	reference=0x81d6ecf6	modules=2	qca_cld3_wlan.ko,wil6210.ko
+arch_setup_dma_ops	expected=0x7fe048b6	reference=0xfc4e648b	modules=2	audio_wcd9xxx.ko,msm_11ad_proxy.ko
+cfg80211_connect_done	expected=0x42453da7	reference=0x7db197fd	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_del_sta_sinfo	expected=0xa50d33e1	reference=0xe7f455db	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_disconnected	expected=0x59d03a13	reference=0xd2654faf	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_ft_event	expected=0x924e1aa0	reference=0x886b244b	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_get_bss	expected=0x6caffd97	reference=0x3be0bbdf	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_inform_bss_frame_data	expected=0x636e3f49	reference=0x9564c063	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_mgmt_tx_status	expected=0xe309ae7f	reference=0x3d6d2fda	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_new_sta	expected=0xb2d034a3	reference=0xbbdffa22	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_put_bss	expected=0x69258287	reference=0x90bc34ab	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_ready_on_channel	expected=0x6614d3ef	reference=0x1fffe296	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_remain_on_channel_expired	expected=0x7932d6ae	reference=0x5f2d820c	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_roamed	expected=0xf46a72b3	reference=0x7f4d96f8	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_rx_mgmt	expected=0x5852978e	reference=0x6aa98ca4	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_scan_done	expected=0x0f1240ae	reference=0xbad1d892	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_sched_scan_results	expected=0x4af334b7	reference=0xf2a9ff83	modules=2	qca_cld3_wlan.ko,wil6210.ko
+cfg80211_vendor_cmd_reply	expected=0xdfefafb5	reference=0xb302ce8d	modules=2	qca_cld3_wlan.ko,wil6210.ko
+consume_skb	expected=0x3077ee8d	reference=0xde435019	modules=2	qca_cld3_wlan.ko,wil6210.ko
+create_ramdump_device	expected=0xb2fe5fdc	reference=0xd6b00522	modules=2	audio_wcd9xxx.ko,msm_11ad_proxy.ko
+dev_get_regmap	expected=0xe8ff2fcc	reference=0x992a0c93	modules=2	audio_pinctrl_wcd.ko,audio_swr.ko
+dev_set_name	expected=0xbd248917	reference=0x6c1b8323	modules=2	audio_max98937.ko,audio_swr.ko
+dma_buf_attach	expected=0xad2aa600	reference=0xa045d9b8	modules=2	audio_q6.ko,mpq-dmx-hw-plugin.ko
+dma_buf_begin_cpu_access	expected=0x2ee03218	reference=0x9a5ccab7	modules=2	audio_q6.ko,mpq-dmx-hw-plugin.ko
+dma_buf_end_cpu_access	expected=0xabe4705f	reference=0xbdb6b6cd	modules=2	audio_q6.ko,mpq-dmx-hw-plugin.ko
+dma_buf_map_attachment	expected=0x307a8d0a	reference=0x4ba70896	modules=2	audio_q6.ko,mpq-dmx-hw-plugin.ko
+dma_buf_vmap	expected=0xf00d5f3a	reference=0x0180d9e6	modules=2	audio_q6.ko,mpq-dmx-hw-plugin.ko
+dma_buf_vunmap	expected=0x5800cbc2	reference=0x5babd299	modules=2	audio_q6.ko,mpq-dmx-hw-plugin.ko
+driver_unregister	expected=0xdaf3f2ec	reference=0xde3f5cfe	modules=2	audio_swr.ko,audio_wcd_spi.ko
+eth_type_trans	expected=0x1a68e103	reference=0x68ad47ce	modules=2	qca_cld3_wlan.ko,wil6210.ko
+ether_setup	expected=0x21ea1ef1	reference=0x8659057f	modules=2	qca_cld3_wlan.ko,wil6210.ko
+free_netdev	expected=0x43e4dcfa	reference=0xd8a17a09	modules=2	qca_cld3_wlan.ko,wil6210.ko
+gpiod_to_irq	expected=0x93c89642	reference=0xb488e968	modules=2	audio_tfa9894.ko,audio_wcd_core.ko
+i2c_transfer	expected=0x74c5701c	reference=0xf9f8f0c5	modules=2	audio_tfa9894.ko,audio_wcd_core.ko
+ieee80211_get_channel	expected=0xebe5b96b	reference=0x8a59e105	modules=2	qca_cld3_wlan.ko,wil6210.ko
+init_dummy_netdev	expected=0xc9e94177	reference=0xd832f9fb	modules=2	qca_cld3_wlan.ko,wil6210.ko
+iommu_domain_set_attr	expected=0xd7644dd0	reference=0x931b40ed	modules=2	msm_11ad_proxy.ko,tspp.ko
+ion_alloc	expected=0x0d764934	reference=0xe007f48b	modules=2	audio_q6.ko,mpq-dmx-hw-plugin.ko
+kfree_skb	expected=0xddc5042e	reference=0x1bb659e7	modules=2	qca_cld3_wlan.ko,wil6210.ko
+kobject_uevent	expected=0xccfabb0e	reference=0x6650df8c	modules=2	audio_q6.ko,wil6210.ko
+kobject_uevent_env	expected=0x2fce2faa	reference=0x14370ada	modules=2	audio_q6.ko,wil6210.ko
+kthread_create_on_node	expected=0x83a19905	reference=0x7d300950	modules=2	mpq-dmx-hw-plugin.ko,qca_cld3_wlan.ko
+kthread_stop	expected=0x0ba71e35	reference=0x1b07a82e	modules=2	mpq-dmx-hw-plugin.ko,qca_cld3_wlan.ko
+msm_bus_cl_get_pdata	expected=0x5cf085ab	reference=0x0f3d1144	modules=2	msm_11ad_proxy.ko,tspp.ko
+mutex_trylock	expected=0x9de5df27	reference=0x95c28306	modules=2	audio_native.ko,qca_cld3_wlan.ko
+napi_complete_done	expected=0x0b408ebd	reference=0xf908d4d8	modules=2	qca_cld3_wlan.ko,wil6210.ko
+napi_disable	expected=0x7d08fb8e	reference=0xc6e4369a	modules=2	qca_cld3_wlan.ko,wil6210.ko
+napi_gro_receive	expected=0xfca751ea	reference=0xb10684e6	modules=2	qca_cld3_wlan.ko,wil6210.ko
+napi_schedule_prep	expected=0x721458ea	reference=0x88aa6577	modules=2	qca_cld3_wlan.ko,wil6210.ko
+netif_carrier_off	expected=0xa5a6c950	reference=0xf963554b	modules=2	qca_cld3_wlan.ko,wil6210.ko
+netif_carrier_on	expected=0x199a6fea	reference=0xd8fca998	modules=2	qca_cld3_wlan.ko,wil6210.ko
+netif_napi_add	expected=0xd112f1d1	reference=0x0489d112	modules=2	qca_cld3_wlan.ko,wil6210.ko
+netif_napi_del	expected=0x929fa805	reference=0xecf198c3	modules=2	qca_cld3_wlan.ko,wil6210.ko
+netif_rx_ni	expected=0x9b0a974b	reference=0xec9983e1	modules=2	qca_cld3_wlan.ko,wil6210.ko
+netif_tx_stop_all_queues	expected=0x7d3fbf46	reference=0x446a9584	modules=2	qca_cld3_wlan.ko,wil6210.ko
+netif_tx_wake_queue	expected=0xe1996c93	reference=0xa6e0cf82	modules=2	qca_cld3_wlan.ko,wil6210.ko
+of_count_phandle_with_args	expected=0x934bfc94	reference=0xcea7552a	modules=2	audio_machine_msmnile.ko,audio_wcd9xxx.ko
+of_device_is_compatible	expected=0x89e6cf1f	reference=0xa5673b9e	modules=2	audio_wcd_core.ko,rdbg.ko
+of_get_next_child	expected=0xf8d4e3d3	reference=0x535ba5c7	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+of_get_parent	expected=0xd7117c2a	reference=0x32bf181f	modules=2	audio_hdmi.ko,audio_platform.ko
+of_property_match_string	expected=0xb6d02d41	reference=0x6432e969	modules=2	audio_machine_msmnile.ko,msm_11ad_proxy.ko
+of_property_read_u64	expected=0xceff56ea	reference=0x05ea913c	modules=2	audio_q6.ko,audio_swr.ko
+param_ops_bool	expected=0x86f6c276	reference=0xbf4de4ed	modules=2	qca_cld3_wlan.ko,wil6210.ko
+param_ops_byte	expected=0x32353ded	reference=0x0b8e1b76	modules=2	qca_cld3_wlan.ko,wil6210.ko
+param_ops_charp	expected=0x652c4626	reference=0x02c8b7cc	modules=2	audio_tfa9894.ko,qca_cld3_wlan.ko
+param_ops_uint	expected=0xf2842456	reference=0xcb3f02cd	modules=2	qca_cld3_wlan.ko,wil6210.ko
+pci_disable_device	expected=0x79773651	reference=0x4a46f3ad	modules=2	msm_11ad_proxy.ko,wil6210.ko
+pci_enable_device	expected=0x408a56af	reference=0x8dcb673b	modules=2	msm_11ad_proxy.ko,wil6210.ko
+pci_set_master	expected=0xc9bc9aaa	reference=0x626e94d3	modules=2	msm_11ad_proxy.ko,wil6210.ko
+pci_set_power_state	expected=0x2d3c6a53	reference=0xe968fbc3	modules=2	msm_11ad_proxy.ko,wil6210.ko
+platform_device_add	expected=0x693455d9	reference=0xc1419c3d	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+platform_device_add_data	expected=0x5c79aa5c	reference=0x834164e4	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+platform_device_alloc	expected=0xabfcee45	reference=0x8345f1b4	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+platform_device_put	expected=0x95a7c965	reference=0x70885e75	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+platform_device_unregister	expected=0xf97f2996	reference=0xef1362ab	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+platform_get_irq_byname	expected=0x8e74667e	reference=0xd767c651	modules=2	audio_wcd_core.ko,tspp.ko
+platform_get_resource_byname	expected=0x26ae9bef	reference=0xe3c246e8	modules=2	audio_q6.ko,tspp.ko
+pm_relax	expected=0xf1ed5097	reference=0x1521f94c	modules=2	audio_native.ko,audio_wcd_core.ko
+pm_runtime_enable	expected=0x2fef99e2	reference=0x908c4e45	modules=2	audio_swr_ctrl.ko,tspp.ko
+pm_runtime_set_autosuspend_delay	expected=0x9d518011	reference=0x72944b98	modules=2	audio_swr_ctrl.ko,wil6210.ko
+pm_stay_awake	expected=0xdf6ef8c5	reference=0x45a1c3c3	modules=2	audio_native.ko,audio_wcd_core.ko
+proc_create_data	expected=0x6dddf8b0	reference=0xb7bde4a9	modules=2	audio_max98937.ko,qca_cld3_wlan.ko
+pskb_expand_head	expected=0x2eb1e8e0	reference=0x9fa75da3	modules=2	qca_cld3_wlan.ko,wil6210.ko
+regcache_cache_only	expected=0xa99feaa7	reference=0x50965e69	modules=2	audio_wcd_core.ko,audio_wsa881x.ko
+regcache_sync_region	expected=0x6441c7af	reference=0xcc23b8d8	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+register_netdevice	expected=0x6f13a566	reference=0x2c8c5a70	modules=2	qca_cld3_wlan.ko,wil6210.ko
+regmap_reinit_cache	expected=0xdc2d5922	reference=0x4af3a54a	modules=2	audio_max98937.ko,audio_wcd_core.ko
+remove_proc_entry	expected=0x1b34a530	reference=0xb17319c5	modules=2	audio_max98937.ko,qca_cld3_wlan.ko
+simple_open	expected=0x88fe0a16	reference=0x6a1e61d7	modules=2	audio_max98937.ko,audio_q6.ko
+skb_copy	expected=0xc526673f	reference=0xdd8ad130	modules=2	qca_cld3_wlan.ko,wil6210.ko
+skb_pull	expected=0x273ff1c2	reference=0x59970f46	modules=2	qca_cld3_wlan.ko,wil6210.ko
+skb_push	expected=0xcac156be	reference=0x92afe209	modules=2	qca_cld3_wlan.ko,wil6210.ko
+skb_put	expected=0xf06065f7	reference=0x0cc44df2	modules=2	qca_cld3_wlan.ko,wil6210.ko
+skb_trim	expected=0x39a468d1	reference=0xb1ab7baf	modules=2	qca_cld3_wlan.ko,wil6210.ko
+slim_connect_sink	expected=0xf37d3823	reference=0x94e2bd61	modules=2	audio_platform.ko,audio_wcd_core.ko
+slim_control_ch	expected=0xdee84c17	reference=0xc48f0d55	modules=2	audio_platform.ko,audio_wcd_core.ko
+slim_dealloc_ch	expected=0x62a7e4b1	reference=0x0713841a	modules=2	audio_platform.ko,audio_wcd_core.ko
+slim_define_ch	expected=0x5706bd94	reference=0x5b80a18d	modules=2	audio_platform.ko,audio_wcd_core.ko
+slim_query_ch	expected=0xeeb7ccb6	reference=0x30e9a071	modules=2	audio_platform.ko,audio_wcd_core.ko
+snd_hwdep_new	expected=0xc3060bbb	reference=0xf81f24fe	modules=2	audio_platform.ko,audio_wcd9xxx.ko
+snd_soc_add_platform_controls	expected=0x5e1585b8	reference=0xc6d51256	modules=2	audio_platform.ko,audio_q6.ko
+snd_soc_card_change_online_state	expected=0x1a1553e2	reference=0x5db5f2b6	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_dapm_disable_pin	expected=0xc378ea66	reference=0x9d61a2ef	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_dapm_enable_pin	expected=0xc13e0217	reference=0x05948254	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_dapm_force_enable_pin	expected=0xda485240	reference=0x9b050345	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_dapm_get_enum_double	expected=0x9955b514	reference=0x2f5d79da	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_dapm_put_enum_double	expected=0xcd793ce1	reference=0xd2f2038a	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_get_enum_double	expected=0xcb671418	reference=0x0fb30f01	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_get_volsw	expected=0xd4519cab	reference=0x2338e65e	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_get_volsw_sx	expected=0x6ad7c2d3	reference=0x480dd7d5	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_info_volsw_sx	expected=0x06889433	reference=0x67bfde00	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_put_enum_double	expected=0xd1cff591	reference=0x32ffe445	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_put_volsw	expected=0xd22d4b0c	reference=0xdac98d7b	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+snd_soc_put_volsw_sx	expected=0x212ae7ff	reference=0x3a3823c1	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+soc_find_component	expected=0xf8288355	reference=0x64a658f8	modules=2	audio_extend.ko,audio_machine_msmnile.ko
+spi_add_device	expected=0x06156202	reference=0x5c446c7f	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+spi_alloc_device	expected=0x71db4b98	reference=0x7a276315	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+spi_busnum_to_master	expected=0x7dc24dd4	reference=0x82e2936c	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+spi_unregister_device	expected=0xba210c4d	reference=0x81afcfde	modules=2	audio_wcd934x.ko,audio_wcd9360.ko
+srcu_init_notifier_head	expected=0x84772900	reference=0xaabc8de4	modules=2	audio_q6_notifier.ko,audio_q6_pdr.ko
+srcu_notifier_call_chain	expected=0x74dd8b21	reference=0x5ffa07fa	modules=2	audio_q6_notifier.ko,audio_q6_pdr.ko
+srcu_notifier_chain_register	expected=0x2470207f	reference=0x2a9d90d2	modules=2	audio_q6_notifier.ko,audio_q6_pdr.ko
+srcu_notifier_chain_unregister	expected=0x0f6abce1	reference=0x3ce6c333	modules=2	audio_q6_notifier.ko,audio_q6_pdr.ko
+unregister_netdevice_queue	expected=0x4efe24ab	reference=0xbcca8d40	modules=2	qca_cld3_wlan.ko,wil6210.ko
+unregister_rpmsg_driver	expected=0x798ec2de	reference=0xab29421e	modules=2	audio_apr.ko,audio_wglink.ko
+wake_up_process	expected=0x7049536a	reference=0x96c9fb4a	modules=2	mpq-dmx-hw-plugin.ko,qca_cld3_wlan.ko
+wiphy_free	expected=0x713cf2c7	reference=0x49f1059e	modules=2	qca_cld3_wlan.ko,wil6210.ko
+wiphy_new_nm	expected=0xe101d372	reference=0x2f2ff3ee	modules=2	qca_cld3_wlan.ko,wil6210.ko
+wiphy_register	expected=0x011252e4	reference=0x218ea139	modules=2	qca_cld3_wlan.ko,wil6210.ko
+wiphy_unregister	expected=0xf3fc919b	reference=0x8b44a5e4	modules=2	qca_cld3_wlan.ko,wil6210.ko
+__icnss_register_driver	expected=0x03dc04ea	reference=0x2a5db278	modules=1	qca_cld3_wlan.ko
+__irq_domain_add	expected=0x96b73243	reference=0x9ba4633f	modules=1	audio_wcd_core.ko
+__netlink_kernel_create	expected=0x43e931e0	reference=0xff88cd8b	modules=1	qca_cld3_wlan.ko
+__nlmsg_put	expected=0x3242f1d6	reference=0xe55f3209	modules=1	qca_cld3_wlan.ko
+__pci_register_driver	expected=0x2fd8e2f8	reference=0x28d79b41	modules=1	wil6210.ko
+__pskb_pull_tail	expected=0xb2acd55e	reference=0xdd43e5ee	modules=1	qca_cld3_wlan.ko
+__put_task_struct	expected=0xea03ebb7	reference=0x67e5e1ec	modules=1	qca_cld3_wlan.ko
+__regmap_init	expected=0x9c9c44bb	reference=0xaa097bf2	modules=1	audio_swr.ko
+__spi_register_driver	expected=0xf2957c04	reference=0x08cf0937	modules=1	audio_wcd_spi.ko
+bus_register	expected=0x9d061b6f	reference=0x8b1f76e0	modules=1	audio_swr.ko
+bus_unregister	expected=0xe21ba9fe	reference=0xc62a6006	modules=1	audio_swr.ko
+cfg80211_ap_stopped	expected=0x8a983b1b	reference=0x67a2423e	modules=1	qca_cld3_wlan.ko
+cfg80211_ch_switch_notify	expected=0x37e5de74	reference=0x640fc75d	modules=1	qca_cld3_wlan.ko
+cfg80211_check_combinations	expected=0x6038296d	reference=0xde54c274	modules=1	wil6210.ko
+cfg80211_cqm_pktloss_notify	expected=0x5a86a403	reference=0xc28bfea9	modules=1	wil6210.ko
+cfg80211_external_auth_request	expected=0xf35dbdb8	reference=0x6a89d80c	modules=1	qca_cld3_wlan.ko
+cfg80211_get_drvinfo	expected=0x0d90bf41	reference=0xacc2e8c1	modules=1	wil6210.ko
+cfg80211_gtk_rekey_notify	expected=0xd3cbe632	reference=0xc0818983	modules=1	qca_cld3_wlan.ko
+cfg80211_michael_mic_failure	expected=0xc08acd64	reference=0x555f6a5e	modules=1	qca_cld3_wlan.ko
+cfg80211_pmksa_candidate_notify	expected=0x468ded97	reference=0xe93ee274	modules=1	qca_cld3_wlan.ko
+cfg80211_probe_status	expected=0x7f907a83	reference=0x2a0568c6	modules=1	wil6210.ko
+cfg80211_ref_bss	expected=0xbe232633	reference=0xc1aeefe0	modules=1	wil6210.ko
+cfg80211_rx_unprot_mlme_mgmt	expected=0x6a9ef7b2	reference=0x0dce05bd	modules=1	qca_cld3_wlan.ko
+cfg80211_tdls_oper_request	expected=0x7b3c29e1	reference=0xc0c4a334	modules=1	qca_cld3_wlan.ko
+cfg80211_unlink_bss	expected=0x9d823168	reference=0x1b32cd19	modules=1	qca_cld3_wlan.ko
+cfg80211_unregister_wdev	expected=0x394636e8	reference=0x3632e391	modules=1	wil6210.ko
+cfg80211_update_owe_info_event	expected=0x557d9ecb	reference=0x1523c3e6	modules=1	qca_cld3_wlan.ko
+cld80211_get_genl_family	expected=0x129f15af	reference=0xcacdf695	modules=1	qca_cld3_wlan.ko
+clk_hw_get_num_parents	expected=0x4329785d	reference=0xc473d356	modules=1	audio_wcd9xxx.ko
+cnss_utils_get_wlan_derived_mac_address	expected=0xa6dddee6	reference=0xbbfe1488	modules=1	qca_cld3_wlan.ko
+cnss_utils_get_wlan_mac_address	expected=0xebf3cf76	reference=0xa00ff34e	modules=1	qca_cld3_wlan.ko
+cnss_utils_get_wlan_unsafe_channel	expected=0x96379a3f	reference=0x29d6a58d	modules=1	qca_cld3_wlan.ko
+cnss_utils_increment_driver_load_cnt	expected=0x3a96c57a	reference=0x9c2bf48c	modules=1	qca_cld3_wlan.ko
+cnss_utils_set_wlan_unsafe_channel	expected=0x8d7b2108	reference=0xbb36dda3	modules=1	qca_cld3_wlan.ko
+cnss_utils_wlan_get_dfs_nol	expected=0xdb003d9c	reference=0xb432aa39	modules=1	qca_cld3_wlan.ko
+cnss_utils_wlan_set_dfs_nol	expected=0xe5d7fc46	reference=0xd4da3c64	modules=1	qca_cld3_wlan.ko
+component_bind_all	expected=0x68901623	reference=0x19def179	modules=1	audio_wcd9xxx.ko
+component_master_add_with_match	expected=0xaec172b2	reference=0x484d304a	modules=1	audio_wcd9xxx.ko
+component_master_del	expected=0x94bbde9a	reference=0x51533991	modules=1	audio_wcd9xxx.ko
+component_match_add_release	expected=0x024123dd	reference=0x744aeb5e	modules=1	audio_wcd9xxx.ko
+component_unbind_all	expected=0xf5d1bb87	reference=0x7bd2ca80	modules=1	audio_wcd9xxx.ko
+crypto_aead_setauthsize	expected=0xa9dd0c76	reference=0x4be9d839	modules=1	qca_cld3_wlan.ko
+crypto_aead_setkey	expected=0x920144d8	reference=0xe33b7b91	modules=1	qca_cld3_wlan.ko
+crypto_alloc_aead	expected=0xae45f135	reference=0xe5efb632	modules=1	qca_cld3_wlan.ko
+crypto_alloc_base	expected=0x6f123b99	reference=0x3363536f	modules=1	qca_cld3_wlan.ko
+crypto_alloc_shash	expected=0x3a71902a	reference=0x27f2d140	modules=1	qca_cld3_wlan.ko
+crypto_alloc_skcipher	expected=0xc60f7b2f	reference=0xd15c37a8	modules=1	qca_cld3_wlan.ko
+crypto_destroy_tfm	expected=0x4b2bfb0e	reference=0xab42aa38	modules=1	qca_cld3_wlan.ko
+crypto_shash_final	expected=0x24b268ba	reference=0xffe1ed24	modules=1	qca_cld3_wlan.ko
+crypto_shash_setkey	expected=0xfcd80408	reference=0x80e69567	modules=1	qca_cld3_wlan.ko
+crypto_shash_update	expected=0x9de84612	reference=0x41dab707	modules=1	qca_cld3_wlan.ko
+default_llseek	expected=0x5d63b61f	reference=0x672a51ea	modules=1	audio_max98937.ko
+dev_alloc_name	expected=0xdc9ef221	reference=0xb04b7908	modules=1	qca_cld3_wlan.ko
+dev_coredumpv	expected=0x4d2c5b46	reference=0xf7346c58	modules=1	wil6210.ko
+dev_queue_xmit	expected=0x3995548d	reference=0x7354c2bc	modules=1	wil6210.ko
+device_create_bin_file	expected=0x151b663e	reference=0x6ea1babc	modules=1	audio_tfa9894.ko
+device_create_file	expected=0x843a4b55	reference=0xcdcc003e	modules=1	qca_cld3_wlan.ko
+device_for_each_child	expected=0xb604ae9a	reference=0x964fcfae	modules=1	audio_swr.ko
+device_register	expected=0x7650031c	reference=0xecf31661	modules=1	audio_swr.ko
+device_remove_bin_file	expected=0x3d299c98	reference=0xcb9492e3	modules=1	audio_tfa9894.ko
+device_remove_file	expected=0xecf5bd60	reference=0x3b23fd6e	modules=1	qca_cld3_wlan.ko
+device_unregister	expected=0xc8503d78	reference=0x2c031b69	modules=1	audio_swr.ko
+devm_clk_get	expected=0xdfb1f8fb	reference=0xd4f092cc	modules=1	msm_11ad_proxy.ko
+devm_clk_put	expected=0x1738ce4b	reference=0xbcde6669	modules=1	msm_11ad_proxy.ko
+devm_clk_register	expected=0x2cb5bd49	reference=0x81a627b3	modules=1	audio_wcd9xxx.ko
+devm_gpio_free	expected=0x80a7212d	reference=0x5e8e97aa	modules=1	audio_tfa9894.ko
+devm_gpio_request_one	expected=0xe2b8f11d	reference=0x52c403d5	modules=1	audio_tfa9894.ko
+devm_ioremap_nocache	expected=0x5a2b1ddf	reference=0x27a6c57d	modules=1	audio_q6.ko
+devm_iounmap	expected=0xf1e7a1ff	reference=0xfa288952	modules=1	audio_q6.ko
+devm_pinctrl_register	expected=0x2b7eed7a	reference=0xf5b0babb	modules=1	audio_pinctrl_wcd.ko
+devm_regulator_bulk_get	expected=0xd02d935a	reference=0xa62ee320	modules=1	audio_wcd_core.ko
+devm_regulator_get	expected=0xd799c3e0	reference=0x701cf7f9	modules=1	msm_11ad_proxy.ko
+devm_regulator_get_optional	expected=0x77d7df08	reference=0xa80492a6	modules=1	tspp.ko
+devm_regulator_put	expected=0x74c845d8	reference=0x0793c185	modules=1	msm_11ad_proxy.ko
+devm_request_threaded_irq	expected=0x2463b32e	reference=0x93e8d7c3	modules=1	audio_tfa9894.ko
+devm_snd_soc_register_card	expected=0x9eb62b42	reference=0xc3fb20b3	modules=1	audio_machine_msmnile.ko
+dma_buf_fd	expected=0x13ffa0d0	reference=0xfbae63d7	modules=1	audio_platform.ko
+dma_buf_get_flags	expected=0x06da4312	reference=0x7d149190	modules=1	audio_q6.ko
+dma_common_get_sgtable	expected=0x634479cd	reference=0x02adc919	modules=1	qca_cld3_wlan.ko
+dma_common_mmap	expected=0xb4888c35	reference=0xa8666aac	modules=1	audio_platform.ko
+dma_pool_create	expected=0x8633c491	reference=0xe01d6018	modules=1	tspp.ko
+down_read_trylock	expected=0x126fd3a1	reference=0x7f79ed55	modules=1	wil6210.ko
+down_write	expected=0xeacb5a91	reference=0x345b1886	modules=1	wil6210.ko
+down_write_trylock	expected=0x22cf70e0	reference=0xd9c451e3	modules=1	wil6210.ko
+driver_register	expected=0xa514bd1d	reference=0x35fbafe4	modules=1	audio_swr.ko
+dvb_dmx_init	expected=0xcd87009f	reference=0x4c8f1bb1	modules=1	mpq-dmx-hw-plugin.ko
+dvb_dmx_notify_section_event	expected=0x08875760	reference=0x6f2c8f6a	modules=1	mpq-dmx-hw-plugin.ko
+dvb_dmx_release	expected=0x8da0e258	reference=0x8630994b	modules=1	mpq-dmx-hw-plugin.ko
+dvb_dmx_swfilter_format	expected=0xaeba6262	reference=0x27959464	modules=1	mpq-dmx-hw-plugin.ko
+dvb_dmx_swfilter_packet	expected=0xcb2b79fe	reference=0x2e450ac7	modules=1	mpq-dmx-hw-plugin.ko
+dvb_dmxdev_init	expected=0x8e235f8c	reference=0x17d34cd1	modules=1	mpq-dmx-hw-plugin.ko
+dvb_dmxdev_release	expected=0xceef104d	reference=0xc0b8c766	modules=1	mpq-dmx-hw-plugin.ko
+dvb_register_adapter	expected=0xca44d32d	reference=0x75226fc0	modules=1	mpq-adapter.ko
+dvb_unregister_adapter	expected=0xe1d1158b	reference=0x776f1693	modules=1	mpq-adapter.ko
+dvbdmx_ts_reset_pes_state	expected=0x8f937b2d	reference=0x67b264d2	modules=1	mpq-dmx-hw-plugin.ko
+eth_mac_addr	expected=0x4206a028	reference=0x4820c3e3	modules=1	wil6210.ko
+eth_validate_addr	expected=0xa83e3306	reference=0x987ba7a4	modules=1	wil6210.ko
+event_triggers_call	expected=0xbffce961	reference=0x9ec4d65d	modules=1	wil6210.ko
+filp_close	expected=0xa03d9acb	reference=0x6742ce82	modules=1	audio_max98937.ko
+filp_open	expected=0xfc05e905	reference=0xea5b6891	modules=1	audio_max98937.ko
+fput	expected=0x2b8a5fe5	reference=0xb94d0679	modules=1	mpq-dmx-hw-plugin.ko
+freezing_slow_path	expected=0x022f8aea	reference=0x52457b17	modules=1	audio_platform.ko
+fsa4480_reg_notifier	expected=0x42cc1ffe	reference=0x45ee1283	modules=1	audio_mbhc.ko
+fsa4480_switch_event	expected=0x5c3fb261	reference=0xcdb97198	modules=1	audio_machine_msmnile.ko
+fsa4480_unreg_notifier	expected=0x28106d27	reference=0xab1f1619	modules=1	audio_mbhc.ko
+genlmsg_put	expected=0xd8d91ba9	reference=0xb97179b4	modules=1	qca_cld3_wlan.ko
+get_device	expected=0x4d47d937	reference=0x783ccc9d	modules=1	audio_swr.ko
+gpiochip_add_data	expected=0xec9b6e9e	reference=0x03cc2c92	modules=1	audio_pinctrl_wcd.ko
+gpiochip_add_pin_range	expected=0xba10ddde	reference=0x5918c215	modules=1	audio_pinctrl_wcd.ko
+gpiochip_get_data	expected=0x642f3bf3	reference=0xbf8ca070	modules=1	audio_pinctrl_wcd.ko
+gpiochip_remove	expected=0x05765ba9	reference=0xb26a15af	modules=1	audio_pinctrl_wcd.ko
+gpiod_get_raw_value_cansleep	expected=0x5f7c85f6	reference=0xb09f0fbe	modules=1	audio_wcd_core.ko
+gpiod_set_raw_value_cansleep	expected=0x2dd088cb	reference=0x5d103545	modules=1	audio_tfa9894.ko
+handle_edge_irq	expected=0x1a5a0cf9	reference=0x759ac6c5	modules=1	audio_wcd_core.ko
+handle_level_irq	expected=0x42bdf055	reference=0xc323d3f0	modules=1	audio_wcd_core.ko
+i2c_master_send	expected=0x3166c4d6	reference=0x61ed4320	modules=1	audio_tfa9894.ko
+icnss_athdiag_read	expected=0xf0bb4344	reference=0x18411167	modules=1	qca_cld3_wlan.ko
+icnss_athdiag_write	expected=0xc1d76c83	reference=0x372b5cdb	modules=1	qca_cld3_wlan.ko
+icnss_ce_free_irq	expected=0x5f6ede8f	reference=0xfc7531db	modules=1	qca_cld3_wlan.ko
+icnss_ce_request_irq	expected=0x00418bca	reference=0x59549f0f	modules=1	qca_cld3_wlan.ko
+icnss_disable_irq	expected=0x840a50c7	reference=0xcb3a8dde	modules=1	qca_cld3_wlan.ko
+icnss_enable_irq	expected=0xb2b673d7	reference=0x239fd841	modules=1	qca_cld3_wlan.ko
+icnss_get_ce_id	expected=0x4b4abc80	reference=0x10ac942f	modules=1	qca_cld3_wlan.ko
+icnss_get_irq	expected=0x97972899	reference=0x7cceb6b7	modules=1	qca_cld3_wlan.ko
+icnss_get_soc_info	expected=0xc77b60ac	reference=0x853de46a	modules=1	qca_cld3_wlan.ko
+icnss_is_qmi_disable	expected=0x952b7c29	reference=0x0ccf5230	modules=1	qca_cld3_wlan.ko
+icnss_power_off	expected=0x327abc6a	reference=0x4cff2b17	modules=1	qca_cld3_wlan.ko
+icnss_power_on	expected=0xdd54a89f	reference=0x3fee05bc	modules=1	qca_cld3_wlan.ko
+icnss_set_fw_log_mode	expected=0x5e4fb5e3	reference=0x4c98ad35	modules=1	qca_cld3_wlan.ko
+icnss_smmu_get_mapping	expected=0xa17ff669	reference=0xf6e12add	modules=1	qca_cld3_wlan.ko
+icnss_smmu_map	expected=0x8e1ad409	reference=0xfa4471d6	modules=1	qca_cld3_wlan.ko
+icnss_socinfo_get_serial_number	expected=0x0c443789	reference=0x43c6efae	modules=1	qca_cld3_wlan.ko
+icnss_trigger_recovery	expected=0x08e568be	reference=0x2815075e	modules=1	qca_cld3_wlan.ko
+icnss_unregister_driver	expected=0xd9d7d61f	reference=0xbb6a4ab8	modules=1	qca_cld3_wlan.ko
+icnss_wlan_disable	expected=0xec9566cc	reference=0xd97a4e5c	modules=1	qca_cld3_wlan.ko
+icnss_wlan_enable	expected=0x47affa03	reference=0x5edbf49f	modules=1	qca_cld3_wlan.ko
+init_net	expected=0x5d6f0a70	reference=0x640647ce	modules=1	qca_cld3_wlan.ko
+input_close_device	expected=0x1932ba84	reference=0x6886e81e	modules=1	audio_usf.ko
+input_open_device	expected=0x8f3c48f3	reference=0x5b4b0211	modules=1	audio_usf.ko
+input_register_handle	expected=0x4c3fe895	reference=0xbe3aaedb	modules=1	audio_usf.ko
+input_register_handler	expected=0x27132efe	reference=0x9e0d53e5	modules=1	audio_usf.ko
+input_set_abs_params	expected=0xab16f717	reference=0x9689d21e	modules=1	audio_usf.ko
+input_set_capability	expected=0x3df36365	reference=0xb72167cd	modules=1	audio_mbhc.ko
+input_unregister_handle	expected=0xfe64f6a3	reference=0xcd29b096	modules=1	audio_usf.ko
+input_unregister_handler	expected=0x83bc0006	reference=0x9ebe9130	modules=1	audio_usf.ko
+iommu_domain_get_attr	expected=0x59df145a	reference=0x40c057c7	modules=1	qca_cld3_wlan.ko
+iommu_iova_to_phys	expected=0x37bc2eee	reference=0x0e672eac	modules=1	qca_cld3_wlan.ko
+ipa_free_skb	expected=0x2dabbbc6	reference=0x5a0dafa8	modules=1	qca_cld3_wlan.ko
+ipa_setup_sys_pipe	expected=0x897c64b1	reference=0x01a54dfa	modules=1	qca_cld3_wlan.ko
+ipa_wdi_conn_pipes	expected=0xa6403cb1	reference=0x186efd8e	modules=1	qca_cld3_wlan.ko
+irq_domain_remove	expected=0x13a9cc69	reference=0x2f869c7a	modules=1	audio_wcd_core.ko
+irq_domain_simple_ops	expected=0x82c829f7	reference=0x7992cc86	modules=1	audio_wcd_core.ko
+irq_find_matching_fwspec	expected=0xa18f5264	reference=0x53ba5e92	modules=1	audio_wcd_core.ko
+irq_get_irq_data	expected=0xb862695d	reference=0x526457a8	modules=1	audio_wcd_core.ko
+irq_set_chip_and_handler_name	expected=0x64325f31	reference=0x1820f47d	modules=1	audio_wcd_core.ko
+irq_to_desc	expected=0x9fdd77c8	reference=0xa26e4bee	modules=1	msm_11ad_proxy.ko
+kfree_skb_partial	expected=0xbdbd69f4	reference=0xdb7ba4af	modules=1	wil6210.ko
+kmem_cache_alloc	expected=0xeb6538ad	reference=0xc47284e8	modules=1	audio_tfa9894.ko
+kmem_cache_create	expected=0xfff1f34b	reference=0x92272628	modules=1	audio_tfa9894.ko
+kmem_cache_destroy	expected=0xd3a8d382	reference=0x48bc9452	modules=1	audio_tfa9894.ko
+kmem_cache_free	expected=0x04193423	reference=0xacd41885	modules=1	audio_tfa9894.ko
+kobject_del	expected=0x0cfcf6bc	reference=0x8ba12a3c	modules=1	audio_adsp_loader.ko
+kset_create_and_add	expected=0x6f707a75	reference=0xc9dae8d9	modules=1	audio_q6.ko
+kset_unregister	expected=0x445670f8	reference=0xfa27beae	modules=1	audio_q6.ko
+mfd_add_devices	expected=0x964434e9	reference=0xcb52a77d	modules=1	audio_wcd_core.ko
+mfd_remove_devices	expected=0x3f148bc9	reference=0xbf66206d	modules=1	audio_wcd_core.ko
+mhi_device_get_sync	expected=0x7b051468	reference=0x2280462a	modules=1	audio_q6.ko
+mhi_device_put	expected=0x84da3859	reference=0xd605d2a4	modules=1	audio_q6.ko
+mhi_driver_register	expected=0x90b73f2d	reference=0xa6fff4fc	modules=1	audio_q6.ko
+mhi_driver_unregister	expected=0xfeff2454	reference=0xd26791e7	modules=1	audio_q6.ko
+module_put	expected=0xcb411aa1	reference=0x10c7474e	modules=1	qca_cld3_wlan.ko
+msm_ext_disp_register_audio_codec	expected=0x87c223a6	reference=0x767ef224	modules=1	audio_hdmi.ko
+msm_ext_disp_select_audio_codec	expected=0x69638bc2	reference=0xc7547377	modules=1	audio_hdmi.ko
+napi_gro_flush	expected=0x61c8dba8	reference=0x7cd32206	modules=1	qca_cld3_wlan.ko
+netdev_err	expected=0x6547d571	reference=0xe952244c	modules=1	wil6210.ko
+netdev_info	expected=0x37403012	reference=0x77e258d8	modules=1	wil6210.ko
+netdev_update_features	expected=0x7650229e	reference=0x83353e05	modules=1	qca_cld3_wlan.ko
+netif_receive_skb	expected=0xfada464b	reference=0x1d4d0073	modules=1	qca_cld3_wlan.ko
+netif_rx	expected=0x1d83d967	reference=0x44cc0251	modules=1	qca_cld3_wlan.ko
+netlink_broadcast	expected=0x4f25a0d7	reference=0x0a803033	modules=1	qca_cld3_wlan.ko
+netlink_kernel_release	expected=0x06b88474	reference=0x0cc96346	modules=1	qca_cld3_wlan.ko
+of_alias_get_id	expected=0xc9fc72d9	reference=0x8d17c47d	modules=1	audio_swr.ko
+of_clk_add_provider	expected=0x7ce9661a	reference=0x00020240	modules=1	audio_wcd9xxx.ko
+of_clk_src_onecell_get	expected=0x954bbbde	reference=0x806ab6f1	modules=1	audio_wcd9xxx.ko
+of_get_next_available_child	expected=0x75b82479	reference=0x39c26f84	modules=1	audio_swr.ko
+of_irq_find_parent	expected=0x205d766b	reference=0x4f3d5a32	modules=1	audio_wcd_core.ko
+of_irq_get_byname	expected=0x0305d13b	reference=0xd39a19d9	modules=1	rdbg.ko
+of_irq_to_resource	expected=0x18df0d9e	reference=0x7cfceeca	modules=1	audio_wcd_core.ko
+of_match_device	expected=0x22d2dcae	reference=0x524075b9	modules=1	audio_wcd_core.ko
+of_match_node	expected=0x0c619237	reference=0xccdfcfb4	modules=1	audio_machine_msmnile.ko
+of_parse_phandle_with_args	expected=0x8ca74ea8	reference=0x0aa1f6ff	modules=1	audio_q6.ko
+of_parse_phandle_with_fixed_args	expected=0xd23fe7e7	reference=0x8cc12067	modules=1	audio_wcd9xxx.ko
+of_property_count_elems_of_size	expected=0xe095520a	reference=0x13821411	modules=1	audio_max98937.ko
+of_property_read_variable_u16_array	expected=0xc2d818c1	reference=0x8573d20d	modules=1	audio_platform.ko
+param_array_ops	expected=0x18df3577	reference=0x7f3bc49d	modules=1	mpq-adapter.ko
+param_get_int	expected=0x858e0885	reference=0x5bb8272e	modules=1	qca_cld3_wlan.ko
+param_get_string	expected=0x6ec505a5	reference=0xb08d947a	modules=1	qca_cld3_wlan.ko
+param_get_uint	expected=0x73ed7233	reference=0x59f74051	modules=1	wil6210.ko
+param_get_ushort	expected=0x81ee00ae	reference=0x23135615	modules=1	wil6210.ko
+param_ops_short	expected=0xe249f68a	reference=0x85ad0760	modules=1	mpq-adapter.ko
+param_ops_ushort	expected=0x242b9c5f	reference=0x649373c8	modules=1	wil6210.ko
+param_set_copystring	expected=0xa2014896	reference=0x4c8b00a3	modules=1	qca_cld3_wlan.ko
+param_set_int	expected=0xa16470a5	reference=0x90e2de68	modules=1	qca_cld3_wlan.ko
+param_set_uint	expected=0xd78c06dd	reference=0xce628f77	modules=1	wil6210.ko
+pci_alloc_irq_vectors_affinity	expected=0x1534384c	reference=0x03c1579c	modules=1	wil6210.ko
+pci_clear_master	expected=0x5aa6059d	reference=0x92d92928	modules=1	wil6210.ko
+pci_dev_put	expected=0x00ab1662	reference=0x34c6b39c	modules=1	msm_11ad_proxy.ko
+pci_disable_msi	expected=0x558882c1	reference=0x5a4fde85	modules=1	wil6210.ko
+pci_enable_msi	expected=0x66954632	reference=0xf9d7594f	modules=1	wil6210.ko
+pci_free_irq_vectors	expected=0x78375fe5	reference=0x53c5bcf5	modules=1	wil6210.ko
+pci_get_device	expected=0x88c52ee2	reference=0x1da136ef	modules=1	msm_11ad_proxy.ko
+pci_ioremap_bar	expected=0x85194d9d	reference=0x24250dd2	modules=1	wil6210.ko
+pci_load_saved_state	expected=0xf6d5652e	reference=0x2eaeedb7	modules=1	msm_11ad_proxy.ko
+pci_read_config_dword	expected=0x25589025	reference=0x8d618642	modules=1	qca_cld3_wlan.ko
+pci_read_config_word	expected=0xcb1b2cbd	reference=0x509ce2f7	modules=1	qca_cld3_wlan.ko
+pci_release_region	expected=0xe2bf0237	reference=0x96ae6216	modules=1	wil6210.ko
+pci_request_region	expected=0xb3e5ea35	reference=0xf48d7c96	modules=1	wil6210.ko
+pci_restore_state	expected=0x4750e618	reference=0xed2eeb12	modules=1	msm_11ad_proxy.ko
+pci_save_state	expected=0xb7004426	reference=0x9433c2fb	modules=1	msm_11ad_proxy.ko
+pci_store_saved_state	expected=0x6f4c1a98	reference=0x62a6e572	modules=1	msm_11ad_proxy.ko
+pci_unregister_driver	expected=0xf6e0493c	reference=0x718a8f7a	modules=1	wil6210.ko
+pci_write_config_dword	expected=0x1786940b	reference=0xde31fb11	modules=1	qca_cld3_wlan.ko
+pci_write_config_word	expected=0x41eccdf3	reference=0xe94fb896	modules=1	qca_cld3_wlan.ko
+perf_trace_run_bpf_submit	expected=0x0dede21e	reference=0x9878467e	modules=1	wil6210.ko
+pinconf_generic_dt_node_to_map	expected=0x54180cf5	reference=0x43fc8122	modules=1	audio_pinctrl_wcd.ko
+pinctrl_dev_get_drvdata	expected=0x14c65703	reference=0x4101ebeb	modules=1	audio_pinctrl_wcd.ko
+pinctrl_utils_free_map	expected=0xc1097af6	reference=0xd5e1a25e	modules=1	audio_pinctrl_wcd.ko
+platform_device_register	expected=0x2805dc6f	reference=0xe7baefb6	modules=1	audio_machine_msmnile.ko
+pm_generic_resume	expected=0x8c878279	reference=0xf7576775	modules=1	audio_swr.ko
+pm_generic_suspend	expected=0x73f07485	reference=0x1b80619a	modules=1	audio_swr.ko
+pm_runtime_allow	expected=0xe133d728	reference=0x30fdd3ca	modules=1	wil6210.ko
+pm_runtime_forbid	expected=0x0109dfba	reference=0x7d51535a	modules=1	wil6210.ko
+power_supply_get_by_name	expected=0x75c515a7	reference=0xc46ce8c6	modules=1	audio_mbhc.ko
+power_supply_get_property	expected=0x997197a6	reference=0x9b22218c	modules=1	audio_mbhc.ko
+power_supply_put	expected=0xc6c9293e	reference=0xb6c313c4	modules=1	audio_mbhc.ko
+power_supply_set_property	expected=0x2bcefae3	reference=0x0325d018	modules=1	audio_mbhc.ko
+proc_create	expected=0x9350e721	reference=0x6a425057	modules=1	audio_q6.ko
+qcom_smem_state_get	expected=0x22e3c05e	reference=0x823563b7	modules=1	rdbg.ko
+regcache_cache_bypass	expected=0x291fb432	reference=0xd073dc45	modules=1	audio_wcd934x.ko
+register_netdev	expected=0x343d60ec	reference=0x06ee47a0	modules=1	qca_cld3_wlan.ko
+regulator_get_mode	expected=0xc0701590	reference=0x60422347	modules=1	audio_wcd934x.ko
+regulator_put	expected=0xa2bdc7d5	reference=0x85914932	modules=1	audio_wcd934x.ko
+regulatory_set_wiphy_regd	expected=0xb5b05297	reference=0x10831dfa	modules=1	qca_cld3_wlan.ko
+remap_pfn_range	expected=0xd07061ef	reference=0x6119bd4a	modules=1	audio_q6.ko
+request_firmware_nowait	expected=0x22395cae	reference=0xec1f462d	modules=1	audio_tfa9894.ko
+rpmsg_send	expected=0x3af22f88	reference=0x30b9a398	modules=1	audio_wglink.ko
+rpmsg_trysend	expected=0x5844d1bf	reference=0xfabbbe01	modules=1	audio_apr.ko
+save_stack_trace_tsk	expected=0x9f5f6dcf	reference=0xe8773e55	modules=1	qca_cld3_wlan.ko
+seq_lseek	expected=0x7b16e9f6	reference=0x7bffa654	modules=1	qca_cld3_wlan.ko
+seq_read	expected=0xac64b201	reference=0x5ee58bee	modules=1	qca_cld3_wlan.ko
+seq_vprintf	expected=0x80ba5940	reference=0x5b36597b	modules=1	qca_cld3_wlan.ko
+set_cpus_allowed_ptr	expected=0x072bee67	reference=0x22071204	modules=1	qca_cld3_wlan.ko
+set_user_nice	expected=0x3f670a11	reference=0xb255d5e6	modules=1	qca_cld3_wlan.ko
+single_open	expected=0xe4fcaf34	reference=0xb5e4cb88	modules=1	qca_cld3_wlan.ko
+single_release	expected=0x494124c0	reference=0xd85bc506	modules=1	qca_cld3_wlan.ko
+skb_clone	expected=0xa7b29489	reference=0xebb351a5	modules=1	qca_cld3_wlan.ko
+skb_complete_wifi_ack	expected=0xc0273810	reference=0xfd058ebf	modules=1	wil6210.ko
+skb_copy_bits	expected=0x21c81888	reference=0xdcf6928e	modules=1	qca_cld3_wlan.ko
+skb_queue_purge	expected=0xd87b74b5	reference=0xdf6c9154	modules=1	qca_cld3_wlan.ko
+skb_try_coalesce	expected=0x779b651f	reference=0x30c81269	modules=1	wil6210.ko
+slim_add_device	expected=0x6098d74a	reference=0xa83fadd9	modules=1	audio_wcd_core.ko
+slim_alloc_mgrports	expected=0xf418f76c	reference=0x0e95e6bc	modules=1	audio_platform.ko
+slim_bulk_msg_write	expected=0xb56cf023	reference=0xec866679	modules=1	audio_wcd_core.ko
+slim_change_val_element	expected=0xf4c8ca87	reference=0xe0c12fd8	modules=1	audio_wcd_core.ko
+slim_config_mgrports	expected=0xad9b9498	reference=0xb3dd01ee	modules=1	audio_platform.ko
+slim_connect_src	expected=0xa68fbc53	reference=0xb846ee30	modules=1	audio_wcd_core.ko
+slim_dealloc_mgrports	expected=0xe009402b	reference=0x2916d0a2	modules=1	audio_platform.ko
+slim_disconnect_ports	expected=0xb22494ba	reference=0xc0f22f19	modules=1	audio_wcd_core.ko
+slim_get_device_id	expected=0x46f1401f	reference=0xdd7468c9	modules=1	audio_wcd_core.ko
+slim_get_logical_addr	expected=0xe7ce39c2	reference=0xb3ae7ba6	modules=1	audio_wcd_core.ko
+slim_remove_device	expected=0xabc610a4	reference=0x2bbc2e2d	modules=1	audio_wcd_core.ko
+slim_request_val_element	expected=0x8d963721	reference=0x28e9d144	modules=1	audio_wcd_core.ko
+slim_reservemsg_bw	expected=0x04c1cf46	reference=0x27406cd9	modules=1	audio_wcd_core.ko
+slim_user_msg	expected=0x85608aa3	reference=0x55884e73	modules=1	audio_wcd_core.ko
+snd_card_is_online_state	expected=0xb486018e	reference=0x69ab5b46	modules=1	audio_machine_msmnile.ko
+snd_ctl_add	expected=0xb92d3a44	reference=0x317577c2	modules=1	audio_platform.ko
+snd_ctl_boolean_mono_info	expected=0xa8f16a07	reference=0x7a06c934	modules=1	audio_platform.ko
+snd_ctl_new1	expected=0xe91d4bf8	reference=0x7a81119c	modules=1	audio_platform.ko
+snd_ctl_notify	expected=0x629eee4d	reference=0x2515296a	modules=1	audio_platform.ko
+snd_ctl_remove	expected=0x779a3b36	reference=0x5b7b9297	modules=1	audio_platform.ko
+snd_jack_set_key	expected=0x7283947f	reference=0x44b50b12	modules=1	audio_mbhc.ko
+snd_pcm_add_chmap_ctls	expected=0xb33f8339	reference=0xbe789992	modules=1	audio_platform.ko
+snd_pcm_add_usr_ctls	expected=0x9d73c764	reference=0x7919cf92	modules=1	audio_platform.ko
+snd_pcm_add_volume_ctls	expected=0x9ebafcb3	reference=0xa605fbd3	modules=1	audio_platform.ko
+snd_pcm_hw_constraint_integer	expected=0x69238600	reference=0x37b280bd	modules=1	audio_platform.ko
+snd_pcm_hw_constraint_list	expected=0x0dbf9b7b	reference=0x55bc2005	modules=1	audio_platform.ko
+snd_pcm_hw_constraint_minmax	expected=0x13235c92	reference=0xb18a1623	modules=1	audio_platform.ko
+snd_pcm_hw_constraint_step	expected=0x2bf608dd	reference=0x53eced27	modules=1	audio_platform.ko
+snd_pcm_lib_ioctl	expected=0x53cc1334	reference=0xc15531af	modules=1	audio_platform.ko
+snd_pcm_period_elapsed	expected=0xc7caeec8	reference=0x3033bedb	modules=1	audio_platform.ko
+snd_pcm_stop	expected=0x57c317ec	reference=0xc2a78584	modules=1	audio_platform.ko
+snd_soc_bytes_info_ext	expected=0xb876bae8	reference=0xd9a571e5	modules=1	audio_q6.ko
+snd_soc_bytes_tlv_callback	expected=0x2a8ff905	reference=0x5745fe7c	modules=1	audio_platform.ko
+snd_soc_card_get_kcontrol	expected=0x171a7014	reference=0xeda70e68	modules=1	audio_platform.ko
+snd_soc_card_jack_new	expected=0xc99c628e	reference=0xfc53c811	modules=1	audio_mbhc.ko
+snd_soc_component_update_bits	expected=0xd6811a4d	reference=0x0463cdba	modules=1	audio_mbhc.ko
+snd_soc_dai_get_channel_map	expected=0x26bf8ec2	reference=0x8c0e4f4d	modules=1	audio_machine_msmnile.ko
+snd_soc_dai_set_channel_map	expected=0xcb815fa0	reference=0x491b40ad	modules=1	audio_machine_msmnile.ko
+snd_soc_dai_set_fmt	expected=0xb366426a	reference=0xd9b4a4f1	modules=1	audio_machine_msmnile.ko
+snd_soc_dai_set_sysclk	expected=0xf8af1305	reference=0x9a03e792	modules=1	audio_machine_msmnile.ko
+snd_soc_dai_set_tdm_slot	expected=0xc023a826	reference=0x81d32bdd	modules=1	audio_machine_msmnile.ko
+snd_soc_dapm_kcontrol_dapm	expected=0x115f8cc2	reference=0x4cb0a8d5	modules=1	audio_wcd934x.ko
+snd_soc_dapm_new_widgets	expected=0x7b579ee7	reference=0xb6a0f9a5	modules=1	audio_platform.ko
+snd_soc_get_pcm_runtime	expected=0xa0528a12	reference=0x92ebb379	modules=1	audio_machine_msmnile.ko
+snd_soc_jack_report	expected=0xc3b53477	reference=0x9d03779c	modules=1	audio_mbhc.ko
+snd_soc_new_compress	expected=0x0753be12	reference=0xf87ca158	modules=1	audio_platform.ko
+snd_soc_of_parse_audio_routing	expected=0x8e96a12f	reference=0x9c644a1f	modules=1	audio_machine_msmnile.ko
+snd_soc_of_parse_card_name	expected=0x69115140	reference=0xc3bc28ec	modules=1	audio_machine_msmnile.ko
+snd_soc_pm_ops	expected=0xc6a96ec1	reference=0xca6aaa72	modules=1	audio_machine_msmnile.ko
+snd_soc_register_component	expected=0xa7c59d1a	reference=0xac6cff0a	modules=1	audio_platform.ko
+snd_soc_register_platform	expected=0xb33115df	reference=0xef6c94f3	modules=1	audio_platform.ko
+snd_soc_unregister_component	expected=0xd7626665	reference=0x8d8ec7e7	modules=1	audio_platform.ko
+snd_soc_unregister_platform	expected=0xd7b14b6a	reference=0x4fc9878e	modules=1	audio_platform.ko
+snd_timer_interrupt	expected=0xd0649302	reference=0x6d872a96	modules=1	audio_platform.ko
+soc_find_component_locked	expected=0x2e34ceaf	reference=0x89f1c002	modules=1	audio_machine_msmnile.ko
+spi_sync	expected=0xca090120	reference=0xfa8bfdf5	modules=1	audio_wcd_spi.ko
+sps_alloc_endpoint	expected=0xbade3d49	reference=0xa0950540	modules=1	tspp.ko
+sps_connect	expected=0x07d31eba	reference=0x703911f4	modules=1	tspp.ko
+sps_disconnect	expected=0x039fe13c	reference=0xcc192493	modules=1	tspp.ko
+sps_free_endpoint	expected=0x084de47b	reference=0x034b020c	modules=1	tspp.ko
+sps_get_config	expected=0xc2e8283a	reference=0x8400d91d	modules=1	tspp.ko
+sps_get_iovec	expected=0xa88d476e	reference=0xa1c7ed94	modules=1	tspp.ko
+sps_register_event	expected=0xf0566a44	reference=0x3c7fb5f7	modules=1	tspp.ko
+sps_transfer_one	expected=0x5b6c27e3	reference=0x27a1161f	modules=1	tspp.ko
+subsys_register	expected=0xdb974070	reference=0x9ff9205d	modules=1	msm_11ad_proxy.ko
+thermal_zone_device_register	expected=0x683ef95e	reference=0x42a1d070	modules=1	audio_wsa881x.ko
+thermal_zone_device_unregister	expected=0x54a57788	reference=0xc0a5e1e1	modules=1	audio_wsa881x.ko
+trace_define_field	expected=0x11303b97	reference=0x5778b2a5	modules=1	wil6210.ko
+trace_event_buffer_commit	expected=0x235b137b	reference=0xda3db20d	modules=1	wil6210.ko
+trace_event_buffer_reserve	expected=0x1712f980	reference=0xf52091b8	modules=1	wil6210.ko
+trace_event_ignore_this_pid	expected=0xe2aede36	reference=0x4ebfa5fd	modules=1	wil6210.ko
+trace_event_raw_init	expected=0x52d4ac3c	reference=0xa3366047	modules=1	wil6210.ko
+trace_event_reg	expected=0x048c39fd	reference=0x49bb0392	modules=1	wil6210.ko
+trace_raw_output_prep	expected=0xefbce1d0	reference=0x79e0fb92	modules=1	wil6210.ko
+try_module_get	expected=0xe9c0fb16	reference=0x6c4e8f5e	modules=1	qca_cld3_wlan.ko
+unregister_netdev	expected=0xda69fc4e	reference=0x6366a8f0	modules=1	qca_cld3_wlan.ko
+up_read	expected=0x08a821fb	reference=0x6c9ed17c	modules=1	wil6210.ko
+up_write	expected=0xebf56939	reference=0xed554e4f	modules=1	wil6210.ko
+vfs_read	expected=0x5f592812	reference=0xd471f6f4	modules=1	audio_max98937.ko
+vfs_write	expected=0x66073ca0	reference=0x570f6b86	modules=1	audio_max98937.ko
+vmalloc_to_page	expected=0x58b372e4	reference=0xc8c3dbf5	modules=1	qca_cld3_wlan.ko
+wireless_send_event	expected=0xbabb7b04	reference=0xe1a761c2	modules=1	qca_cld3_wlan.ko
+
+Vendor-set CRC mismatches
+-------------------------
+none
+
+Unresolved imports
+------------------
+none
+
+Per-module summary
+------------------
+audio_adsp_loader.ko	name=adsp_loader_dlkm	imports=28	core_match=12	core_mismatch=16	sha256=8d85c0ca5d70ac45b0a11453670dc62a819470358fc8b0a33706e466c1a1f8fe
+audio_apr.ko	name=apr_dlkm	imports=45	core_match=28	core_mismatch=17	sha256=ee713449d49510fea2dc4ee53d353217e7860a590e48949e4d6e1f0df939be98
+audio_extend.ko	name=audio_extend_dlkm	imports=13	core_match=2	core_mismatch=11	sha256=d79fba7a058d17bc0a3447628b699c90391d5b5294a012cff00ddd84d9cf9163
+audio_hdmi.ko	name=hdmi_dlkm	imports=25	core_match=8	core_mismatch=17	sha256=1159329b7da4c47250b686f6e330b3e44aa92aefa634e0c9f679a8628bcef7c8
+audio_machine_msmnile.ko	name=machine_dlkm	imports=71	core_match=22	core_mismatch=49	sha256=5664b9b939d51eb2b9cd7edecaf4023c47c4469b93941dd1a1b963a57b9e8bfe
+audio_max98937.ko	name=max98937_dlkm	imports=65	core_match=20	core_mismatch=45	sha256=611443f4537adc93432a3cd44117fc2fbee65f24fdbb2a800dee9a2966c0d9cf
+audio_mbhc.ko	name=mbhc_dlkm	imports=56	core_match=29	core_mismatch=25	sha256=d532b84bf4c781d99ea6c71958557a925d6315398265d44e677b391546a353e8
+audio_native.ko	name=native_dlkm	imports=37	core_match=25	core_mismatch=12	sha256=ad7c188f3d2045e7ebbc07810ce07939c40828417daae7716ad05d9ddcf2cbed
+audio_pinctrl_wcd.ko	name=pinctrl_wcd_dlkm	imports=22	core_match=4	core_mismatch=18	sha256=dc861d85079d860c13785eaafa27782d22e3f777c583a2401424c2f64063eac9
+audio_platform.ko	name=platform_dlkm	imports=126	core_match=51	core_mismatch=75	sha256=f7ecdacf5ca3fe5b796a5e951eee814ec3ad9e2dbf48a1a26614776b7ba6c901
+audio_q6.ko	name=q6_dlkm	imports=160	core_match=69	core_mismatch=90	sha256=840bbf8911eb92f41f0bd39b1657a35276c192db6fe2d8fbd3acc539826e1327
+audio_q6_notifier.ko	name=q6_notifier_dlkm	imports=26	core_match=12	core_mismatch=10	sha256=f363185aeb9c8d2977f438bd45d3c721e3cbf518a6315761a3637d39952262df
+audio_q6_pdr.ko	name=q6_pdr_dlkm	imports=10	core_match=5	core_mismatch=5	sha256=44c5aec70e1163280711981784da001f1a5d2124a73bc22ec6b388ad046bb4f3
+audio_stub.ko	name=stub_dlkm	imports=5	core_match=0	core_mismatch=5	sha256=ead4327a5b9acdf2cfe1206eae561b369885d385f3cd6f9bc5235c8ca8c47ecc
+audio_swr.ko	name=swr_dlkm	imports=41	core_match=15	core_mismatch=26	sha256=fdb9ac39087dce2337e7e153b5c2f2cc6aeda3a043e25067c0408742c52c32c5
+audio_swr_ctrl.ko	name=swr_ctrl_dlkm	imports=45	core_match=18	core_mismatch=18	sha256=5eadde573c8147295eccd118a1e6b1b85cdd86bc100e1c4d0fa55549bf00990d
+audio_tfa9894.ko	name=tfa9894_dlkm	imports=82	core_match=40	core_mismatch=42	sha256=40bc26bc136b072ae2732d93698a89dc708ee9729bdf66f88f0949f48ec7350a
+audio_usf.ko	name=usf_dlkm	imports=53	core_match=24	core_mismatch=25	sha256=7fabc8f3b0f015dfd8b9f60ac107c8a456d041f9363609839789f0d7e1846806
+audio_wcd934x.ko	name=wcd934x_dlkm	imports=151	core_match=56	core_mismatch=95	sha256=8017c2fec33610a904afbb5540025633ea3780080a793e0af9fdf36fbb064e5b
+audio_wcd9360.ko	name=wcd9360_dlkm	imports=132	core_match=53	core_mismatch=79	sha256=35971d84d3149371b0617aef83fb48fd4966c0ec53c92c86f39a44d938d9455c
+audio_wcd9xxx.ko	name=wcd9xxx_dlkm	imports=77	core_match=34	core_mismatch=42	sha256=481ada553d91ad83fd258b8632a1afd7bcaccdcbf92050c123d69fccd02b9747
+audio_wcd_core.ko	name=wcd_core_dlkm	imports=120	core_match=40	core_mismatch=80	sha256=3d2ad1e4aaa55b931efa902a0412467dfb1099e85c77704f7896bfa0a11b8f59
+audio_wcd_spi.ko	name=wcd_spi_dlkm	imports=37	core_match=19	core_mismatch=18	sha256=58000d0238cfc0667cc9aaef171a9d51fa36e3cfc233e2edfa2b960d34a2039b
+audio_wglink.ko	name=wglink_dlkm	imports=53	core_match=34	core_mismatch=19	sha256=5da8b0b30945f01fb43e9daff215adce71126e3c7538218cfee3a437f0f13e36
+audio_wsa881x.ko	name=wsa881x_dlkm	imports=55	core_match=19	core_mismatch=33	sha256=c1eec48a7808020d6ce93fa41e3befafdca8b441925a6acc4f8442795a1860c2
+mpq-adapter.ko	name=mpq_adapter	imports=29	core_match=21	core_mismatch=8	sha256=e503819a889dc6dc2e74db3c9ea063db3b953752efb2812ed5625656a0aaaca8
+mpq-dmx-hw-plugin.ko	name=mpq_dmx_hw_plugin	imports=97	core_match=31	core_mismatch=34	sha256=e60c097ffd7c3e4a0b6262b54ed08516dbf555781267ca2b04ca8e638b1f03ec
+msm_11ad_proxy.ko	name=msm_11ad_proxy	imports=86	core_match=42	core_mismatch=44	sha256=7c3fd687857f2827d3cadbf545d11bcb2981582249818c0ed8f5df32b62d2800
+qca_cld3_wlan.ko	name=wlan	imports=415	core_match=218	core_mismatch=197	sha256=1be33b25c6607307b0c1bbf2282bef4c828450dceb49e04e219182cb293cf2be
+rdbg.ko	name=rdbg	imports=34	core_match=17	core_mismatch=17	sha256=c14104d399d0846da4ec3fd8f7c15c20e21f29b505bd40fd6785b407a7f8fb09
+tspp.ko	name=tspp	imports=97	core_match=45	core_mismatch=52	sha256=f8ef67f80651bdd39fd3012af8fb424f04c540aeb24a554be325571f8aae12f3
+wil6210.ko	name=wil6210	imports=235	core_match=103	core_mismatch=129	sha256=82196932df8167a159da0d05f4c42cfd5608016a0e2d72716325b32412922907
