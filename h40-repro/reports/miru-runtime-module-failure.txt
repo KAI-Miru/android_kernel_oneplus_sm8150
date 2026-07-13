@@ -1,0 +1,53 @@
+Miru first-boot runtime module failure
+======================================
+Date: 2026-07-13
+
+Captured inputs
+===============
+stock H.40 runtime:
+  SHA-256: 81678f8afe72a6ab91a42418b61ca7a24c2ccc00ace5ee158bf92b2d5a9ddd78
+
+Miru runtime:
+  SHA-256: e4243f1b1493cfe61dab65883ba8b7d5e1e01fffb2135866b3407948dde7a67f
+
+Direct comparison
+=================
+Stock H.40:
+  release: 4.14.180-perf+
+  ALSA card: sm8150-tavil-snd-card
+  external modules loaded: 25
+  /dev/snd: control, PCM, compressed, and hw devices present
+
+First Miru candidate:
+  release: 4.14.180-miru+
+  ALSA cards: none
+  external modules loaded: 0
+  /dev/snd: timer only
+
+The Miru dmesg contains 22 consecutive early module-loader failures reading:
+
+  PKCS#7 signature not signed with a trusted key
+
+It later names one rejected module explicitly:
+
+  finit_module for "/vendor/lib/modules/qca_cld3_wlan.ko" failed:
+  Required key not available
+
+No version-magic mismatch, unknown-symbol error, or modversion disagreement is
+present in the capture. Module signature verification failed first, before the
+loader could test vermagic or symbol CRC compatibility.
+
+Conclusion
+==========
+The first Miru boot does not test whether the published core source implements
+the H.40 external-module ABI. The newly generated kernel certificate, enforced
+by CONFIG_MODULE_SIG_FORCE=y, rejected every stock external module. The changed
+4.14.180-miru+ release would have introduced a second gate if verification had
+continued. With the complete audio DLKM stack absent, the kernel could not
+register sm8150-tavil-snd-card; soundtrigger then failed with -ENODEV and
+system_server was eventually restarted by its watchdog.
+
+The controlled next candidate must use the stock 4.14.180-perf+ release, retain
+CONFIG_MODVERSIONS, and temporarily disable only CONFIG_MODULE_SIG_FORCE. That
+test will expose any real H.40 ABI mismatch as version-magic, symbol-version, or
+unknown-symbol errors instead of stopping at the unpublished signing key.
