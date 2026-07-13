@@ -1,0 +1,100 @@
+Miru v2 vendor-module CRC comparison result
+============================================
+
+Date: 2026-07-13
+Branch: h40-miru-module-compat-test
+
+Inputs
+------
+Vendor module archive:
+  v2-vendor-modules.tar
+  SHA-256: 7ab78ebe8a59d436725477b85fcd066f4ef20cf234e975af565e78d567b76397
+
+Miru v2 Module.symvers:
+  SHA-256: 80b740c67c9bd62c621b39a59e66e01a714dbbfb3258355ebc0cac8b466acf55
+
+The archive contains 32 ELF64 arm64 kernel modules plus modules.load,
+modules.dep, modules.alias, and modules.softdep. Every module reports:
+
+  4.14.180-perf+ SMP preempt mod_unload modversions aarch64
+
+Every module also contains this compiler comment:
+
+  Snapdragon LLVM ARM Compiler 10.0.7 for Android NDK
+
+Complete MODVERSIONS result
+---------------------------
+Module import records:             2,528
+Unique imported symbols:           1,019
+
+Core-kernel imports matching v2:   1,116 records / 348 unique symbols
+Core-kernel imports mismatching:   1,353 records / 614 unique symbols
+
+Vendor inter-module matches:          59 records / 57 unique symbols
+Vendor inter-module mismatches:        0
+Unresolved imports:                    0
+
+The vendor module set is therefore internally coherent. Its failure against
+Miru v2 is not a damaged module set, a bad modules.dep file, or one isolated
+module_layout CRC. It targets a substantially different core-kernel symbol ABI.
+
+Representative core mismatches
+------------------------------
+symbol                          vendor expects  Miru v2 exports
+module_layout                   0xcadd18c7      0xa9c6dadd
+mutex_unlock                    0xce2fe15b      0xd729fb9d
+__mutex_init                    0xc02184e5      0xfa779688
+mutex_lock                      0xe7aa25e2      0x7e27c140
+dev_err                         0x8d08525e      0x5ca14c1f
+kmalloc_caches                  0x55129316      0xd7bb3110
+kmem_cache_alloc_trace          0xc190bb34      0xb0d86db8
+__platform_driver_register      0x2872568f      0xb44de719
+platform_driver_unregister      0x9348095d      0x34ee4269
+devm_kmalloc                    0x384271e2      0x25360490
+
+Why bypassing MODVERSIONS is rejected
+-------------------------------------
+The mismatch spans module, mutex, device, allocator, OF, DMA, regulator,
+regmap, ALSA SoC, networking, firmware, input, PM, and other structures and
+interfaces. Globally accepting these CRCs would allow modules compiled with
+potentially incompatible structure layouts to execute in kernel context. A
+boot obtained that way would not establish compatibility and could corrupt
+memory before producing a useful diagnostic.
+
+New toolchain evidence
+----------------------
+The shipped H.40 kernel banner and all supplied vendor modules identify a
+Qualcomm Snapdragon LLVM 10.0.7 compiler. The Miru v2 build used AOSP
+clang-r377782c, which identifies itself as Android Clang 10.0.5. MODVERSIONS
+CRCs are generated from compiler-preprocessed type declarations, so the exact
+compiler frontend remains a plausible contributor and must be tested before
+attributing every CRC difference to missing C source.
+
+A public third-party mirror was located at:
+
+  sticpaper/Snapdragon-LLVM-ARM-Compiler-10.0.7-for-Android-NDK
+  commit: a16fec82a8deaf8f742ea54f8de98c021af200d4
+  bin/clang SHA-256:
+    453971166fa1b628df189e602f355cb2c58c12cd289515400ee6260c9a83459d
+
+The cloned binary contains the expected version strings and the repository
+contains Qualcomm release notes and notices, but the mirror is not an
+authoritative Qualcomm distribution and no authoritative checksum has been
+found. It has been inspected without execution.
+
+Next controlled test
+--------------------
+If use of that unverified mirror is accepted, first build only the generated
+configuration and Module.symvers with the same source and all other recorded
+inputs. Compare its 962 relevant core CRCs with the vendor expectations before
+producing another boot Image. A large CRC convergence would justify one clean
+v3 kernel build. No convergence would prove that the remaining incompatibility
+is source/configuration ABI drift rather than the 10.0.5 compiler substitution.
+
+The exhaustive symbol-by-symbol and per-module result is recorded in:
+
+  h40-repro/reports/miru-v2-vendor-module-crc-comparison.txt
+
+The reusable dependency-free comparison program is:
+
+  h40-repro/compare-module-crcs.py
