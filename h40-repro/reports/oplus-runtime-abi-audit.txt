@@ -1,0 +1,39 @@
+Runtime evidence
+================
+Captured OPlus-related /proc and /sys paths: 2574
+Captured input-file lines: 121
+Input devices: 12
+
+Source and rebuilt-image evidence
+=================================
+Interface/category            Representative implementation
+------------------            -----------------------------
+network sysctls               net/oplus_dhcp, net/oplus_nf_hooks,
+                              net/oplus_score, net/oplus_connectivity_sla,
+                              net/oplus_wificapcenter, vendor/oplus/kernel/network
+charging/VOOC                 drivers/power/oplus and vendor/oplus/kernel/charger
+devinfo                       drivers/soc/oplus/device_info/device_info.c
+project/version               vendor/oplus/kernel/system/oplus_project/qcom
+healthinfo                    vendor/oplus/kernel/oplus_performance/oplus_healthinfo
+secure common                 vendor/oplus/secure/common/bsp/drivers
+display sysfs                 drivers/gpu/drm/msm/oplus/oplus_display_private_api.c
+touchscreen/proc/input        vendor/oplus/kernel/touchpanel/oplus_touchscreen
+motor input                   drivers/misc/oplus_motor/oplus_motor.c
+tri-state key                 drivers/misc/tri_state_key/tri_state_key.c
+fingerprint                   vendor/oplus/secure/biometrics/fingerprints
+VL53L1 proximity              drivers/input/misc/vl53L1 and vl53L1_op
+elliptic proximity            vendor/qcom/opensource/audio-kernel/dsp/elliptic
+SM8150 Tavil sound inputs     vendor/qcom/opensource/audio-kernel/asoc/sm8150.c
+
+The rebuilt core Image contains representative strings for oplus_dhcp_hooks,
+oplus_dns_hook, oplus_nf_hooks, oplus_score, oplus_sla, oplus_wcc, devinfo,
+oppoVersion, oplusVersion, oplus_healthinfo, oplus_secure_common,
+oplus_display, touchpanel_kpd, STM VL53L1 proximity sensor,
+oplus,tri-state-key and motor.
+
+This confirms implementation/source and compilation presence for the key
+built-in interfaces. It does not prove every one of the 2574 runtime paths is
+created under identical hardware/runtime conditions. External audio interface
+presence is accounted by source and module mapping, not by the core Image.
+
+No phone was flashed or boot-tested.

@@ -1,0 +1,56 @@
+Stock structure
+===============
+boot.img DTB field: 25 concatenated FDTs, size 12168729
+recovery_dtbo field: Android DT table with 15 entries, size 5165936
+attached dtbo.img: the same 5165936-byte table followed by padding/AVB metadata
+
+Published base-tree result
+==========================
+The production base invocation must use:
+  CONFIG_BUILD_ARM64_DT_OVERLAY=y DTC_FLAGS='-@ -H epapr'
+
+Without -H epapr, the old compiler emits both phandle and linux,phandle and the
+blobs differ. With the recorded flags, all 20 available production base DTBs
+are byte-for-byte identical to stock:
+  18821: sm8150, sm8150-v2, sm8150p, sm8150p-v2
+  18857: sm8150, sm8150-v2, sm8150p, sm8150p-v2
+  18865: sm8150, sm8150-v2, sm8150p, sm8150p-v2
+  19801: sm8150, sm8150-v2, sm8150p, sm8150p-v2
+  19863: sm8150, sm8150-v2, sm8150p, sm8150p-v2
+
+Exact stock boot-DTB matches: 20/25.
+
+Missing boot trees
+==================
+Stock boot DTBs 17-20 are the four base variants for project 19861/18961. No
+corresponding source exists in either official repo.
+
+Stock boot DTB 25 is a 173-byte generated RTIC FDT:
+  qcom,rtic-id = <1>
+  MP_DATA = <...>
+AndroidKernel.mk identifies RTIC_MPGEN as the producer. That tool/input is not
+published.
+
+Recovery overlays
+=================
+The 15 stock entries map to:
+  18821: 1
+  18857: 1
+  18865: 3
+  19801: 2
+  19863: 3
+  missing 19861/18961 family: 5
+
+Source corresponding to ten entries is published. The bundled DTC
+1.4.4-g756ffc4f fails at the first included top-level &label overlay before the
+root definition. A trial mechanical syntax expansion was rejected from the
+final patch set: it produced a larger, nonidentical tree and could not safely
+merge references to nodes defined earlier inside the overlay. A compatible
+Android-platform DTC is required.
+
+Conclusion
+==========
+GM1911 project 18821 base DTBs are demonstrably published and exactly
+reproducible. The complete production DTB/DTBO payload is not, because five
+project overlays/four bases and the RTIC generation input have no published
+source/input.

@@ -1,0 +1,46 @@
+Expected/reconstructed Android workspace
+========================================
+
+android/                                  modules/vendor repository root
+  .git/
+  vendor/
+    oplus/                                OPlus built-in and external source
+    qcom/opensource/audio-kernel/         Qualcomm audio DLKMs
+    qcom/opensource/wlan/                 Qualcomm qcacld WLAN DLKM
+  kernel/
+    msm-4.14/                             main kernel repository
+      .git/
+      arch/arm64/boot/dts/                all published device-tree source
+      h40-repro/                          audit/build tooling added here
+
+The main-tree OPlus symlinks use relative paths that resolve from
+android/kernel/msm-4.14 into android/vendor/oplus. Cloning the two repositories
+as unrelated siblings breaks those links; nesting them as shown preserves the
+layout expected by AndroidKernel.mk and the vendor audio symlinks.
+
+Built-in versus module components
+=================================
+OPlus touchscreen, fingerprint, motor, charging, display, healthinfo, project
+information, security, networking and other selected vendor code enters the
+main kernel through its checked-in symlinks and Kbuild files.
+
+The stock runtime archive lists 25 loaded external module families:
+  - Qualcomm qcacld WLAN: 1
+  - OPlus audio extension: 1
+  - Qualcomm audio DLKMs: 23
+
+The tested core build also produced 13 configured in-tree .ko files. Those are
+not evidence of a stock-module omission: the runtime capture only lists modules
+loaded at capture time.
+
+Device trees
+============
+Production base DTBs are built from main-repository project directories 18821,
+18857, 18865, 19801 and 19863. The modules/vendor repository has zero DTS/DTSI
+files. Project 19861/18961 is absent from both repositories.
+
+External-module limitation
+==========================
+WLAN and OPlus audio_extend_dlkm were successfully built directly with Kbuild.
+The full Qualcomm audio Android pipeline depends on the unpublished
+AndroidKernelModule.mk helper and its Module.symvers staging layout.

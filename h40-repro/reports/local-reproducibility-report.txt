@@ -1,0 +1,22 @@
+Two clean builds were performed from the fixed source with the same toolchains,
+stock-derived config, fixed test signing key and deterministic metadata.
+
+Compared artifact hashes: 27
+Differing artifacts: 0
+
+The identical set included:
+  Image, Image.gz, Image.gz-dtb, vmlinux, System.map, Module.symvers,
+  .config, module metadata, 13 in-tree modules and five normal DTBs.
+
+Deterministic metadata:
+  KBUILD_BUILD_USER=root
+  KBUILD_BUILD_HOST=dg02-pool03-kvm154
+  KBUILD_BUILD_VERSION=1
+  KBUILD_BUILD_TIMESTAMP=Thu Mar 23 18:39:49 CST 2023
+  SOURCE_DATE_EPOCH=1679567989
+
+The fixed private test key was used only to remove local randomness and must
+not be committed or treated as the OnePlus production key. Deterministic local
+reproduction does not imply equality with stock: the two local Images shared
+SHA-256 0e6f933221308a6ae2c6e1bf02550c8cc198254e4c547b7c14d8f0847204d728,
+which differs from the stock Image hash.

@@ -1,0 +1,33 @@
+stock_total_lines=145631
+stock_kernel_lines=120302
+stock_module_lines=25329
+stock_nonzero_addresses=0
+rebuilt_system_map_lines=119776
+missing_occurrences=939
+missing_unique_type_name_pairs=926
+extra_occurrences=413
+extra_unique_type_name_pairs=411
+unique_common_symbols=114299
+minimum_symbols_out_of_order=61
+unique_name_type_mismatches=10
+missing_occurrences_present_same_pair_in_vmlinux_nm=483
+missing_occurrences_name_present_in_vmlinux_nm=493
+missing_occurrences_absent_from_vmlinux_nm=446
+missing_category_oppo_named=293
+missing_category_other=107
+missing_category_runtime_bpf_jit=61
+missing_category_vl53l1_mksysmap_filter=478
+
+Interpretation
+==============
+All stock /proc/kallsyms addresses were zero, so absolute address and relative
+offset comparison was impossible. Of the 939 missing System.map occurrences,
+483 exist with the same type/name in vmlinux but were filtered by mksysmap.
+Runtime BPF JIT symbols explain 61 more; 478 are dominated by the VL53L1
+driver/mksysmap filtering. The 293 OPPO-named missing symbols are paired with a
+large OPLUS-named extra set and provide direct evidence of the source rename.
+
+Among 114,299 unique common symbols, only 61 fall outside the longest common
+order subsequence. This is strong structural similarity, but it is not symbol
+identity and cannot justify verdict B while 446 missing occurrences are absent
+from vmlinux and the compiler/source inputs differ.

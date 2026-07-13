@@ -1,0 +1,84 @@
+OnePlus GM1911_11_H.40 source-completeness audit
+Date: 2026-07-13
+
+Official inputs
+===============
+Main kernel:
+  https://github.com/OnePlusOSS/android_kernel_oneplus_sm8150
+  branch: oneplus/sm8150_s_12.1_op7pro
+  commit: 180d787684d5965be5145bcfbf666ed427b4ea18
+  upstream subject: Synchronize code for oneplus GM1911_11_H.40
+
+Modules/vendor source:
+  https://github.com/OnePlusOSS/android_kernel_modules_and_devicetree_oneplus_sm8150
+  branch: oneplus/sm8150_s_12.1_op7pro
+  commit: 993439581252cf872cd3c184ed3eb9e0f286f4c3
+  upstream subject: Synchronize code for oneplus GM1911_11_H.33
+
+File inventory
+==============
+Main-tree symlinks: 104
+Vendor-tree symlinks: 5
+Main binary-only *.o_shipped/*.o/*.a/*.ko files: 0
+Vendor binary-only *.o_shipped/*.o/*.a/*.ko files: 0
+Vendor-repository DTS/DTSI files: 0
+
+The second repository supplies the OPlus vendor source, Qualcomm WLAN, and
+Qualcomm/OPlus external audio source expected by the main tree. It does not
+supply any device-tree source despite its repository name; the published H.40
+device trees are under arch/arm64/boot/dts in the main repository.
+
+Broken/self-referential symlinks
+================================
+1. vendor/oplus/kernel/oplus_performance/sched_assist/sched_assist
+   -> sched_assist
+2. vendor/oplus/secure/biometrics/fingerprints/bsp/uff/driver/oplus_fp_drivers
+   -> oplus_fp_drivers
+
+The first is also visible through the main-tree include/linux/sched_assist and
+kernel/sched_assist aliases. These loops are real upstream content, not damage
+from extraction. Neither loop blocked the tested H.40 configuration build.
+
+Valid cross-repository audio symlinks
+=====================================
+vendor/qcom/opensource/audio-kernel/include/soc/internal.h
+  -> kernel/msm-4.14/drivers/base/regmap/internal.h
+vendor/qcom/opensource/audio-kernel/soc/core.h
+  -> kernel/msm-4.14/drivers/pinctrl/core.h
+vendor/qcom/opensource/audio-kernel/soc/pinctrl-utils.h
+  -> kernel/msm-4.14/drivers/pinctrl/pinctrl-utils.h
+
+Missing build inputs or source
+==============================
+1. The Android DLKM helper referenced by every external WLAN/audio Android.mk
+   is absent from both official repositories:
+     device/qcom/common/dlkm/AndroidKernelModule.mk
+     build/dlkm/AndroidKernelModule.mk
+   Direct Kbuild builds remain possible; the original Android packaging and
+   dependency-staging pipeline cannot be reproduced from these two repos alone.
+
+2. Stock boot DTBs 17-20 and five stock recovery-DTBO entries identify the
+   19861/18961 project family. No 19861 or 18961 DTS/DTSI or build target exists
+   in either official repository.
+
+3. The last stock boot DTB is a 173-byte RTIC tree containing qcom,rtic-id and
+   MP_DATA. AndroidKernel.mk says it is generated only when RTIC_MPGEN is
+   supplied. The MPGen executable and its production inputs are not published.
+
+4. The bundled DTC reports version 1.4.4-g756ffc4f and cannot parse the
+   published production overlay composition as preprocessed by this tree. A
+   compatible Android-platform DTC is therefore another external build input.
+
+5. The production compiler identifies itself only as “clang version 10.0.7
+   for Android NDK”. The exact binary/revision and production module-signing
+   key/certificate are not published with the source.
+
+No additional missing C source was encountered in the active core-kernel build.
+
+Conclusion
+==========
+The main kernel is buildable once the legacy configuration rename break is
+repaired, and every loaded stock external module family has corresponding
+source across the two repositories. The complete shipped H.40 boot/dtbo output
+is nevertheless not reproducible: specific 19861/18961 device-tree source and
+the RTIC generation input are absent. This directly supports verdict D.

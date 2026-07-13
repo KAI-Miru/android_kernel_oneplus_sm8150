@@ -1,0 +1,68 @@
+Stock banner
+============
+Linux version 4.14.180-perf+ (root@dg02-pool03-kvm154) (clang version 10.0.7 for Android NDK, GNU ld (binutils-2.27-bd24d23f) 2.27.0.20170315) #1 SMP PREEMPT Thu Mar 23 18:39:49 CST 2023
+
+Classification
+==============
+The source expects the older hybrid Android kernel arrangement:
+  REAL_CC=<clang>
+  CLANG_TRIPLE=aarch64-linux-gnu-
+  CROSS_COMPILE=aarch64-linux-android-
+  CROSS_COMPILE_ARM32=arm-linux-androideabi-
+  Clang frontend with -no-integrated-as
+  GNU assembler/binutils and GNU ld
+
+It is not a modern LLVM=1 LLVM_IAS=1 build. The stock banner explicitly calls
+the compiler an Android-NDK Clang 10.0.7 but contains no revision. The exact
+binary was not found in public OnePlus/AOSP inputs.
+
+Closest tested official AOSP toolchains
+=======================================
+AOSP Clang repository commit:
+  252aba16f513a857bc923172f67b0e55e23de35f
+Sparse path:
+  clang-r377782c
+Banner:
+  Android (6305083 based on r377782c) clang version 10.0.5
+clang SHA-256:
+  6618ecab73b79a70b79263d2f477f669e564d81ca802112d2e5f93c74c6b22ca
+
+AArch64 GCC/binutils repository commit:
+  606f80986096476912e04e5c2913685a8f2c3b65
+GNU ld banner:
+  GNU ld (binutils-2.27-bd24d23f) 2.27.0.20170315
+ld SHA-256:
+  2a663de4ce3d702fe3f2a0de48cac366be676f850c2f5732d9cc2e4acb9335e2
+assembler SHA-256:
+  9565b7fc362bdf87032d44eea1087f25dcdd3a6655b39caa6f934640791f15d8
+
+ARM32 GCC/binutils repository commit:
+  b0c6a654327ca8796bed1e61dffcf523d04dceaa
+assembler SHA-256:
+  2f78058a8549bc5c099dbea16d9f3dc571e072b1ade906c3539e419787b502dd
+
+AOSP build-tools repository commit:
+  7322db1e1e4715fe217a27f721613e6be8438676
+py2-cmd: Python 2.7.15+
+py2-cmd SHA-256:
+  5630a485d7c597d137fa462626213007e8865cf549677e1f727d131695ec830c
+gavinhoward-bc: 2.6.1
+bc SHA-256:
+  e42381e7111b3e9336895284a95b0a404479a45cfcd787e6431021d277ccbe44
+toybox: 0.8.3-android
+toybox SHA-256:
+  c337f911c36e317e1fbbd9c3baa1cdb8457f591051f8f871eaa4964136f0dec5
+
+Host used for the verified builds
+=================================
+Ubuntu 24.04.3 LTS, x86_64
+Linux 6.12.47
+GNU bash 5.2.21
+GNU Make 4.3
+git 2.51.1
+host GCC 13.3.0
+9 available CPUs
+
+Host bc, cpio and Python 2 were absent. h40-repro/host-tools provides narrow
+wrappers around the recorded AOSP build-tools; GNU tar is wrapped only for the
+deterministic kernel-header archive.

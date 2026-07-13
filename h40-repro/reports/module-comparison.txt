@@ -1,0 +1,57 @@
+Stock loaded module families: 25
+================================
+
+Family                  Official source path                                  Status
+------                  --------------------                                  ------
+wlan                    vendor/qcom/opensource/wlan/qcacld-3.0                 built directly
+audio_extend_dlkm       vendor/oplus/kernel_4.14/audio/driver                  built directly
+tfa9894_dlkm            audio-kernel/asoc/codecs/tfa9894                       source accounted
+machine_dlkm            audio-kernel/asoc                                      source accounted
+wcd934x_dlkm            audio-kernel/asoc/codecs/wcd934x                       source accounted
+mbhc_dlkm               audio-kernel/asoc/codecs                               source accounted
+wcd9360_dlkm            audio-kernel/asoc/codecs/wcd9360                       source accounted
+swr_ctrl_dlkm           audio-kernel/soc                                      source accounted
+wcd9xxx_dlkm            audio-kernel/asoc/codecs                               source accounted
+wsa881x_dlkm            audio-kernel/asoc/codecs                               source accounted
+wcd_core_dlkm           audio-kernel/asoc/codecs                               source accounted
+stub_dlkm               audio-kernel/asoc/codecs                               source accounted
+wcd_spi_dlkm            audio-kernel/asoc/codecs                               source accounted
+hdmi_dlkm               audio-kernel/asoc/codecs                               source accounted
+swr_dlkm                audio-kernel/soc                                      source accounted
+pinctrl_wcd_dlkm        audio-kernel/soc                                      source accounted
+usf_dlkm                audio-kernel/dsp                                      source accounted
+native_dlkm             audio-kernel/dsp/codecs                               source accounted
+platform_dlkm           audio-kernel/asoc                                     source accounted
+q6_dlkm                 audio-kernel/dsp                                      source accounted
+adsp_loader_dlkm        audio-kernel/dsp                                      source accounted
+apr_dlkm                audio-kernel/ipc                                      source accounted
+q6_notifier_dlkm        audio-kernel/dsp                                      source accounted
+q6_pdr_dlkm             audio-kernel/dsp                                      source accounted
+wglink_dlkm             audio-kernel/ipc                                      source accounted
+
+All 25 loaded families therefore have official source across the two repos.
+
+Direct-build evidence
+=====================
+wlan.ko:
+  SHA-256 00f30a10ed56d3add28e781c7739fcdf2a8d5e800d593d168f484541200bec55
+  unstripped size 316153840
+  undefined imports 414
+  global defined symbols 8660
+  vermagic 4.14.180-perf+ SMP preempt mod_unload modversions aarch64
+
+audio_extend_dlkm.ko:
+  SHA-256 51cd16b9de0ca475fea6a18cdd3178445608a5798be9482e8d82e99152fc7712
+  unstripped size 278104
+  undefined imports 12
+  global defined symbols 6
+  vermagic 4.14.180-perf+ SMP preempt mod_unload modversions aarch64
+
+The full Qualcomm audio set was not presented as successfully packaged. Its
+Android.mk files require the missing AndroidKernelModule.mk helper and an
+Android-product OUT/obj Module.symvers dependency graph, including cyclic
+audio symbol staging. Replacing that pipeline with warning-suppressed modpost
+would weaken the audit and was not done.
+
+The stock .ko files were not supplied, so stock module CRC/signature equality
+cannot be checked. Matching vermagic alone is not proof of module ABI identity.

@@ -1,0 +1,65 @@
+First unmodified build failures
+===============================
+1. Missing host dependency:
+     /bin/sh: 1: bc: not found
+   This is an environment failure and is handled by the AOSP bc wrapper.
+
+2. First real source/configuration failure after host repair:
+     include/linux/blkdev.h:769: error: no member named 'in_flight'
+   This is caused by the published OPPO-to-OPLUS Kconfig rename mismatch and is
+   fixed by the dedicated legacy-alias commit.
+
+Successful core build
+=====================
+Targets:
+  Image Image.gz Image.gz-dtb dtbs modules
+
+Main outputs include:
+  vmlinux, System.map, .config, Module.symvers
+  Image, Image.gz, Image.gz-dtb
+  13 configured in-tree .ko files
+  modules.order and modules.builtin
+
+All in-tree modules report:
+  vermagic=4.14.180-perf+ SMP preempt mod_unload modversions aarch64
+
+Stock boot image
+================
+boot.img SHA-256:
+  991cf738f5a6dc874c6261fa073c89182e61935a9493dc27347699c4d0a68792
+boot image size: 100663296
+header version: 2
+page size: 4096
+kernel payload offset: 4096
+kernel format: raw/uncompressed ARM64 Image
+appended kernel DTBs: 0
+boot DTB chain: 25 FDTs
+recovery DTBO table: 15 entries
+
+Stock raw Image:
+  size: 40142864
+  SHA-256: 78a2ec421a44e0b4c20d0132e25ce0e6d91b521929de0139cfff35e5c31f7b84
+
+Deterministic rebuild Image:
+  size: 40134672
+  SHA-256: 0e6f933221308a6ae2c6e1bf02550c8cc198254e4c547b7c14d8f0847204d728
+
+Result: DIFFERENT
+First differing byte: 18 (the ARM64 Image header size field is already
+different because the payload sizes differ).
+
+Stock banner:
+  Linux version 4.14.180-perf+ (root@dg02-pool03-kvm154) (clang version 10.0.7 for Android NDK, GNU ld (binutils-2.27-bd24d23f) 2.27.0.20170315) #1 SMP PREEMPT Thu Mar 23 18:39:49 CST 2023
+
+Rebuild banner:
+  Linux version 4.14.180-perf+ (root@dg02-pool03-kvm154) (Android (6305083 based on r377782c) clang version 10.0.5 (https://android.googlesource.com/toolchain/llvm-project 0cb1afdb060d6619a9837ab6866cf4adf2336416), GNU ld (binutils-2.27-bd24d23f) 2.27.0.20170315) #1 SMP PREEMPT Thu Mar 23 18:39:49 CST 2023
+
+Release, build user, host, build number, linker and timestamp match. The
+compiler identity does not.
+
+Boot compatibility
+==================
+The rebuild uses the same raw ARM64 Image format, 4.14.180-perf+ release and
+major production config features. It has not been flashed or device-tested.
+No boot-compatibility claim is made, especially because the complete shipped
+device-tree/DTBO set cannot be rebuilt from the published inputs.

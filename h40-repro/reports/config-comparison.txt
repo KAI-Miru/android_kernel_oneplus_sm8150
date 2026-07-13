@@ -1,0 +1,75 @@
+Stock configuration provenance
+==============================
+The config extracted from the attached stock boot Image with IKCONFIG has:
+  SHA-256 676588ad9178c0f1e5252c854245d1d0901f78d0c7130acdc1b8a36727f9a684
+
+After CRLF normalization, stock.config from the runtime archive was byte-for-
+byte identical to that embedded config. The checked-in reproduction input is:
+  h40-repro/config/GM1911_11_H.40.config
+
+Official defconfig versus stock
+===============================
+Total scripts/diffconfig entries: 77
+  official-only: 46
+  stock-only: 27
+  changed values: 4
+
+Meaningful changed values (official -> stock):
+  DEBUG_FS y -> n
+  MSM_IDLE_STATS y -> n
+  PAGE_EXTENSION y -> n
+  PAGE_OWNER y -> n
+
+The 27 stock-only entries are legacy OPPO_/OPLUS_OPPO_GPIO and
+TOUCHPANEL_ALGORITHM names. Ten are enabled and 17 are disabled. The official
+tree instead defines renamed OPLUS_ equivalents. Official-only entries also
+include subordinate debug/default values and four newer touchpanel defaults.
+
+Classification of the 77 entries
+================================
+Product-feature rename/default differences:
+  OPLUS_ARCH_FILE, OPLUS_COMMON_SOFT, OPLUS_CRITICALLOG,
+  OPLUS_DEVICE_IFNO, OPLUS_FG_IO_OPT, OPLUS_HANS, OPLUS_HEALTHINFO,
+  OPLUS_JANK_INFO, OPLUS_MEM_MONITOR, OPLUS_MOTOR, OPLUS_NFC,
+  OPLUS_OPLUS_GPIO, OPLUS_SM8150Q_CHARGER, TOUCHPANEL_CHIPONE,
+  TOUCHPANEL_NOVA_NT36523_NOFLASH, TOUCHPANEL_NT_PEN_SUPPORT,
+  TOUCHPANEL_SYNAPTICS_TD4160, and all 27 legacy stock symbols.
+
+Generated/subordinate defaults:
+  MSM_IDLE_STATS_BUCKET_COUNT, MSM_IDLE_STATS_BUCKET_SHIFT,
+  MSM_IDLE_STATS_FIRST_BUCKET, MSM_SUSPEND_STATS_FIRST_BUCKET,
+  PAGE_OWNER_ENABLE_DEFAULT, STACKDEPOT, STACK_HASH_ORDER_SHIFT.
+
+Debug/test/default options removed when their parent is disabled in stock:
+  BLK_DEBUG_FS, BT_DEBUGFS, CFG80211_DEBUGFS, CMA_DEBUGFS,
+  CORESIGHT_CPU_DEBUG, DEBUG_DMA_BUF_REF, GCOV_KERNEL,
+  GENERIC_IRQ_DEBUGFS, IPA_UT, IRQ_DOMAIN_DEBUG, L2TP_DEBUGFS, LKDTM,
+  MSM_REMOTEQDSS, QMP_DEBUGFS_CLIENT, QTI_RPM_STATS_LOG,
+  REGMAP_ALLOW_WRITE_DEBUGFS, SKY2_DEBUG, SW_SYNC, TEST_IRQ_REQUESTER,
+  USB_GADGET_DEBUG_FS, WIL6210_DEBUGFS, ZRAM_MEMORY_TRACKING.
+
+Meaningful kernel-feature differences:
+  DEBUG_FS, MSM_IDLE_STATS, PAGE_EXTENSION, PAGE_OWNER.
+
+Unknown entries after classification: 0.
+
+Literal stock-config failure and fix
+====================================
+Unmodified olddefconfig silently drops the legacy OPPO_* symbols. Meanwhile
+OplusKernelEnvConfig.mk unconditionally defines OPLUS_FEATURE_HEALTHINFO.
+include/linux/blkdev.h then suppresses the normal request_queue::in_flight
+field, but only re-adds its OPlus form under CONFIG_OPLUS_HEALTHINFO. Compilation
+therefore fails at queue_in_flight() with “no member named 'in_flight'”.
+
+drivers/soc/oplus/Kconfig now accepts all 27 legacy symbols and makes the ten
+enabled legacy settings select their renamed OPLUS equivalents. No C code was
+changed. This intentionally changes which existing code is compiled relative
+to the broken literal olddefconfig result; it restores the production config's
+intended feature selection.
+
+Final config versus stock
+=========================
+All stock symbols and values are retained. scripts/diffconfig reports only 17
+new symbols: 13 modern OPLUS equivalents/defaults and four new touch defaults.
+The final .config is therefore not byte-identical to stock, but the old feature
+names no longer disappear and the renamed implementations are enabled.
