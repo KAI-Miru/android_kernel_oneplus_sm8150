@@ -14,6 +14,7 @@ Required toolchain environment:
 Optional environment:
   ANDROID_ROOT, KERNEL_DIR, OUT_DIR, DTS_OUT_DIR, ARTIFACT_DIR, BUILD_LOG
   STOCK_CONFIG, CONFIG_MODE=stock|official, JOBS
+  KERNEL_LOCALVERSION (default: -miru; use -perf for stock naming)
   MODULE_SIGNING_KEY, STOCK_BOOT_IMAGE, EXTERNAL_DTC
   SKIP_PRODUCTION_DTS=1
 
@@ -40,6 +41,7 @@ BUILD_LOG="${BUILD_LOG:-${ANDROID_ROOT}/out/h40-build.log}"
 STOCK_CONFIG="${STOCK_CONFIG:-${SCRIPT_DIR}/config/GM1911_11_H.40.config}"
 CONFIG_MODE="${CONFIG_MODE:-stock}"
 JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN)}"
+KERNEL_LOCALVERSION="${KERNEL_LOCALVERSION:--miru}"
 
 : "${CLANG_DIR:?Set CLANG_DIR to the AOSP/Qualcomm Clang directory}"
 : "${GCC64_DIR:?Set GCC64_DIR to the AArch64 Android 4.9 directory}"
@@ -108,6 +110,13 @@ if [[ ! -f "${OUT_DIR}/.config" || "${action}" == clean ]]; then
 	else make -C "${KERNEL_DIR}" "${make_args[@]}" vendor/sm8150-perf_defconfig; fi
 fi
 
+# Keep the checked-in H.40 config as an unmodified stock reference while
+# giving boot-test builds an unmistakable release name.  LOCALVERSION=+ in
+# make_args retains the stock-style trailing plus, producing 4.14.180-miru+.
+"${KERNEL_DIR}/scripts/config" --file "${OUT_DIR}/.config" \
+	--set-str LOCALVERSION "${KERNEL_LOCALVERSION}"
+make -C "${KERNEL_DIR}" "${make_args[@]}" olddefconfig
+
 if [[ -n "${MODULE_SIGNING_KEY:-}" ]]; then
 	require_file "${MODULE_SIGNING_KEY}"
 	mkdir -p "${OUT_DIR}/certs"
@@ -125,6 +134,7 @@ fi
 	echo "artifact_dir=${ARTIFACT_DIR}"
 	echo "config_mode=${CONFIG_MODE}"
 	echo "stock_config=${STOCK_CONFIG}"
+	echo "kernel_localversion=${KERNEL_LOCALVERSION}"
 	echo "jobs=${JOBS}"
 	echo "KBUILD_BUILD_USER=${KBUILD_BUILD_USER}"
 	echo "KBUILD_BUILD_HOST=${KBUILD_BUILD_HOST}"

@@ -109,6 +109,12 @@ export SOURCE_DATE_EPOCH=1679567989
 h40-repro/build-h40.sh --clean
 ```
 
+The boot-test branch defaults to `KERNEL_LOCALVERSION=-miru`, so its kernel
+release is `4.14.180-miru+`. This deliberately distinguishes the test build
+from the stock `4.14.180-perf+` kernel without modifying the checked-in stock
+IKCONFIG reference. Set `KERNEL_LOCALVERSION=-perf` when repeating the original
+reproducibility comparison.
+
 The script records the fully expanded `make` command. Its core invocation is:
 
 ```bash
