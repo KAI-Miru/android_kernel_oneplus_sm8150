@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+set -euo pipefail
+: "${H40_AOSP_BC:?H40_AOSP_BC must identify the AOSP bc binary}"
+exec "${H40_AOSP_BC}" "$@"

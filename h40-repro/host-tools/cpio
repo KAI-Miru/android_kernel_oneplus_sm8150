@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -u
+
+if [[ -n "${H40_REAL_CPIO:-}" && -x "${H40_REAL_CPIO}" ]]; then
+	exec "${H40_REAL_CPIO}" "$@"
+fi
+: "${H40_AOSP_TOYBOX:?H40_AOSP_TOYBOX must identify AOSP Toybox}"
+args=("$@")
+if [[ "${args[0]:-}" == "--quiet" ]]; then args=("${args[@]:1}"); fi
+if [[ "${args[0]:-}" == "-pd" ]]; then
+	args=("-p" "${args[@]:1}")
+	"${H40_AOSP_TOYBOX}" cpio "${args[@]}"
+	status=$?
+	# AOSP build-tools 7322db1 returns 170 after a successful pass-through copy.
+	[[ ${status} -eq 170 ]] && exit 0
+	exit "${status}"
+fi
+exec "${H40_AOSP_TOYBOX}" cpio "${args[@]}"

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+: "${H40_REAL_TAR:?H40_REAL_TAR must identify GNU tar}"
+if [[ "${1:-}" == "-Jcf" && -n "${SOURCE_DATE_EPOCH:-}" ]]; then
+	exec "${H40_REAL_TAR}" --sort=name --mtime="@${SOURCE_DATE_EPOCH}" \
+		--owner=0 --group=0 --numeric-owner "$@"
+fi
+exec "${H40_REAL_TAR}" "$@"
