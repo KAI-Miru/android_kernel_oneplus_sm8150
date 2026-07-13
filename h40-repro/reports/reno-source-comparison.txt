@@ -1,0 +1,70 @@
+Reno 10x companion-source comparison
+====================================
+Date: 2026-07-13
+
+Compared official releases
+==========================
+OnePlus modules/vendor source:
+  repository: OnePlusOSS/android_kernel_modules_and_devicetree_oneplus_sm8150
+  commit:     993439581252cf872cd3c184ed3eb9e0f286f4c3
+
+OPPO Reno 10x modules/vendor source:
+  repository: oppo-source/android_kernel_modules_and_devicetree_oppo_sm8150
+  commit:     91eeb6a76d5073b8d452265c859a1c76589d566f
+
+Repository contents
+===================
+The Reno companion repository contains 5,019 files under vendor/qcom and
+vendor/oplus. Despite its repository name, it contains no DTS, DTSI, DTSO,
+DTB, or DTBO file. It therefore does not supply the missing H.40 project
+19861/18961 device trees or the RTIC MPGen input.
+
+Legacy namespace evidence
+=========================
+The Reno tree preserves older OPPO-named implementations corresponding to
+renamed OnePlus OPLUS implementations. Directly mapped subsystem directories
+are:
+
+  oppo_healthinfo          -> oplus_healthinfo
+  oppo_foreground_io_opt   -> oplus_foreground_io_opt
+  oppo_memory_isolate      -> oplus_memory_isolate
+  oppo_multi_kswapd        -> oplus_multi_kswapd
+  oppo_special_opt         -> oplus_special_opt
+  oppo_uxio_first          -> oplus_uxio_first
+
+Across 43 mapped files, 34 differ only by the OPPO-to-OPLUS namespace, six are
+identical, and three healthinfo files have small additional differences. The
+newer OnePlus healthinfo logic omits the kswapd_threads proc node.
+
+Stock H.40 runtime evidence is hybrid:
+
+  /proc/oplus_healthinfo                 exists
+  /sys/module/oppo_healthinfo            exists
+  /proc/oplus_healthinfo/kswapd_threads  does not exist
+
+The shipped kernel therefore combines the newer behavior and proc-directory
+name with the older module/object namespace. Stock kallsyms likewise contains
+290 unique OPPO-named symbols; 215 are directly present in the combined Reno
+main/vendor source while none are directly present in the published OnePlus
+snapshot. At the same time, hundreds of OPLUS-named symbols are common to both
+public snapshots and stock.
+
+Boot-test scope
+===============
+This first miru boot candidate does not copy the Reno vendor tree wholesale and
+does not perform a broad symbol rename. Such a change spans both official
+repositories, is not representable solely in the main-kernel fork, and would
+mix ABI reconstruction with the first boot-compatibility test.
+
+The candidate retains the already-built H.40 OnePlus implementation plus the
+legacy Kconfig aliases. Its only release-identity change is the intentional
+4.14.180-miru+ local version. A later experimental pair of branches can restore
+only Reno-proven legacy object/symbol names while retaining the newer OnePlus
+behavior, starting with oppo_healthinfo without restoring kswapd_threads.
+
+Conclusion
+==========
+The Reno source strongly confirms that the published OnePlus H.40 snapshot was
+renamed after the production kernel's intermediate source state. It does not
+resolve the unpublished 19861/18961 or RTIC inputs, and its namespace evidence
+is intentionally not folded into the first boot-safety candidate.
