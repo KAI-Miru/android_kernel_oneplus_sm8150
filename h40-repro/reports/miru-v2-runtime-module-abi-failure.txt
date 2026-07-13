@@ -1,0 +1,130 @@
+Miru v2 runtime: stock DLKM ABI rejection
+=============================================
+
+Date: 2026-07-13
+Device: OnePlus 7 Pro / guacamole (GM1911)
+Branch: h40-miru-module-compat-test
+Built source commit: 1322e9afc45294ac987ccce46a65f9b1bee16156
+
+Captured evidence
+-----------------
+Runtime capture: v2-kernel-runtime.txt
+SHA-256: 1c09ece202ab5ded472cbeea82d6dbfaef5a08658c6256b3e5e020926dc03f73
+Size: 1,039,035 bytes
+Lines: 6,944
+
+Verified test identity and policy
+---------------------------------
+uname:
+  Linux localhost 4.14.180-perf+ #1 SMP PREEMPT
+  Thu Mar 23 18:39:49 CST 2023 aarch64 Toybox
+
+/sys/module/module/parameters/sig_enforce:
+  N
+
+/proc/sys/kernel/modules_disabled:
+  0
+
+The stock release string is therefore restored and forced signature rejection
+is disabled exactly as intended by the v2 diagnostic build.
+
+Decisive loader result
+----------------------
+At 4.739-4.760 seconds, the early vendor modprobe process makes 22 module-load
+attempts. At 23.528 seconds, init makes one additional WLAN load attempt. Every
+one of the 23 attempts emits both:
+
+  PKCS#7 signature not signed with a trusted key
+  <module>: disagrees about version of symbol module_layout
+
+The signature message is now a warning: loading continues far enough to execute
+the MODVERSIONS ABI check. There is no "Required key not available" error in
+this capture.
+
+The explicitly reported WLAN result is:
+
+  wlan: disagrees about version of symbol module_layout
+  finit_module for "/vendor/lib/modules/qca_cld3_wlan.ko" failed:
+  Exec format error
+
+Affected module names observed in the capture:
+
+  audio_extend_dlkm
+  hdmi_dlkm
+  max98937_dlkm
+  pinctrl_wcd_dlkm
+  q6_pdr_dlkm
+  stub_dlkm
+  swr_dlkm
+  wcd_core_dlkm
+  wcd_spi_dlkm
+  wglink_dlkm
+  wlan
+
+q6_pdr_dlkm and several other dependency modules are retried by modprobe, which
+accounts for repeated names. No attempt reaches module initialization.
+
+Downstream state
+----------------
+/proc/modules:
+  empty
+
+/proc/asound/cards:
+  --- no soundcards ---
+
+/dev/snd and /sys/class/sound:
+  timer only
+
+Consequently the Qualcomm audio DLKM graph never loads, the machine driver
+cannot register sm8150-tavil-snd-card, audio HAL receives ENODEV, and the known
+SoundTrigger/system_server stall remains. Missing DT nodes cannot be diagnosed
+from these module probe paths because the modules are rejected before their
+init and probe callbacks execute.
+
+ABI interpretation
+------------------
+The rebuilt kernel exports module_layout CRC:
+
+  0xa9c6dadd
+
+module_layout is the MODVERSIONS fingerprint generated from struct module,
+struct modversion_info, struct kernel_param, struct kernel_symbol, and
+struct tracepoint. The stock vendor modules contain a different expected CRC.
+Matching uname/vermagic is therefore insufficient: the published-source build
+does not currently implement the binary module ABI accepted by the shipped H.40
+kernel.
+
+CONFIG_MODULE_SIG_FORCE does not participate in the relevant module structure
+definitions; disabling it exposed this mismatch but did not create it.
+
+Oppo sibling-source check
+-------------------------
+The immediately relevant files in oppo-source/android_kernel_oppo_sm8150 at
+66cbe4bd056bf032063026ce24a7159449c00f6e were compared with this branch:
+
+  include/linux/module.h
+  include/linux/moduleparam.h
+  include/linux/export.h
+  include/linux/tracepoint.h
+
+They are byte-identical. The generic module-related sm8150-perf_defconfig
+settings also match; the visible differences are principally OPPO/OPLUS symbol
+renames and OnePlus additions. Replacing the main tree wholesale with the Reno
+10x tree is therefore not an evidence-based fix for this CRC gate, though the
+Oppo sources may still help with later device-specific gaps.
+
+Required next evidence
+----------------------
+Obtain the exact /vendor/lib/modules binary set used in this successful-stock /
+failed-v2 comparison, including modules.load, modules.dep, and modules.softdep.
+The __versions tables can then be compared against this build's Module.symvers
+to determine whether:
+
+1. only module_layout differs and the actual layouts can be reconciled safely;
+2. a small group of exported ABI CRCs differs and specific source/config drift
+   can be identified; or
+3. the vendor modules target a materially different unpublished kernel ABI.
+
+Do not globally disable MODVERSIONS or blindly accept all mismatched CRCs. That
+would permit code compiled for potentially different structure layouts to run
+in kernel context and could corrupt memory before producing useful diagnostics.
