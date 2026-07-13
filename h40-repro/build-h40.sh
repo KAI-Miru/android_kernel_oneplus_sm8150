@@ -15,6 +15,7 @@ Optional environment:
   ANDROID_ROOT, KERNEL_DIR, OUT_DIR, DTS_OUT_DIR, ARTIFACT_DIR, BUILD_LOG
   STOCK_CONFIG, CONFIG_MODE=stock|official, JOBS
   KERNEL_LOCALVERSION (default: -miru; use -perf for stock naming)
+  MODULE_SIG_POLICY=enforce|permit-untrusted (default: enforce)
   MODULE_SIGNING_KEY, STOCK_BOOT_IMAGE, EXTERNAL_DTC
   SKIP_PRODUCTION_DTS=1
 
@@ -42,6 +43,7 @@ STOCK_CONFIG="${STOCK_CONFIG:-${SCRIPT_DIR}/config/GM1911_11_H.40.config}"
 CONFIG_MODE="${CONFIG_MODE:-stock}"
 JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN)}"
 KERNEL_LOCALVERSION="${KERNEL_LOCALVERSION:--miru}"
+MODULE_SIG_POLICY="${MODULE_SIG_POLICY:-enforce}"
 
 : "${CLANG_DIR:?Set CLANG_DIR to the AOSP/Qualcomm Clang directory}"
 : "${GCC64_DIR:?Set GCC64_DIR to the AArch64 Android 4.9 directory}"
@@ -69,6 +71,9 @@ require_exec "${H40_AOSP_TOYBOX}"
 require_exec "${H40_AOSP_BC}"
 [[ "${CONFIG_MODE}" == stock || "${CONFIG_MODE}" == official ]] || {
 	echo "CONFIG_MODE must be stock or official" >&2; exit 2;
+}
+[[ "${MODULE_SIG_POLICY}" == enforce || "${MODULE_SIG_POLICY}" == permit-untrusted ]] || {
+	echo "MODULE_SIG_POLICY must be enforce or permit-untrusted" >&2; exit 2;
 }
 
 if [[ "${action}" == clean ]]; then rm -rf "${OUT_DIR}" "${DTS_OUT_DIR}" "${ARTIFACT_DIR}"; fi
@@ -115,6 +120,14 @@ fi
 # make_args retains the stock-style trailing plus, producing 4.14.180-miru+.
 "${KERNEL_DIR}/scripts/config" --file "${OUT_DIR}/.config" \
 	--set-str LOCALVERSION "${KERNEL_LOCALVERSION}"
+if [[ "${MODULE_SIG_POLICY}" == permit-untrusted ]]; then
+	# Diagnostic mode for testing stock DLKMs when the unpublished production
+	# signing certificate is unavailable. Keep signature parsing and symbol CRC
+	# checks enabled; only stop rejecting an otherwise valid module solely
+	# because its signer is absent from this test kernel's trusted keyring.
+	"${KERNEL_DIR}/scripts/config" --file "${OUT_DIR}/.config" \
+		--disable MODULE_SIG_FORCE
+fi
 make -C "${KERNEL_DIR}" "${make_args[@]}" olddefconfig
 
 if [[ -n "${MODULE_SIGNING_KEY:-}" ]]; then
@@ -135,6 +148,7 @@ fi
 	echo "config_mode=${CONFIG_MODE}"
 	echo "stock_config=${STOCK_CONFIG}"
 	echo "kernel_localversion=${KERNEL_LOCALVERSION}"
+	echo "module_sig_policy=${MODULE_SIG_POLICY}"
 	echo "jobs=${JOBS}"
 	echo "KBUILD_BUILD_USER=${KBUILD_BUILD_USER}"
 	echo "KBUILD_BUILD_HOST=${KBUILD_BUILD_HOST}"
