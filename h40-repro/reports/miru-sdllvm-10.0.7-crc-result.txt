@@ -1,0 +1,126 @@
+Miru H.40 Snapdragon LLVM 10.0.7 CRC-only result
+================================================
+
+Outcome
+-------
+The CRC-only vmlinux build completed, but using a compiler with the same
+Snapdragon LLVM 10.0.7 banner as the stock H.40 vendor modules produced zero
+CRC convergence over the v2 AOSP-Clang build.  A flashable Image was therefore
+not built.
+
+The published kernel source/configuration still does not describe the ABI used
+to build the production H.40 vendor modules.  Matching the compiler banner is
+not sufficient to repair that source/configuration ABI gap.
+
+Inputs
+------
+kernel branch: h40-miru-module-compat-test
+kernel commit: 381513f55578e934daaf0301cc2012893a595044
+companion modules/device-tree commit: 993439581252cf872cd3c184ed3eb9e0f286f4c3
+compiler mirror commit: a16fec82a8deaf8f742ea54f8de98c021af200d4
+compiler binary sha256: 453971166fa1b628df189e602f355cb2c58c12cd289515400ee6260c9a83459d
+compiler banner: Snapdragon LLVM ARM Compiler 10.0.7 for Android NDK
+gcc64 commit: 606f80986096476912e04e5c2913685a8f2c3b65
+gcc32 commit: b0c6a654327ca8796bed1e61dffcf523d04dceaa
+AOSP build-tools commit: 7322db1e1e4715fe217a27f721613e6be8438676
+
+The Snapdragon compiler came from an unaudited third-party mirror.  Its banner
+and binary hash are recorded above, but no authoritative Qualcomm/OnePlus hash
+was available, so identity with the unpublished production compiler cannot be
+claimed.
+
+Build controls
+--------------
+target: vmlinux only (CRC experiment; no Image, DTB, DTBO, or boot package)
+kernel release: 4.14.180-perf+
+TARGET_PRODUCT: msmnile
+BRAND_SHOW_FLAG: oneplus
+TARGET_BUILD_VARIANT: user
+KBUILD_BUILD_USER: root
+KBUILD_BUILD_HOST: dg02-pool03-kvm154
+KBUILD_BUILD_VERSION: 1
+KBUILD_BUILD_TIMESTAMP: Thu Mar 23 18:39:49 CST 2023
+SOURCE_DATE_EPOCH: 1679567989
+config sha256: 2af31ffe7a8702ddcb1b2700199fcd473622f74ba3aa08c5be5f1992ab3f9235
+
+The final .config is byte-identical to the saved v2 .config.  MODVERSIONS and
+signature parsing remained enabled; only MODULE_SIG_FORCE was disabled, as in
+v2, so an unavailable production signing certificate would not obscure the
+symbol-ABI test.
+
+The isolated workspace rewrites source symlinks.  The build therefore used a
+non-Git materialized view of the same kernel and companion trees.  One
+build-view-only fg_uid header proxy was copied byte-for-byte from the official
+companion tree (sha256
+49a8a04923e9d3604211b344324b7d9173e8db3b89bd1d41d002cc68a1c355a3).
+No declaration or source fix was introduced for this experiment.
+
+Build outputs
+-------------
+Module.symvers sha256: 629ad2f742646851b3d6de89bbfe750391dd950518cc3133092f7b1cb0579fae
+vmlinux sha256: 84046a8cbdb80aec59e8bf5bf763700e916b804ef4d053c909b3986d05b10621
+System.map sha256: a52ea1426a66afa4cb23a5f8c7fef7c8ba11cf016012c995039c1cd1a09d6d97
+
+The build emitted one non-fatal source warning: version generation failed for
+the exported gsi_write_channel_scratch symbol, so that symbol is unversioned.
+It is not an import in the supplied H.40 module set and does not affect the
+comparison totals below.
+
+Stock-module comparison
+-----------------------
+stock modules: 32
+import records: 2528
+unique imported symbols: 1019
+core match records: 1116
+core match unique: 348
+core mismatch records: 1353
+core mismatch unique: 614
+vendor-to-vendor match records: 59
+vendor-to-vendor mismatch records: 0
+unresolved records: 0
+
+module_layout expected by all 32 stock modules: 0xcadd18c7
+module_layout from this Snapdragon build:        0xa9c6dadd
+module_layout from v2 AOSP-Clang build:           0xa9c6dadd
+
+The exhaustive comparator was run twice.  Both reports were byte-identical:
+sha256 9c5da050425f78cfd3ef6fab1d90d3ac96b094da783d88be440fbbdf5567e5af.
+
+Direct v2 comparison
+--------------------
+v2 Module.symvers sha256: 80b740c67c9bd62c621b39a59e66e01a714dbbfb3258355ebc0cac8b466acf55
+common exported symbols: 11968
+common symbols with identical CRC: 11968
+common symbols with changed CRC: 0
+symbols present only in v2: 72
+symbols present only in this vmlinux-only result: 0
+
+The 72 v2-only entries are in-tree module exports omitted because this run
+stopped at the vmlinux target.  Every core export produced by both builds has
+the same CRC.  The stock-module match/mismatch totals are consequently exactly
+the same as v2.
+
+Interpretation
+--------------
+MODVERSIONS CRCs are generated from preprocessed exported declarations and the
+configuration-visible type graph.  The zero-change result across all 11,968
+common exports shows that swapping AOSP Clang 10.0.5 for this Snapdragon LLVM
+10.0.7 binary does not change the ABI encoded by the published tree.
+
+The evidence continues to point to production H.40 using unpublished or newer
+headers/patches, different ABI-affecting build macros/configuration, or both.
+The broad mismatch is not an audio-only or FastRPC problem, and bypassing
+MODVERSIONS would hide real type/layout incompatibilities rather than fix them.
+
+Next evidence-based step
+------------------------
+Recover the production kernel's exported CRC table from the original H.40 boot
+kernel (__kcrctab plus its symbol-name mapping), or obtain the production
+Module.symvers/build manifest.  That table can be compared against the two
+source trees to identify which declaration families diverge before another
+boot image is built.  The Reno sibling source is useful as a patch candidate
+only after those stock CRC differences identify the relevant headers.
+
+Full per-symbol/per-module results
+----------------------------------
+h40-repro/reports/miru-sdllvm-10.0.7-vendor-module-crc-comparison.txt
