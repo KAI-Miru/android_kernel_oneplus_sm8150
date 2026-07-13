@@ -1,0 +1,87 @@
+Miru H40 module-compatibility diagnostic build result
+=====================================================
+
+Result: SUCCESS (single clean build, exit status 0)
+Date: 2026-07-13
+
+Source
+------
+Repository: Benetsu/android_kernel_oneplus_sm8150
+Branch: h40-miru-module-compat-test
+Commit built: 1322e9afc45294ac987ccce46a65f9b1bee16156
+
+Controlled build inputs
+-----------------------
+CONFIG_MODE=stock
+KERNEL_LOCALVERSION=-perf
+MODULE_SIG_POLICY=permit-untrusted
+SKIP_PRODUCTION_DTS=1
+STOCK_BOOT_IMAGE=original uploaded H40 boot.img
+
+Verified kernel configuration
+-----------------------------
+CONFIG_LOCALVERSION="-perf"
+CONFIG_MODVERSIONS=y
+CONFIG_MODULE_SIG=y
+# CONFIG_MODULE_SIG_FORCE is not set
+CONFIG_MODULE_SIG_ALL=y
+CONFIG_MODULE_SIG_SHA512=y
+
+Interpretation of the policy
+----------------------------
+Kernel module-signature parsing/support remains enabled. Only forced rejection
+of modules signed by an untrusted key is disabled. CONFIG_MODVERSIONS remains
+enabled. This lets the unchanged H40 vendor/odm modules proceed to their actual
+kernel ABI checks. It is intentionally unsuitable as the final production
+security policy.
+
+Verified output
+---------------
+Kernel release/banner:
+Linux version 4.14.180-perf+ (root@dg02-pool03-kvm154) (Android (6305083 based
+on r377782c) clang version 10.0.5, GNU ld 2.27.0.20170315) #1 SMP PREEMPT
+Thu Mar 23 18:39:49 CST 2023
+
+Raw Image:
+Size: 40134672 bytes
+SHA-256: f353e7ed9f03222696120441d34d58c7c837b1e325d70fdba92b5adf631be8f3
+
+.config SHA-256:
+2af31ffe7a8702ddcb1b2700199fcd473622f74ba3aa08c5be5f1992ab3f9235
+
+System.map SHA-256:
+9f3b882f299975de23abf93e51789f7bf19a2302233db1ce7e283c4d09dd5ebe
+
+Module.symvers SHA-256:
+80b740c67c9bd62c621b39a59e66e01a714dbbfb3258355ebc0cac8b466acf55
+
+Comparison with original H40 boot kernel
+----------------------------------------
+Stock raw Image SHA-256:
+78a2ec421a44e0b4c20d0132e25ce0e6d91b521929de0139cfff35e5c31f7b84
+Stock size: 40142864 bytes
+Rebuilt size: 40134672 bytes (8192 bytes smaller)
+Both banners report 4.14.180-perf+ and the same build timestamp. The compiler
+banner differs because the available matching AOSP clang r377782c identifies
+itself as Android clang 10.0.5, while the stock banner says clang 10.0.7 for
+Android NDK.
+
+Warnings retained for traceability
+----------------------------------
+- Existing DTC reg_format/avoid_default_addr_size warnings in the selected
+  OnePlus DTS files.
+- MODPOST reports gsi_write_channel_scratch as unversioned.
+
+Neither warning stopped compilation or Image generation. Runtime testing is
+still required; a successful compilation cannot prove compatibility with the
+binary H40 vendor/odm modules.
+
+Expected diagnostic outcome
+---------------------------
+The previous first-Miru runtime could not test ABI compatibility because all
+external modules were rejected by key enforcement. With this build:
+
+- Successful stock WLAN/audio module loading would establish that signature
+  trust was the immediate gate.
+- version-magic, symbol CRC, or Unknown-symbol errors would expose the precise
+  remaining H40 kernel ABI gap.
