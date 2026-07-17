@@ -1114,8 +1114,9 @@ static int dsi_panel_update_backlight(struct dsi_panel *panel,
 	dsi = &panel->mipi_device;
 #ifdef OPLUS_BUG_STABILITY
 
-/* Don't set backlight during AOD HBM scene to avoid flicker while switching from AOD to home screen at low brightness*/
-	if ((get_oplus_display_scene() == OPLUS_DISPLAY_AOD_SCENE) || (get_oplus_display_scene() == OPLUS_DISPLAY_AOD_HBM_SCENE)) {
+	/* Brightness level 1 is the legacy sentinel used while entering AOD. */
+	if ((get_oplus_display_scene() == OPLUS_DISPLAY_AOD_SCENE) &&
+			(bl_lvl == 1)) {
 		pr_err("dsi_cmd AOD mode return bl_lvl:%d\n",bl_lvl);
 		return 0;
 	}
