@@ -15,6 +15,8 @@
 #include "oplus_nfc.h"
 
 #define NFC_CHIPSET_VERSION (0x1)
+#define OPLUS_NFC_PROC_DIR "oplus_nfc"
+#define OPPO_NFC_PROC_DIR "oppo_nfc"
 
 static char current_chipset[32];
 static bool support_nfc = false;
@@ -108,6 +110,7 @@ static int oplus_nfc_probe(struct platform_device *pdev)
 	const char *chipset_node;
 	struct proc_dir_entry *p_entry;
 	static struct proc_dir_entry *nfc_info = NULL;
+	static struct proc_dir_entry *legacy_nfc_info = NULL;
 
 	pr_err("enter %s", __func__);
 	dev = &pdev->dev;
@@ -135,10 +138,25 @@ static int oplus_nfc_probe(struct platform_device *pdev)
 		support_nfc = true;
 	}
 
-	nfc_info = proc_mkdir("oplus_nfc", NULL);
+	legacy_nfc_info = proc_mkdir(OPPO_NFC_PROC_DIR, NULL);
+	if (!legacy_nfc_info)
+	{
+		pr_err("%s, make %s dir fail", __func__, OPPO_NFC_PROC_DIR);
+		goto error_init;
+	}
+
+	p_entry = proc_create_data("chipset", S_IRUGO, legacy_nfc_info,
+			&nfc_info_fops, (uint32_t *)(NFC_CHIPSET_VERSION));
+	if (!p_entry)
+	{
+		pr_err("%s, make legacy chipset node fail", __func__);
+		goto error_init;
+	}
+
+	nfc_info = proc_mkdir(OPLUS_NFC_PROC_DIR, NULL);
 	if (!nfc_info)
 	{
-		pr_err("%s, make oplus_nfc dir fail", __func__);
+		pr_err("%s, make %s dir fail", __func__, OPLUS_NFC_PROC_DIR);
 		goto error_init;
 	}
 
@@ -153,17 +171,20 @@ static int oplus_nfc_probe(struct platform_device *pdev)
 
 error_init:
 	pr_err("%s error_init", __func__);
-	remove_proc_entry("oplus_nfc", NULL);
+	remove_proc_entry(OPLUS_NFC_PROC_DIR, NULL);
+	remove_proc_entry(OPPO_NFC_PROC_DIR, NULL);
 	return -ENOENT;
 }
 
 static int oplus_nfc_remove(struct platform_device *pdev)
 {
-	remove_proc_entry("oplus_nfc", NULL);
+	remove_proc_entry(OPLUS_NFC_PROC_DIR, NULL);
+	remove_proc_entry(OPPO_NFC_PROC_DIR, NULL);
 	return 0;
 }
 
 static const struct of_device_id onc[] = {
+	{.compatible = "oppo-nfc-chipset", },
 	{.compatible = "oplus-nfc-chipset", },
 	{},
 };
@@ -174,7 +195,7 @@ static struct platform_driver oplus_nfc_driver = {
 	.probe  = oplus_nfc_probe,
 	.remove = oplus_nfc_remove,
 	.driver = {
-		.name = "oplus-nfc-chipset",
+		.name = "oppo-nfc-chipset",
 		.of_match_table = of_match_ptr(onc),
 	},
 };
