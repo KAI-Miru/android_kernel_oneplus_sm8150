@@ -232,6 +232,7 @@ int dsi_panel_parse_oplus_fod_config(struct dsi_panel *panel)
 {
 	int rc = 0;
 	int i;
+	const char *fod_brightness_property = "oplus,dsi-fod-brightness";
 	u32 length = 0;
 	u32 count = 0;
 	u32 size = 0;
@@ -240,10 +241,16 @@ int dsi_panel_parse_oplus_fod_config(struct dsi_panel *panel)
 	struct dsi_parser_utils *utils = &panel->utils;
 	struct oplus_brightness_alpha *seq;
 
-	arr = utils->get_property(utils->data, "oplus,dsi-fod-brightness", &length);
+	arr = utils->get_property(utils->data, fod_brightness_property, &length);
+	if (!arr) {
+		fod_brightness_property = "oppo,dsi-fod-brightness";
+		arr = utils->get_property(utils->data, fod_brightness_property,
+				&length);
+	}
 
 	if (!arr) {
-		DSI_ERR("[%s] oplus,dsi-fod-brightness  not found\n", panel->name);
+		DSI_ERR("[%s] oplus/oppo,dsi-fod-brightness not found\n",
+				panel->name);
 		return -EINVAL;
 	}
 
@@ -263,7 +270,7 @@ int dsi_panel_parse_oplus_fod_config(struct dsi_panel *panel)
 		goto error;
 	}
 
-	rc = utils->read_u32_array(utils->data, "oplus,dsi-fod-brightness",
+	rc = utils->read_u32_array(utils->data, fod_brightness_property,
 			arr_32, length);
 
 	if (rc) {
@@ -370,6 +377,9 @@ int dsi_panel_parse_oplus_config(struct dsi_panel *panel)
 
 	panel->oplus_priv.vendor_name = utils->get_property(utils->data,
 			"oplus,mdss-dsi-vendor-name", NULL);
+	if (!panel->oplus_priv.vendor_name)
+		panel->oplus_priv.vendor_name = utils->get_property(utils->data,
+				"oppo,mdss-dsi-vendor-name", NULL);
 
 	if (!panel->oplus_priv.vendor_name) {
 		pr_err("Failed to found panel name, using dumming name\n");
@@ -378,6 +388,9 @@ int dsi_panel_parse_oplus_config(struct dsi_panel *panel)
 
 	panel->oplus_priv.manufacture_name = utils->get_property(utils->data,
 			"oplus,mdss-dsi-manufacture", NULL);
+	if (!panel->oplus_priv.manufacture_name)
+		panel->oplus_priv.manufacture_name = utils->get_property(utils->data,
+				"oppo,mdss-dsi-manufacture", NULL);
 
 	if (!panel->oplus_priv.manufacture_name) {
 		pr_err("Failed to found panel name, using dumming name\n");
