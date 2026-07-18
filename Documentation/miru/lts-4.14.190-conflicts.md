@@ -1,29 +1,42 @@
 # Miru H.40 to Android 4.14.190 conflict ledger
 
-This file tracks the initial Android stable 4.14.190 merge scaffold.
+This file tracks explicit resolutions following the initial Android
+stable 4.14.190 merge scaffold.
 
-- Merge commit: `5d8cba39fefb935c6feaf30ea1a57dfffa80273a`
-- H.40/Miru parent: the branch tip immediately before that merge
+- H.40/Miru scaffold merge: `5d8cba39fefb935c6feaf30ea1a57dfffa80273a`
 - Android stable parent: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
-- Cleanly merged paths: accepted from Git's three-way merge
-- Conflicted paths: temporarily preserved from the H.40/Miru parent
-- Kernel version after the scaffold: `4.14.190`
-- Status: **incomplete and not suitable for building or flashing**
+- Initial deferred conflicts: 28
+- Resolved conflicts: 6
+- Remaining conflicts: 22
+- Status: **incomplete and not suitable for building or flashing as a release**
 
-Each path below must receive an explicit follow-up resolution before the
-milestone can be considered integrated:
+## Resolved in Step 1
+
+The following non-target architecture, non-target hardware, and
+documentation paths now exactly match Android 4.14.190:
 
 ```text
 Documentation/devicetree/bindings/usb/dwc3.txt
 arch/x86/kernel/cpu/bugs.c
 drivers/block/virtio_blk.c
+drivers/net/ethernet/stmicro/stmmac/stmmac.h
+drivers/net/ethernet/stmicro/stmmac/stmmac_ethtool.c
+drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+```
+
+Resolution commit:
+
+```text
+lts: resolve non-target architecture and documentation conflicts
+```
+
+## Remaining deferred conflicts
+
+```text
 drivers/md/dm-default-key.c
 drivers/mmc/core/Kconfig
 drivers/mmc/core/block.c
 drivers/mmc/host/sdhci-msm.c
-drivers/net/ethernet/stmicro/stmmac/stmmac.h
-drivers/net/ethernet/stmicro/stmmac/stmmac_ethtool.c
-drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
 drivers/scsi/ufs/ufs-qcom.c
 drivers/usb/gadget/composite.c
 drivers/usb/gadget/function/f_uac1_legacy.c
