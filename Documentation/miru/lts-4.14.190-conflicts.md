@@ -2,7 +2,8 @@
 
 This file tracks the initial Android stable 4.14.190 merge scaffold.
 
-- H.40/Miru parent: the branch tip before merge commit `5d8cba39fefb935c6feaf30ea1a57dfffa80273a`
+- Merge commit: `5d8cba39fefb935c6feaf30ea1a57dfffa80273a`
+- H.40/Miru parent: the branch tip immediately before that merge
 - Android stable parent: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
 - Cleanly merged paths: accepted from Git's three-way merge
 - Conflicted paths: temporarily preserved from the H.40/Miru parent
