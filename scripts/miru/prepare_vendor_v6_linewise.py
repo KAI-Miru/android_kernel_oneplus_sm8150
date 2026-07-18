@@ -31,7 +31,7 @@ cleanup = [
     '    text = base.replace_exact(\n',
     '        text,\n',
     '        "\\tif (F2FS_OPTION(sbi).test_dummy_encryption)\\n"\n',
-    '        "\\t\\tseq_puts(seq, \",test_dummy_encryption\");\\n",\n',
+    '        "\\t\\tseq_puts(seq, \\\",test_dummy_encryption\\\");\\n",\n',
     '        "\\tfscrypt_show_test_dummy_encryption(seq, \',\', sbi->sb);\\n",\n',
     '    )\n',
     '    text = base.replace_exact(\n',
