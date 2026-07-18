@@ -1,0 +1,126 @@
+name: Miru LTS 4.14.190 Step 7 USB gadget write
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: write
+
+jobs:
+  resolve-step-7:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 50
+          sparse-checkout: |
+            .github/workflows
+            Documentation/miru
+            scripts/miru
+            drivers/usb/gadget
+            include/linux/usb
+          sparse-checkout-cone-mode: true
+
+      - name: Configure Git
+        run: |
+          git config user.name "Miru LTS Integration"
+          git config user.email "110590275+Benetsu@users.noreply.github.com"
+
+      - name: Check one-shot guard
+        id: guard
+        run: |
+          if git log --all --grep='^lts: resolve USB composite and legacy UAC1 conflicts$' --format='%H' | grep -q .; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run guarded Step 7 resolver
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          set +e
+          python3 scripts/miru/resolve_step7.py > "$RUNNER_TEMP/step7-resolver.log" 2>&1
+          status=$?
+          cat "$RUNNER_TEMP/step7-resolver.log"
+          exit "$status"
+
+      - name: Upload Step 7 resolver diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts-4.14.190-step7-resolver-diagnostics
+          path: ${{ runner.temp }}/step7-resolver.log
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Stage and validate Step 7
+        id: final_validation
+        if: steps.guard.outputs.run == 'true' && success()
+        run: |
+          set -euo pipefail
+
+          git rm -f \
+            scripts/miru/audit_step7.py \
+            scripts/miru/resolve_step7.py \
+            .github/workflows/miru-lts-4.14.190-step7-audit.yml \
+            .github/workflows/miru-lts-4.14.190-step7-write.yml
+
+          git add \
+            drivers/usb/gadget/composite.c \
+            Documentation/miru/lts-4.14.190-conflicts.md
+
+          printf '%s\n' \
+            '.github/workflows/miru-lts-4.14.190-step7-audit.yml' \
+            '.github/workflows/miru-lts-4.14.190-step7-write.yml' \
+            'Documentation/miru/lts-4.14.190-conflicts.md' \
+            'drivers/usb/gadget/composite.c' \
+            'scripts/miru/audit_step7.py' \
+            'scripts/miru/resolve_step7.py' | sort > "$RUNNER_TEMP/expected.txt"
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual.txt"
+          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
+
+          git diff --cached --check
+          ! git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- \
+            drivers/usb/gadget/composite.c \
+            drivers/usb/gadget/function/f_uac1_legacy.c \
+            include/linux/usb/composite.h \
+            Documentation/miru/lts-4.14.190-conflicts.md
+
+          test "$(git hash-object drivers/usb/gadget/composite.c)" = "cfcd8259355b84c54ee6998aa59b6919f4b1997b"
+          test "$(git hash-object drivers/usb/gadget/function/f_uac1_legacy.c)" = "5cdb2f3227405ec9ce3e70729ae91042ced6c6fe"
+          test "$(git hash-object include/linux/usb/composite.h)" = "218520253ff280bcc4fcf19b25c72a7483925209"
+
+          grep -Fq 'int config_ep_by_speed_and_alt(struct usb_gadget *g,' drivers/usb/gadget/composite.c
+          grep -Fq 'EXPORT_SYMBOL_GPL(config_ep_by_speed_and_alt);' drivers/usb/gadget/composite.c
+          grep -Fq 'return config_ep_by_speed_and_alt(g, f, _ep, 0);' drivers/usb/gadget/composite.c
+          grep -Fq '#include <soc/qcom/boot_stats.h>' drivers/usb/gadget/composite.c
+          grep -Fq 'spin_lock_irqsave(&audio->playback_lock, flags);' drivers/usb/gadget/function/f_uac1_legacy.c
+          grep -Fq 'spin_unlock_irqrestore(&audio->playback_lock, flags);' drivers/usb/gadget/function/f_uac1_legacy.c
+          test "$(git grep -n 'config_ep_by_speed_and_alt' -- drivers/usb/gadget include/linux/usb | wc -l)" -ge 3
+
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push Step 7
+        if: steps.final_validation.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          git commit \
+            -m "lts: resolve USB composite and legacy UAC1 conflicts" \
+            -m "Add Android 4.14.190's alternate-setting-aware composite endpoint selection while preserving H.40 Qualcomm boot statistics, OS descriptors and gadget lifecycle behavior. Keep the expanded H.40 legacy UAC1 implementation byte-identical because its dedicated playback_lock already resolves the stable play_queue race. Update the ledger to 22 of 28 conflicts resolved and remove temporary Step 7 tooling."
+          git push origin HEAD:h40-miru-lts-4.14.190
+
+      - name: Report branch tip
+        if: always()
+        run: |
+          git log -1 --decorate --oneline
+          git show --stat --oneline --summary HEAD
