@@ -186,6 +186,7 @@ and other atomic contexts. No other UFS behavior is changed.
 Resolution commit:
 
 ```text
+643a93c1ff8dca9f4f28cb8e005826a008cf6662
 lts: resolve Qualcomm UFS atomic dump conflict
 ```
 
