@@ -6,8 +6,8 @@ stable 4.14.190 merge scaffold.
 - H.40/Miru scaffold merge: `5d8cba39fefb935c6feaf30ea1a57dfffa80273a`
 - Android stable parent: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
 - Initial deferred conflicts: 28
-- Resolved conflicts: 26
-- Remaining conflicts: 2
+- Resolved conflicts: 28
+- Remaining conflicts: 0
 - Status: **incomplete and not suitable for building or flashing as a release**
 
 ## Resolved in Step 1
@@ -300,9 +300,49 @@ Resolution commit:
 lts: resolve transparent hugepage split conflict
 ```
 
-## Remaining deferred conflicts
+## Resolved in Step 10
+
+The ALSA compressed-offload and raw-MIDI conflicts were resolved as one audio
+core compatibility unit:
 
 ```text
 sound/core/compress_offload.c
 sound/core/rawmidi.c
 ```
+
+`compress_offload.c` applies stable commit
+`0a117d00e86fe6ec856e72548e405169ab9dc78d` (upstream
+`f79a732a8325dfbd570d87f1435019d7e5501c6d`). Partial drains are marked before
+the DSP trigger so `snd_compr_drain_notify()` returns the stream to RUNNING,
+and STOP clears both partial-drain and metadata state before waking waiters.
+The resulting file exactly matches the Lineage SM8150 4.14.190 merge while
+preserving H.40's next-track parameter ioctl, simple-ioctl split, error work and
+exported `snd_compress_free()` interface.
+
+`rawmidi.c` applies stable commits `8645ac3684a70e4e8a21c7c407c07a1a4316beec`
+(upstream `c1f6e3c818dd734c30f6a7eeebf232ba2cf3181d`) and
+`e8e3fcbc66f608d38a72fc716ff45e31b7f3d123` (upstream
+`5a7b44a8df822e0667fc76ed7130252523993bda`). Runtime buffer accesses now carry
+a spinlock-protected reference while user copies temporarily drop the lock, and
+new buffers are zero-initialized.
+
+The raw-MIDI resize resolution is intentionally stricter than the mechanical
+Lineage merge. H.40's `realloc_mutex` is preserved, but resize allocates a
+separate zeroed buffer before taking the runtime spinlock. If a buffer user is
+active, the new allocation is freed, IRQ flags and the mutex are restored, and
+`-EBUSY` is returned. This avoids calling downstream `__krealloc()` on a live
+buffer before the stable busy check and avoids the incomplete early-return
+cleanup present in the mechanical merge. Successful resize atomically swaps the
+buffer and resets stream pointers only after drain has completed.
+
+Resolution commit:
+
+```text
+lts: resolve ALSA compress and rawmidi conflicts
+```
+
+## Remaining deferred conflicts
+
+None. All 28 merge conflicts now have explicit source-level resolutions. The
+branch remains unsuitable for release until the full build, symbol/ABI audit and
+device validation are complete.
