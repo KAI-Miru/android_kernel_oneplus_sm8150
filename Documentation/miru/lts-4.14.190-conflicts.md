@@ -50,6 +50,7 @@ collisions with H.40 headset switch values `0x10` through `0x13`.
 Resolution commit:
 
 ```text
+247d219b2140ee4745a96d72f327a2654e06c24e
 lts: resolve module matching and input ABI conflicts
 ```
 
@@ -82,6 +83,7 @@ array `f_handle[0]`.
 Resolution commit:
 
 ```text
+715ff54e56da56f94eac62e4eb16725e7837a1aa
 lts: resolve block core and dm-default-key conflicts
 ```
 
