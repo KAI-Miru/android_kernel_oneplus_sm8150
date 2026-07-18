@@ -6,8 +6,8 @@ stable 4.14.190 merge scaffold.
 - H.40/Miru scaffold merge: `5d8cba39fefb935c6feaf30ea1a57dfffa80273a`
 - Android stable parent: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
 - Initial deferred conflicts: 28
-- Resolved conflicts: 20
-- Remaining conflicts: 8
+- Resolved conflicts: 22
+- Remaining conflicts: 6
 - Status: **incomplete and not suitable for building or flashing as a release**
 
 ## Resolved in Step 1
@@ -190,11 +190,42 @@ Resolution commit:
 lts: resolve Qualcomm UFS atomic dump conflict
 ```
 
-## Remaining deferred conflicts
+## Resolved in Step 7
+
+The USB composite core and legacy UAC1 conflicts were resolved as one gadget
+compatibility unit:
 
 ```text
 drivers/usb/gadget/composite.c
 drivers/usb/gadget/function/f_uac1_legacy.c
+```
+
+`composite.c` adopts Android stable commit
+`0c8c366c54f07f70d03260db9e0faa52f8d65749` (upstream
+`5d363120aa548ba52d58907a295eee25f8207ed2`). The new
+`config_ep_by_speed_and_alt()` selects the interface descriptor for the
+requested alternate setting before locating its endpoint and SuperSpeed
+companion descriptor. The existing `config_ep_by_speed()` API remains as an
+alternate-setting-zero wrapper. H.40's Qualcomm boot-stat include, OS
+descriptor handling and composite setup/disconnect behavior are preserved.
+
+`f_uac1_legacy.c` remains byte-for-byte H.40 and already matches the Lineage
+4.14.190 resolution. Its expanded driver protects `play_queue` insertion and
+removal with the dedicated `playback_lock`, satisfying stable commit
+`c0689058968d4cf756d1fe887c62dc57edcefbc0` (upstream
+`8778eb0927ddcd3f431805c37b78fa56481aeed9`) without introducing the generic
+upstream driver's unrelated `audio->lock` layout. Capture locking, real-time
+packet-drop policy and ColorOS legacy audio descriptors remain unchanged.
+
+Resolution commit:
+
+```text
+lts: resolve USB composite and legacy UAC1 conflicts
+```
+
+## Remaining deferred conflicts
+
+```text
 include/net/netfilter/nf_conntrack.h
 mm/huge_memory.c
 net/ipv4/sysctl_net_ipv4.c
