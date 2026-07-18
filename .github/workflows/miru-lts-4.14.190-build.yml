@@ -28,9 +28,9 @@ jobs:
       - name: Prepare complete vendor compatibility build driver
         run: |
           python3 scripts/miru/inject_vendor_compat_v3_into_ci_build.py
-          sed -i 's/apply_vendor_lts190_compat_v3.py/apply_vendor_lts190_compat_v4.py/' \
+          sed -i 's/apply_vendor_lts190_compat_v3.py/apply_vendor_lts190_compat_v5.py/' \
             scripts/miru/ci_build_4.14.190.sh
-          grep -Fq 'apply_vendor_lts190_compat_v4.py' scripts/miru/ci_build_4.14.190.sh
+          grep -Fq 'apply_vendor_lts190_compat_v5.py' scripts/miru/ci_build_4.14.190.sh
 
       - name: Run sanity scan and clean build
         run: bash scripts/miru/ci_build_4.14.190.sh
