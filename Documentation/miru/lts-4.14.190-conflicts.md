@@ -296,6 +296,7 @@ copy, migration, zero-page, deferred-split or khugepaged behavior is changed.
 Resolution commit:
 
 ```text
+15ac7e5128349f446221947fa7947433e962f1bd
 lts: resolve transparent hugepage split conflict
 ```
 
