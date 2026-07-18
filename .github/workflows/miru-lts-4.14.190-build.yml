@@ -25,6 +25,9 @@ jobs:
           ref: h40-miru-lts-4.14.190
           fetch-depth: 1
 
+      - name: Scope vendor compatibility guards
+        run: python3 scripts/miru/adjust_vendor_lts190_compat.py
+
       - name: Prepare vendor compatibility build driver
         run: python3 scripts/miru/inject_vendor_compat_into_ci_build.py
 
