@@ -27,39 +27,7 @@ jobs:
 
       - name: Prepare final vendor compatibility build driver
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import subprocess
-
-          path = Path("scripts/miru/apply_vendor_lts190_compat_v6.py")
-          expected = "044cc260e47a887d2394567a6882421199866e1f"
-          actual = subprocess.check_output(["git", "hash-object", str(path)], text=True).strip()
-          if actual != expected:
-              raise SystemExit(f"vendor v6 patcher changed: expected {expected}, found {actual}")
-
-          text = path.read_text()
-          count_guard = '''    if text.count("F2FS_OPTION(sbi).test_dummy_encryption") != 1:
-              raise SystemExit("expected exactly one direct of2fs dummy boolean assignment")
-
-          '''
-          if text.count(count_guard) != 1:
-              raise SystemExit("redundant direct-reference count block missing or duplicated")
-          text = text.replace(count_guard, "", 1)
-
-          final_guard = '''    if "F2FS_OPTION(sbi).test_dummy_encryption" in text:
-              raise SystemExit("direct of2fs dummy boolean assignment remains")
-          '''
-          cleanup = '''    text = base.replace_exact(
-              text,
-              "\\tF2FS_OPTION(sbi).test_dummy_encryption = false;\\n",
-              "",
-          )
-
-          '''
-          if text.count(final_guard) != 1:
-              raise SystemExit("final direct-reference guard missing or duplicated")
-          path.write_text(text.replace(final_guard, cleanup + final_guard, 1))
-          PY
+          python3 scripts/miru/prepare_vendor_v6_linewise.py
           python3 scripts/miru/inject_vendor_compat_v3_into_ci_build.py
           sed -i 's/apply_vendor_lts190_compat_v3.py/apply_vendor_lts190_compat_v6.py/' \
             scripts/miru/ci_build_4.14.190.sh
