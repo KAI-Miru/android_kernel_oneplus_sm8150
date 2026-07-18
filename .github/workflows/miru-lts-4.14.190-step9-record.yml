@@ -1,0 +1,66 @@
+name: Miru LTS 4.14.190 Step 9 record
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: write
+
+jobs:
+  record-step-9:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 20
+          sparse-checkout: |
+            .github/workflows
+            Documentation/miru
+            scripts/miru
+          sparse-checkout-cone-mode: true
+
+      - name: Configure Git
+        run: |
+          git config user.name "Miru LTS Integration"
+          git config user.email "110590275+Benetsu@users.noreply.github.com"
+
+      - name: Check record guard
+        id: guard
+        run: |
+          if grep -q '15ac7e5128349f446221947fa7947433e962f1bd' Documentation/miru/lts-4.14.190-conflicts.md; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Record Step 9 commit
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          python3 scripts/miru/record_step9_commit.py
+          git rm -f \
+            scripts/miru/record_step9_commit.py \
+            .github/workflows/miru-lts-4.14.190-step9-record.yml
+          git add Documentation/miru/lts-4.14.190-conflicts.md
+
+          printf '%s\n' \
+            '.github/workflows/miru-lts-4.14.190-step9-record.yml' \
+            'Documentation/miru/lts-4.14.190-conflicts.md' \
+            'scripts/miru/record_step9_commit.py' | sort > "$RUNNER_TEMP/expected.txt"
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual.txt"
+          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
+          git diff --cached --check
+          grep -Fq '15ac7e5128349f446221947fa7947433e962f1bd' Documentation/miru/lts-4.14.190-conflicts.md
+
+          git commit -m "docs: record Step 9 THP resolution commit"
+          git push origin HEAD:h40-miru-lts-4.14.190
