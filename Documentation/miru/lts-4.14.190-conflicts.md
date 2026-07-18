@@ -6,8 +6,8 @@ stable 4.14.190 merge scaffold.
 - H.40/Miru scaffold merge: `5d8cba39fefb935c6feaf30ea1a57dfffa80273a`
 - Android stable parent: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
 - Initial deferred conflicts: 28
-- Resolved conflicts: 11
-- Remaining conflicts: 17
+- Resolved conflicts: 15
+- Remaining conflicts: 13
 - Status: **incomplete and not suitable for building or flashing as a release**
 
 ## Resolved in Step 1
@@ -87,6 +87,43 @@ Resolution commit:
 lts: resolve block core and dm-default-key conflicts
 ```
 
+## Resolved in Step 4
+
+The fscrypt, F2FS and IncFS conflicts were resolved as one storage-consistency
+unit:
+
+```text
+fs/crypto/inline_crypt.c
+fs/crypto/keyring.c
+fs/f2fs/checkpoint.c
+fs/incfs/data_mgmt.c
+```
+
+`inline_crypt.c` preserves H.40's private-mode UFS/SDHCI DUN sizing, ext4
+crypto-context flag and defensive direct-I/O check. It adds Android stable's
+IV_INO_LBLK_32/sub-page exclusion before inline encryption is selected.
+
+`keyring.c` uses Android stable's separated `do_add_master_key()` flow,
+hardware-wrapped-key validation and per-boot test-dummy key support. H.40's
+five-attempt raw-secret derivation workaround is retained without its temporary
+error-path debug spam.
+
+`checkpoint.c` adopts `f2fs_kvzalloc()`, inline-data flushing, active metadata
+writeback while waiting, and CP_RESIZE mutex handling. H.40's UFSTW checkpoint
+turbo-write hooks remain active.
+
+`data_mgmt.c` remains byte-for-byte H.40. The surrounding `format.c`,
+`format.h` and `vfs.c` still use the mount-aware `backing_file_context` API, so
+taking Android stable's newer file-based calls would create a source-level ABI
+mismatch. H.40's signature ownership and explicit `df_signature` cleanup are
+therefore retained.
+
+Resolution commit:
+
+```text
+lts: resolve fscrypt f2fs and incfs conflicts
+```
+
 ## Remaining deferred conflicts
 
 ```text
@@ -96,10 +133,6 @@ drivers/mmc/host/sdhci-msm.c
 drivers/scsi/ufs/ufs-qcom.c
 drivers/usb/gadget/composite.c
 drivers/usb/gadget/function/f_uac1_legacy.c
-fs/crypto/inline_crypt.c
-fs/crypto/keyring.c
-fs/f2fs/checkpoint.c
-fs/incfs/data_mgmt.c
 include/linux/mmc/host.h
 include/net/netfilter/nf_conntrack.h
 mm/huge_memory.c
