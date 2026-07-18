@@ -22,7 +22,14 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: h40-miru-lts-4.14.190
-          fetch-depth: 0
+          fetch-depth: 1
+
+      - name: Fetch sanity anchors
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin 59858c8f798778f4e6c1c4449baba631e353600e
+          git fetch --no-tags --depth=1 origin 5d8cba39fefb935c6feaf30ea1a57dfffa80273a
+          git fetch --no-tags --depth=1 origin d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac
 
       - name: Run global source sanity scan
         run: |
@@ -41,7 +48,7 @@ jobs:
           git cat-file -e 5d8cba39fefb935c6feaf30ea1a57dfffa80273a^{commit}
           git cat-file -e d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac^{commit}
 
-          git diff --check 59858c8f798778f4e6c1c4449baba631e353600e...HEAD \
+          git diff --check 59858c8f798778f4e6c1c4449baba631e353600e HEAD \
             > sanity-probe/diff-check.txt 2>&1
 
           if git grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . \
