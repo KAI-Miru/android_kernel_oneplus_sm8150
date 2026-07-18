@@ -1,0 +1,173 @@
+name: Miru LTS 4.14.190 Step 1
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: write
+
+jobs:
+  resolve-step-1:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "Miru LTS Integration"
+          git config user.email "110590275+Benetsu@users.noreply.github.com"
+
+      - name: Check one-shot guard
+        id: guard
+        shell: bash
+        run: |
+          if git log --grep='^lts: resolve non-target architecture and documentation conflicts$' --format='%H' | grep -q .; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Step 1 is already present in branch history."
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch Android 4.14.190 stable reference
+        if: steps.guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          git fetch --no-tags https://github.com/LineageOS/android_kernel_oneplus_sm8150.git \
+            d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac
+          git update-ref refs/remotes/android-stable/4.14.190 FETCH_HEAD
+
+      - name: Resolve Step 1 paths
+        if: steps.guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          stable=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac
+          merge_commit=5d8cba39fefb935c6feaf30ea1a57dfffa80273a
+
+          paths=(
+            Documentation/devicetree/bindings/usb/dwc3.txt
+            arch/x86/kernel/cpu/bugs.c
+            drivers/block/virtio_blk.c
+            drivers/net/ethernet/stmicro/stmmac/stmmac.h
+            drivers/net/ethernet/stmicro/stmmac/stmmac_ethtool.c
+            drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+          )
+
+          # These paths were deliberately preserved from the H.40 first parent
+          # in the scaffold merge. Abort if any has changed since then.
+          for path in "${paths[@]}"; do
+            if ! git diff --quiet "${merge_commit}^1" -- "$path"; then
+              echo "Unexpected post-scaffold change in $path; refusing automatic replacement." >&2
+              exit 1
+            fi
+          done
+
+          git checkout "$stable" -- "${paths[@]}"
+
+          for path in "${paths[@]}"; do
+            if ! git diff --quiet "$stable" -- "$path"; then
+              echo "$path does not exactly match Android 4.14.190 after checkout." >&2
+              exit 1
+            fi
+          done
+
+          cat > Documentation/miru/lts-4.14.190-conflicts.md <<'EOF'
+          # Miru H.40 to Android 4.14.190 conflict ledger
+
+          This file tracks explicit resolutions following the initial Android
+          stable 4.14.190 merge scaffold.
+
+          - H.40/Miru scaffold merge: `5d8cba39fefb935c6feaf30ea1a57dfffa80273a`
+          - Android stable parent: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
+          - Initial deferred conflicts: 28
+          - Resolved conflicts: 6
+          - Remaining conflicts: 22
+          - Status: **incomplete and not suitable for building or flashing as a release**
+
+          ## Resolved in Step 1
+
+          The following non-target architecture, non-target hardware, and
+          documentation paths now exactly match Android 4.14.190:
+
+          ```text
+          Documentation/devicetree/bindings/usb/dwc3.txt
+          arch/x86/kernel/cpu/bugs.c
+          drivers/block/virtio_blk.c
+          drivers/net/ethernet/stmicro/stmmac/stmmac.h
+          drivers/net/ethernet/stmicro/stmmac/stmmac_ethtool.c
+          drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+          ```
+
+          Resolution commit:
+
+          ```text
+          lts: resolve non-target architecture and documentation conflicts
+          ```
+
+          ## Remaining deferred conflicts
+
+          ```text
+          drivers/md/dm-default-key.c
+          drivers/mmc/core/Kconfig
+          drivers/mmc/core/block.c
+          drivers/mmc/host/sdhci-msm.c
+          drivers/scsi/ufs/ufs-qcom.c
+          drivers/usb/gadget/composite.c
+          drivers/usb/gadget/function/f_uac1_legacy.c
+          fs/block_dev.c
+          fs/crypto/inline_crypt.c
+          fs/crypto/keyring.c
+          fs/f2fs/checkpoint.c
+          fs/incfs/data_mgmt.c
+          include/linux/fs.h
+          include/linux/mmc/host.h
+          include/linux/mod_devicetable.h
+          include/net/netfilter/nf_conntrack.h
+          include/uapi/linux/input-event-codes.h
+          mm/huge_memory.c
+          net/ipv4/sysctl_net_ipv4.c
+          net/qrtr/qrtr.c
+          sound/core/compress_offload.c
+          sound/core/rawmidi.c
+          ```
+          EOF
+          sed -i 's/^          //' Documentation/miru/lts-4.14.190-conflicts.md
+
+          git add -- "${paths[@]}" Documentation/miru/lts-4.14.190-conflicts.md
+
+          expected="$RUNNER_TEMP/expected-step1-paths.txt"
+          actual="$RUNNER_TEMP/actual-step1-paths.txt"
+          printf '%s\n' "${paths[@]}" Documentation/miru/lts-4.14.190-conflicts.md | sort > "$expected"
+          git diff --cached --name-only | sort > "$actual"
+          diff -u "$expected" "$actual"
+
+          git diff --cached --check
+
+          if grep -nE '^(<<<<<<<|=======|>>>>>>>)' "${paths[@]}" Documentation/miru/lts-4.14.190-conflicts.md; then
+            echo "Conflict marker found in Step 1 paths." >&2
+            exit 1
+          fi
+
+          git commit -m "lts: resolve non-target architecture and documentation conflicts" \
+            -m "Take the Android 4.14.190 versions of the DWC3 binding document and non-OnePlus target code for x86 CPU mitigation, virtio block, and STMMAC Ethernet. These paths do not implement OnePlus 7 Pro ARM64 hardware. Update the Miru conflict ledger to record 6 of 28 deferred paths resolved, leaving 22 for explicit subsystem review."
+
+          git push origin HEAD:h40-miru-lts-4.14.190
+
+      - name: Report branch tip
+        if: always()
+        run: |
+          git log -1 --decorate --oneline
+          git status --short
