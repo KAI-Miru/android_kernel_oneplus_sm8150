@@ -27,6 +27,7 @@ drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
 Resolution commit:
 
 ```text
+ef0ad709bdbc098fd98f02eeaacc04e47255762a
 lts: resolve non-target architecture and documentation conflicts
 ```
 
