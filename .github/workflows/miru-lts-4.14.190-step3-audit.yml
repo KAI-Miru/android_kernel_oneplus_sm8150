@@ -1,0 +1,42 @@
+name: Miru LTS 4.14.190 Step 3 audit
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: read
+
+jobs:
+  audit-step-3:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 0
+
+      - name: Fetch Android and Lineage references
+        run: |
+          git fetch --no-tags https://github.com/LineageOS/android_kernel_oneplus_sm8150.git \
+            d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac \
+            0190a01fb1cde1c2ba48e7836084bad818c14d94
+
+      - name: Generate Step 3 audit
+        run: python3 scripts/miru/audit_step3.py
+
+      - name: Upload Step 3 audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts-4.14.190-step3-audit
+          path: step3-audit
+          if-no-files-found: error
+          retention-days: 30
