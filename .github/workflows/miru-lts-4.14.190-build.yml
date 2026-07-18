@@ -31,7 +31,9 @@ jobs:
           python3 scripts/miru/inject_vendor_compat_v3_into_ci_build.py
           sed -i 's/apply_vendor_lts190_compat_v3.py/apply_vendor_lts190_compat_v6.py/' \
             scripts/miru/ci_build_4.14.190.sh
+          python3 scripts/miru/insert_vendor_format_fixer.py
           grep -Fq 'apply_vendor_lts190_compat_v6.py' scripts/miru/ci_build_4.14.190.sh
+          grep -Fq 'fix_vendor_lts190_format_quotes.py' scripts/miru/ci_build_4.14.190.sh
 
       - name: Run sanity scan and clean build
         run: bash scripts/miru/ci_build_4.14.190.sh
