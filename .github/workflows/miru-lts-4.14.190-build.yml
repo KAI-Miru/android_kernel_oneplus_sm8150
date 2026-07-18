@@ -1,0 +1,48 @@
+name: Miru LTS 4.14.190 clean kernel build
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: read
+
+jobs:
+  sanity-and-build:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 1
+
+      - name: Run sanity scan and clean build
+        run: bash scripts/miru/ci_build_4.14.190.sh
+
+      - name: Upload kernel build outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts-4.14.190-ci1-build
+          path: ${{ runner.temp }}/android-root/out/h40-artifacts
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts-4.14.190-ci1-diagnostics
+          path: build-diagnostics
+          if-no-files-found: error
+          retention-days: 30
