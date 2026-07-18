@@ -25,9 +25,9 @@ jobs:
           ref: h40-miru-lts-4.14.190
           fetch-depth: 1
 
-      - name: Prepare explicit vendor compatibility build driver
+      - name: Prepare final vendor compatibility build driver
         run: |
-          python3 scripts/miru/relax_vendor_v6_redundant_count.py
+          python3 scripts/miru/finalize_vendor_v6.py
           python3 scripts/miru/inject_vendor_compat_v3_into_ci_build.py
           sed -i 's/apply_vendor_lts190_compat_v3.py/apply_vendor_lts190_compat_v6.py/' \
             scripts/miru/ci_build_4.14.190.sh
