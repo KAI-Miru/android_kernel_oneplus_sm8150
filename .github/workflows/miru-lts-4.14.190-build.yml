@@ -25,8 +25,8 @@ jobs:
           ref: h40-miru-lts-4.14.190
           fetch-depth: 1
 
-      - name: Prepare scoped vendor compatibility build driver
-        run: python3 scripts/miru/inject_vendor_compat_v2_into_ci_build.py
+      - name: Prepare preprocessor-scoped vendor compatibility build driver
+        run: python3 scripts/miru/inject_vendor_compat_v3_into_ci_build.py
 
       - name: Run sanity scan and clean build
         run: bash scripts/miru/ci_build_4.14.190.sh
