@@ -84,7 +84,7 @@ jobs:
           log="$RUNNER_TEMP/step4-final-validation.log"
           {
             set -x
-            git rm \
+            git rm -f \
               scripts/miru/audit_step4.py \
               scripts/miru/resolve_step4.py \
               scripts/miru/adjust_step4_incfs_resolution.py \
