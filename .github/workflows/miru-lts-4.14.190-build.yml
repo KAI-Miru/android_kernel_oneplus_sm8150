@@ -1,0 +1,275 @@
+name: Miru LTS 4.14.190 clean kernel build
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: read
+
+jobs:
+  sanity-and-build:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      ANDROID_ROOT: ${{ runner.temp }}/android-root
+      OUT_DIR: ${{ runner.temp }}/android-root/out/h40-kernel
+      DTS_OUT_DIR: ${{ runner.temp }}/android-root/out/h40-production-dts
+      ARTIFACT_DIR: ${{ runner.temp }}/android-root/out/h40-artifacts
+      BUILD_LOG: ${{ runner.temp }}/android-root/out/h40-build.log
+      TOOLCHAIN_ROOT: ${{ runner.temp }}/miru-toolchains
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 1
+
+      - name: Fetch sanity anchors
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin 59858c8f798778f4e6c1c4449baba631e353600e
+          git fetch --no-tags --depth=1 origin 5d8cba39fefb935c6feaf30ea1a57dfffa80273a
+          git fetch --no-tags --depth=1 origin d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac
+
+      - name: Gate build on global sanity scan
+        run: |
+          set -euo pipefail
+          mkdir -p build-diagnostics
+
+          git diff --check 59858c8f798778f4e6c1c4449baba631e353600e HEAD \
+            > build-diagnostics/diff-check.txt 2>&1
+
+          if git grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . \
+              ':!Documentation/miru/lts-4.14.190-conflicts.md' \
+              ':!.github/workflows/miru-lts-4.14.190-build.yml' \
+              ':!.github/workflows/miru-lts-4.14.190-sanity-probe.yml' \
+              > build-diagnostics/conflict-markers.txt; then
+            cat build-diagnostics/conflict-markers.txt >&2
+            exit 1
+          else
+            : > build-diagnostics/conflict-markers.txt
+          fi
+
+          test -z "$(git ls-files -u)"
+          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = "190"
+          grep -Fq -- '- Resolved conflicts: 28' Documentation/miru/lts-4.14.190-conflicts.md
+          grep -Fq -- '- Remaining conflicts: 0' Documentation/miru/lts-4.14.190-conflicts.md
+
+          git cat-file -p 5d8cba39fefb935c6feaf30ea1a57dfffa80273a \
+            > build-diagnostics/merge-scaffold.txt
+          test "$(grep -c '^parent ' build-diagnostics/merge-scaffold.txt)" = "2"
+          grep -Fq 'parent d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac' \
+            build-diagnostics/merge-scaffold.txt
+
+          {
+            echo "Sanity gate: PASS"
+            echo "head=$(git rev-parse HEAD)"
+            echo "kernel_version=4.14.$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)"
+            echo "conflicts=28/28 resolved"
+            echo "unmerged_index_entries=0"
+          } | tee build-diagnostics/sanity-summary.txt
+
+      - name: Install host dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential bison flex libssl-dev libelf-dev cpio kmod rsync \
+            zlib1g-dev libncurses-dev xz-utils file
+
+      - name: Fetch and verify recorded Android toolchains
+        run: |
+          set -euo pipefail
+          rm -rf "$TOOLCHAIN_ROOT"
+          mkdir -p "$TOOLCHAIN_ROOT" build-diagnostics
+
+          fetch_root() {
+            local url="$1" commit="$2" dest="$3"
+            git init -q "$dest"
+            git -C "$dest" remote add origin "$url"
+            git -C "$dest" fetch -q --depth=1 --filter=blob:none origin "$commit"
+            git -C "$dest" checkout -q --detach FETCH_HEAD
+          }
+
+          fetch_sparse() {
+            local url="$1" commit="$2" dest="$3" sparse_path="$4"
+            git init -q "$dest"
+            git -C "$dest" remote add origin "$url"
+            git -C "$dest" sparse-checkout init --cone
+            git -C "$dest" sparse-checkout set "$sparse_path"
+            git -C "$dest" fetch -q --depth=1 --filter=blob:none origin "$commit"
+            git -C "$dest" checkout -q --detach FETCH_HEAD
+          }
+
+          fetch_sparse \
+            https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
+            252aba16f513a857bc923172f67b0e55e23de35f \
+            "$TOOLCHAIN_ROOT/clang-repo" clang-r377782c
+
+          fetch_root \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
+            606f80986096476912e04e5c2913685a8f2c3b65 \
+            "$TOOLCHAIN_ROOT/gcc64"
+
+          fetch_root \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 \
+            b0c6a654327ca8796bed1e61dffcf523d04dceaa \
+            "$TOOLCHAIN_ROOT/gcc32"
+
+          fetch_sparse \
+            https://android.googlesource.com/platform/prebuilts/build-tools \
+            7322db1e1e4715fe217a27f721613e6be8438676 \
+            "$TOOLCHAIN_ROOT/build-tools" linux-x86
+
+          CLANG_DIR="$TOOLCHAIN_ROOT/clang-repo/clang-r377782c"
+          AOSP_BUILD_TOOLS="$TOOLCHAIN_ROOT/build-tools/linux-x86"
+
+          printf '%s  %s\n' \
+            6618ecab73b79a70b79263d2f477f669e564d81ca802112d2e5f93c74c6b22ca \
+            "$CLANG_DIR/bin/clang" | sha256sum -c -
+          printf '%s  %s\n' \
+            2a663de4ce3d702fe3f2a0de48cac366be676f850c2f5732d9cc2e4acb9335e2 \
+            "$TOOLCHAIN_ROOT/gcc64/bin/aarch64-linux-android-ld" | sha256sum -c -
+          printf '%s  %s\n' \
+            9565b7fc362bdf87032d44eea1087f25dcdd3a6655b39caa6f934640791f15d8 \
+            "$TOOLCHAIN_ROOT/gcc64/bin/aarch64-linux-android-as" | sha256sum -c -
+          printf '%s  %s\n' \
+            2f78058a8549bc5c099dbea16d9f3dc571e072b1ade906c3539e419787b502dd \
+            "$TOOLCHAIN_ROOT/gcc32/bin/arm-linux-androideabi-as" | sha256sum -c -
+          printf '%s  %s\n' \
+            5630a485d7c597d137fa462626213007e8865cf549677e1f727d131695ec830c \
+            "$AOSP_BUILD_TOOLS/bin/py2-cmd" | sha256sum -c -
+          printf '%s  %s\n' \
+            e42381e7111b3e9336895284a95b0a404479a45cfcd787e6431021d277ccbe44 \
+            "$AOSP_BUILD_TOOLS/bin/gavinhoward-bc" | sha256sum -c -
+          printf '%s  %s\n' \
+            c337f911c36e317e1fbbd9c3baa1cdb8457f591051f8f871eaa4964136f0dec5 \
+            "$AOSP_BUILD_TOOLS/bin/toybox" | sha256sum -c -
+
+          {
+            echo "clang_commit=252aba16f513a857bc923172f67b0e55e23de35f"
+            echo "clang_path=clang-r377782c"
+            "$CLANG_DIR/bin/clang" --version | head -n1
+            echo "gcc64_commit=606f80986096476912e04e5c2913685a8f2c3b65"
+            "$TOOLCHAIN_ROOT/gcc64/bin/aarch64-linux-android-ld" --version | head -n1
+            echo "gcc32_commit=b0c6a654327ca8796bed1e61dffcf523d04dceaa"
+            "$TOOLCHAIN_ROOT/gcc32/bin/arm-linux-androideabi-as" --version | head -n1
+            echo "build_tools_commit=7322db1e1e4715fe217a27f721613e6be8438676"
+            "$AOSP_BUILD_TOOLS/bin/py2-cmd" --version 2>&1 | head -n1 || true
+          } | tee build-diagnostics/toolchain-manifest.txt
+
+      - name: Clean-build kernel, DTBs and in-tree modules
+        id: build
+        env:
+          CLANG_DIR: ${{ runner.temp }}/miru-toolchains/clang-repo/clang-r377782c
+          GCC64_DIR: ${{ runner.temp }}/miru-toolchains/gcc64
+          GCC32_DIR: ${{ runner.temp }}/miru-toolchains/gcc32
+          AOSP_BUILD_TOOLS: ${{ runner.temp }}/miru-toolchains/build-tools/linux-x86
+          KERNEL_DIR: ${{ github.workspace }}
+          CONFIG_MODE: stock
+          KERNEL_LOCALVERSION: -miru-h40-lts190-ci1
+          MODULE_SIG_POLICY: permit-untrusted
+          SKIP_PRODUCTION_DTS: "1"
+          JOBS: "4"
+          KBUILD_BUILD_USER: miru
+          KBUILD_BUILD_HOST: github-actions
+          KBUILD_BUILD_VERSION: "1"
+        run: |
+          set -uo pipefail
+          mkdir -p "$ANDROID_ROOT/vendor" "$ANDROID_ROOT/out" build-diagnostics
+          export KBUILD_BUILD_TIMESTAMP="$(git show -s --format=%cD HEAD)"
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+
+          set +e
+          ./h40-repro/build-h40.sh --clean 2>&1 | tee build-diagnostics/build-console.log
+          status=${PIPESTATUS[0]}
+          set -e
+
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "$status" > build-diagnostics/build-exit-code.txt
+          exit 0
+
+      - name: Validate successful outputs
+        if: steps.build.outputs.status == '0'
+        run: |
+          set -euo pipefail
+
+          for rel in \
+            arch/arm64/boot/Image \
+            arch/arm64/boot/Image.gz \
+            arch/arm64/boot/Image.gz-dtb \
+            vmlinux System.map Module.symvers .config; do
+            test -s "$OUT_DIR/$rel"
+          done
+
+          test -s "$ARTIFACT_DIR/arch/arm64/boot/Image"
+          test -s "$ARTIFACT_DIR/Module.symvers"
+          grep -Fq 'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"' "$OUT_DIR/.config"
+          grep -Fq '# CONFIG_MODULE_SIG_FORCE is not set' "$OUT_DIR/.config"
+          grep -Fq 'CONFIG_MODVERSIONS=y' "$OUT_DIR/.config"
+
+          banner="$(strings "$OUT_DIR/arch/arm64/boot/Image" | grep -m1 '^Linux version 4\.14\.190-' || true)"
+          test -n "$banner"
+
+          cp "$BUILD_LOG" build-diagnostics/h40-build.log
+          ./scripts/diffconfig \
+            h40-repro/config/GM1911_11_H.40.config "$OUT_DIR/.config" \
+            > build-diagnostics/config-diff.txt || true
+
+          {
+            echo "result=SUCCESS"
+            echo "head=$(git rev-parse HEAD)"
+            echo "banner=$banner"
+            echo "image_size=$(stat -c %s "$OUT_DIR/arch/arm64/boot/Image")"
+            echo "image_gz_size=$(stat -c %s "$OUT_DIR/arch/arm64/boot/Image.gz")"
+            echo "image_gz_dtb_size=$(stat -c %s "$OUT_DIR/arch/arm64/boot/Image.gz-dtb")"
+            echo "dtb_count=$(find "$OUT_DIR/arch/arm64/boot/dts" -type f -name '*.dtb' | wc -l)"
+            echo "dtbo_count=$(find "$OUT_DIR/arch/arm64/boot/dts" -type f -name '*.dtbo' | wc -l)"
+            echo "ko_count=$(find "$OUT_DIR" -type f -name '*.ko' | wc -l)"
+            sha256sum \
+              "$OUT_DIR/arch/arm64/boot/Image" \
+              "$OUT_DIR/arch/arm64/boot/Image.gz" \
+              "$OUT_DIR/arch/arm64/boot/Image.gz-dtb" \
+              "$OUT_DIR/.config" \
+              "$OUT_DIR/System.map" \
+              "$OUT_DIR/Module.symvers"
+          } | tee build-diagnostics/build-summary.txt
+
+          cp build-diagnostics/build-summary.txt "$ARTIFACT_DIR/BUILD-SUMMARY.txt"
+          cp build-diagnostics/toolchain-manifest.txt "$ARTIFACT_DIR/TOOLCHAIN-MANIFEST.txt"
+          cp build-diagnostics/sanity-summary.txt "$ARTIFACT_DIR/SANITY-SUMMARY.txt"
+          cp build-diagnostics/config-diff.txt "$ARTIFACT_DIR/CONFIG-DIFF.txt"
+          cp build-diagnostics/h40-build.log "$ARTIFACT_DIR/h40-build.log"
+
+      - name: Upload build outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts-4.14.190-ci1-build
+          path: ${{ runner.temp }}/android-root/out/h40-artifacts
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts-4.14.190-ci1-diagnostics
+          path: build-diagnostics
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Fail workflow if compilation failed
+        if: steps.build.outputs.status != '0'
+        run: |
+          echo "Kernel compilation failed; inspect the uploaded diagnostics." >&2
+          exit 1
