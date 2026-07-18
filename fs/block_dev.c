@@ -698,7 +698,7 @@ int bdev_read_page(struct block_device *bdev, sector_t sector,
 	if (!ops->rw_page || bdev_get_integrity(bdev))
 		return result;
 
-	result = blk_queue_enter(bdev->bd_queue, 0);
+	result = blk_queue_enter(bdev->bd_queue, false);
 	if (result)
 		return result;
 	result = ops->rw_page(bdev, sector + get_start_sect(bdev), page, false);
@@ -734,7 +734,7 @@ int bdev_write_page(struct block_device *bdev, sector_t sector,
 
 	if (!ops->rw_page || bdev_get_integrity(bdev))
 		return -EOPNOTSUPP;
-	result = blk_queue_enter(bdev->bd_queue, 0);
+	result = blk_queue_enter(bdev->bd_queue, false);
 	if (result)
 		return result;
 
@@ -1523,9 +1523,9 @@ static int __blkdev_get(struct block_device *bdev, fmode_t mode, int for_part)
 			BUG_ON(for_part);
 			ret = __blkdev_get(whole, mode, 1);
 			if (ret) {
-                                bdput(whole);
+				bdput(whole);
 				goto out_clear;
-                        }
+			}
 			bdev->bd_contains = whole;
 			bdev->bd_part = disk_get_part(disk, partno);
 			if (!(disk->flags & GENHD_FL_UP) ||
@@ -1662,10 +1662,10 @@ int blkdev_get(struct block_device *bdev, fmode_t mode, void *holder)
 
 		mutex_unlock(&bdev->bd_mutex);
 		bdput(whole);
-                if(res)
-                       bdput(bdev);
-
 	}
+
+	if (res)
+		bdput(bdev);
 
 	return res;
 }
