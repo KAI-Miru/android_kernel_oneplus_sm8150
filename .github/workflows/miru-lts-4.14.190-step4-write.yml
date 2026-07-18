@@ -76,57 +76,86 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
-      - name: Validate, commit and push Step 4
+      - name: Stage and validate Step 4
+        id: final_validation
         if: steps.guard.outputs.run == 'true' && success()
         run: |
+          set +e
+          log="$RUNNER_TEMP/step4-final-validation.log"
+          {
+            set -x
+            git rm \
+              scripts/miru/audit_step4.py \
+              scripts/miru/resolve_step4.py \
+              scripts/miru/adjust_step4_incfs_resolution.py \
+              .github/workflows/miru-lts-4.14.190-step4-audit.yml \
+              .github/workflows/miru-lts-4.14.190-step4-write.yml \
+              .github/workflows/miru-lts-4.14.190-step4-incfs-diagnostic.yml || exit $?
+
+            git add \
+              fs/crypto/inline_crypt.c \
+              fs/crypto/keyring.c \
+              fs/f2fs/checkpoint.c \
+              Documentation/miru/lts-4.14.190-conflicts.md || exit $?
+
+            printf '%s\n' \
+              '.github/workflows/miru-lts-4.14.190-step4-audit.yml' \
+              '.github/workflows/miru-lts-4.14.190-step4-incfs-diagnostic.yml' \
+              '.github/workflows/miru-lts-4.14.190-step4-write.yml' \
+              'Documentation/miru/lts-4.14.190-conflicts.md' \
+              'fs/crypto/inline_crypt.c' \
+              'fs/crypto/keyring.c' \
+              'fs/f2fs/checkpoint.c' \
+              'scripts/miru/adjust_step4_incfs_resolution.py' \
+              'scripts/miru/audit_step4.py' \
+              'scripts/miru/resolve_step4.py' | sort > "$RUNNER_TEMP/expected.txt"
+            git diff --cached --name-only | sort > "$RUNNER_TEMP/actual.txt" || exit $?
+            echo '=== expected paths ==='
+            cat "$RUNNER_TEMP/expected.txt"
+            echo '=== actual paths ==='
+            cat "$RUNNER_TEMP/actual.txt"
+            diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt" || exit $?
+
+            git diff --cached --check || exit $?
+            if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- \
+              fs/crypto/inline_crypt.c \
+              fs/crypto/keyring.c \
+              fs/f2fs/checkpoint.c \
+              fs/incfs/data_mgmt.c \
+              Documentation/miru/lts-4.14.190-conflicts.md; then
+              echo 'Conflict marker found' >&2
+              exit 1
+            fi
+
+            grep -Fq 'fscrypt_find_storage_type' fs/crypto/inline_crypt.c || exit $?
+            grep -Fq 'bio->bi_crypt_context->is_ext4 = true' fs/crypto/inline_crypt.c || exit $?
+            grep -Fq 'retry_count++ <= 3' fs/crypto/keyring.c || exit $?
+            grep -Fq 'fscrypt_add_test_dummy_key' fs/crypto/keyring.c || exit $?
+            grep -Fq 'bdev_set_turbo_write' fs/f2fs/checkpoint.c || exit $?
+            grep -Fq 'f2fs_kvzalloc' fs/f2fs/checkpoint.c || exit $?
+            grep -Fq 'bfc = incfs_alloc_bfc(mi, bf);' fs/incfs/data_mgmt.c || exit $?
+            grep -Fq 'kfree(df->df_signature);' fs/incfs/data_mgmt.c || exit $?
+            test "$(git hash-object fs/incfs/data_mgmt.c)" = "e0705be44fb2280fb65df30472368882fef136e3" || exit $?
+
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          } > "$log" 2>&1
+          status=$?
+          cat "$log"
+          exit "$status"
+
+      - name: Upload Step 4 final validation diagnostics
+        if: failure() && steps.guard.outputs.run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts-4.14.190-step4-final-diagnostics
+          path: ${{ runner.temp }}/step4-final-validation.log
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Commit and push Step 4
+        if: steps.final_validation.outputs.ready == 'true'
+        run: |
           set -euo pipefail
-
-          git rm \
-            scripts/miru/audit_step4.py \
-            scripts/miru/resolve_step4.py \
-            scripts/miru/adjust_step4_incfs_resolution.py \
-            .github/workflows/miru-lts-4.14.190-step4-audit.yml \
-            .github/workflows/miru-lts-4.14.190-step4-write.yml \
-            .github/workflows/miru-lts-4.14.190-step4-incfs-diagnostic.yml
-
-          git add \
-            fs/crypto/inline_crypt.c \
-            fs/crypto/keyring.c \
-            fs/f2fs/checkpoint.c \
-            Documentation/miru/lts-4.14.190-conflicts.md
-
-          printf '%s\n' \
-            '.github/workflows/miru-lts-4.14.190-step4-audit.yml' \
-            '.github/workflows/miru-lts-4.14.190-step4-incfs-diagnostic.yml' \
-            '.github/workflows/miru-lts-4.14.190-step4-write.yml' \
-            'Documentation/miru/lts-4.14.190-conflicts.md' \
-            'fs/crypto/inline_crypt.c' \
-            'fs/crypto/keyring.c' \
-            'fs/f2fs/checkpoint.c' \
-            'scripts/miru/adjust_step4_incfs_resolution.py' \
-            'scripts/miru/audit_step4.py' \
-            'scripts/miru/resolve_step4.py' | sort > "$RUNNER_TEMP/expected.txt"
-          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual.txt"
-          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
-
-          git diff --cached --check
-          ! git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- \
-            fs/crypto/inline_crypt.c \
-            fs/crypto/keyring.c \
-            fs/f2fs/checkpoint.c \
-            fs/incfs/data_mgmt.c \
-            Documentation/miru/lts-4.14.190-conflicts.md
-
-          grep -q 'fscrypt_find_storage_type' fs/crypto/inline_crypt.c
-          grep -q 'bio->bi_crypt_context->is_ext4 = true' fs/crypto/inline_crypt.c
-          grep -q 'retry_count++ <= 3' fs/crypto/keyring.c
-          grep -q 'fscrypt_add_test_dummy_key' fs/crypto/keyring.c
-          grep -q 'bdev_set_turbo_write' fs/f2fs/checkpoint.c
-          grep -q 'f2fs_kvzalloc' fs/f2fs/checkpoint.c
-          grep -q 'bfc = incfs_alloc_bfc(mi, bf);' fs/incfs/data_mgmt.c
-          grep -q 'kfree(df->df_signature);' fs/incfs/data_mgmt.c
-          test "$(git hash-object fs/incfs/data_mgmt.c)" = "e0705be44fb2280fb65df30472368882fef136e3"
-
           git commit \
             -m "lts: resolve fscrypt f2fs and incfs conflicts" \
             -m "Preserve H.40 private-mode DUN sizing, ext4 crypto context handling, wrapped-secret retry behavior, UFSTW checkpoint hooks, and the mount-aware IncFS backing-context API. Add Android 4.14.190's IV_INO_LBLK_32 safety gate, keyring refactor and dummy-key support, and F2FS checkpoint fixes. Update the ledger to 15 of 28 conflicts resolved and remove all temporary Step 4 audit/resolver files."
