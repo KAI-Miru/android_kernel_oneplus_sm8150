@@ -1,0 +1,131 @@
+name: Miru LTS 4.14.190 Step 9 THP write
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: write
+
+jobs:
+  resolve-step-9:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 50
+          sparse-checkout: |
+            .github/workflows
+            Documentation/miru
+            scripts/miru
+            mm/huge_memory.c
+          sparse-checkout-cone-mode: false
+
+      - name: Configure Git
+        run: |
+          git config user.name "Miru LTS Integration"
+          git config user.email "110590275+Benetsu@users.noreply.github.com"
+
+      - name: Check one-shot guard
+        id: guard
+        run: |
+          if git log --all --grep='^lts: resolve transparent hugepage split conflict$' --format='%H' | grep -q .; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run guarded Step 9 resolver
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          set +e
+          python3 scripts/miru/resolve_step9.py > "$RUNNER_TEMP/step9-resolver.log" 2>&1
+          status=$?
+          cat "$RUNNER_TEMP/step9-resolver.log"
+          exit "$status"
+
+      - name: Upload Step 9 resolver diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts-4.14.190-step9-resolver-diagnostics
+          path: ${{ runner.temp }}/step9-resolver.log
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Stage and validate Step 9
+        id: final_validation
+        if: steps.guard.outputs.run == 'true' && success()
+        run: |
+          set -euo pipefail
+
+          git rm -f \
+            scripts/miru/audit_step9.py \
+            scripts/miru/audit_step9_fast.py \
+            scripts/miru/resolve_step9.py \
+            .github/workflows/miru-lts-4.14.190-step9-audit.yml \
+            .github/workflows/miru-lts-4.14.190-step9-fast-audit.yml \
+            .github/workflows/miru-lts-4.14.190-step9-write.yml
+
+          git add \
+            mm/huge_memory.c \
+            Documentation/miru/lts-4.14.190-conflicts.md
+
+          printf '%s\n' \
+            '.github/workflows/miru-lts-4.14.190-step9-audit.yml' \
+            '.github/workflows/miru-lts-4.14.190-step9-fast-audit.yml' \
+            '.github/workflows/miru-lts-4.14.190-step9-write.yml' \
+            'Documentation/miru/lts-4.14.190-conflicts.md' \
+            'mm/huge_memory.c' \
+            'scripts/miru/audit_step9.py' \
+            'scripts/miru/audit_step9_fast.py' \
+            'scripts/miru/resolve_step9.py' | sort > "$RUNNER_TEMP/expected.txt"
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual.txt"
+          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
+
+          git diff --cached --check
+          ! git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- \
+            mm/huge_memory.c \
+            Documentation/miru/lts-4.14.190-conflicts.md
+
+          test "$(git hash-object mm/huge_memory.c)" = "bd229a949abd63a28a70c56e9d3ace72336b05aa"
+
+          grep -Fq 'entry = mk_pte(pages[i], vmf->vma_page_prot);' mm/huge_memory.c
+          grep -Fq 'entry = maybe_mkwrite(pte_mkdirty(entry), vmf->vma_flags);' mm/huge_memory.c
+          grep -Fq 'entry = maybe_mkwrite(entry, vma->vm_flags);' mm/huge_memory.c
+          grep -Fq 'if (pmd_trans_huge(*pmd)) {' mm/huge_memory.c
+          grep -Fq 'if (PageMlocked(page))' mm/huge_memory.c
+          grep -Fq '} else if (!(pmd_devmap(*pmd) || is_pmd_migration_entry(*pmd)))' mm/huge_memory.c
+          grep -Fq '__split_huge_pmd_locked(vma, pmd, haddr, freeze);' mm/huge_memory.c
+          ! grep -Fq 'entry = maybe_mkwrite(pte_mkdirty(entry), vma);' mm/huge_memory.c
+          ! grep -Fq 'entry = maybe_mkwrite(entry, vma);' mm/huge_memory.c
+
+          grep -Fq -- '- Resolved conflicts: 26' Documentation/miru/lts-4.14.190-conflicts.md
+          grep -Fq -- '- Remaining conflicts: 2' Documentation/miru/lts-4.14.190-conflicts.md
+          ! grep -Fq 'mm/huge_memory.c' <(sed -n '/## Remaining deferred conflicts/,$p' Documentation/miru/lts-4.14.190-conflicts.md)
+
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push Step 9
+        if: steps.final_validation.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          git commit \
+            -m "lts: resolve transparent hugepage split conflict" \
+            -m "Correct H.40's conflicted __split_huge_pmd() page-lock scope to match the Lineage SM8150 Android 4.14.190 resolution. Keep PageMlocked() inside the real-THP branch so devmap and migration PMDs can be split without dereferencing a missing normal page. Preserve H.40's vm_fault fields and maybe_mkwrite(..., vm_flags) API in the two unrelated conflict regions. Update the ledger to 26 of 28 conflicts resolved and remove temporary Step 9 tooling."
+          git push origin HEAD:h40-miru-lts-4.14.190
+
+      - name: Report branch tip
+        if: always()
+        run: |
+          git log -1 --decorate --oneline
+          git show --stat --oneline --summary HEAD
