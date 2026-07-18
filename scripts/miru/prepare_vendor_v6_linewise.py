@@ -30,6 +30,12 @@ final_index = lines.index(final_line)
 cleanup = [
     '    text = base.replace_exact(\n',
     '        text,\n',
+    '        "\\tif (F2FS_OPTION(sbi).test_dummy_encryption)\\n"\n',
+    '        "\\t\\tseq_puts(seq, \",test_dummy_encryption\");\\n",\n',
+    '        "\\tfscrypt_show_test_dummy_encryption(seq, \'\,\', sbi->sb);\\n",\n',
+    '    )\n',
+    '    text = base.replace_exact(\n',
+    '        text,\n',
     '        "\\tF2FS_OPTION(sbi).test_dummy_encryption = false;\\n",\n',
     '        "",\n',
     '    )\n',
@@ -43,4 +49,6 @@ if count_line.rstrip("\n") in updated:
     raise SystemExit("redundant direct-reference count guard remains")
 if updated.count('F2FS_OPTION(sbi).test_dummy_encryption = false;') != 1:
     raise SystemExit("default boolean cleanup was not inserted exactly once")
+if updated.count('if (F2FS_OPTION(sbi).test_dummy_encryption)') != 1:
+    raise SystemExit("mount-option display cleanup was not inserted exactly once")
 print("Vendor v6 patcher prepared line-by-line.")
