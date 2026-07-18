@@ -1,0 +1,44 @@
+name: Miru LTS 4.14.190 Step 10 ALSA audit
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: read
+
+jobs:
+  audit-step-10:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 1
+          sparse-checkout: |
+            .github/workflows
+            scripts/miru
+            sound
+            include/sound
+            arch/arm64/configs
+            h40-repro/config
+          sparse-checkout-cone-mode: true
+
+      - name: Generate Step 10 ALSA audit
+        run: python3 scripts/miru/audit_step10.py
+
+      - name: Upload Step 10 ALSA audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts-4.14.190-step10-audit
+          path: step10-audit
+          if-no-files-found: error
+          retention-days: 30
