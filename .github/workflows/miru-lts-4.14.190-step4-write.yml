@@ -22,7 +22,15 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: h40-miru-lts-4.14.190
-          fetch-depth: 0
+          fetch-depth: 50
+          sparse-checkout: |
+            .github/workflows
+            Documentation/miru
+            scripts/miru
+            fs/crypto
+            fs/f2fs
+            fs/incfs
+          sparse-checkout-cone-mode: true
 
       - name: Configure Git
         run: |
@@ -48,6 +56,12 @@ jobs:
         if: steps.guard.outputs.run == 'true'
         run: |
           set +e
+          python3 scripts/miru/adjust_step4_incfs_resolution.py
+          adjust_status=$?
+          if [ "$adjust_status" -ne 0 ]; then
+            echo "IncFS policy adjustment failed" > "$RUNNER_TEMP/step4-resolver.log"
+            exit "$adjust_status"
+          fi
           python3 scripts/miru/resolve_step4.py > "$RUNNER_TEMP/step4-resolver.log" 2>&1
           status=$?
           cat "$RUNNER_TEMP/step4-resolver.log"
@@ -70,24 +84,26 @@ jobs:
           git rm \
             scripts/miru/audit_step4.py \
             scripts/miru/resolve_step4.py \
+            scripts/miru/adjust_step4_incfs_resolution.py \
             .github/workflows/miru-lts-4.14.190-step4-audit.yml \
-            .github/workflows/miru-lts-4.14.190-step4-write.yml
+            .github/workflows/miru-lts-4.14.190-step4-write.yml \
+            .github/workflows/miru-lts-4.14.190-step4-incfs-diagnostic.yml
 
           git add \
             fs/crypto/inline_crypt.c \
             fs/crypto/keyring.c \
             fs/f2fs/checkpoint.c \
-            fs/incfs/data_mgmt.c \
             Documentation/miru/lts-4.14.190-conflicts.md
 
           printf '%s\n' \
             '.github/workflows/miru-lts-4.14.190-step4-audit.yml' \
+            '.github/workflows/miru-lts-4.14.190-step4-incfs-diagnostic.yml' \
             '.github/workflows/miru-lts-4.14.190-step4-write.yml' \
             'Documentation/miru/lts-4.14.190-conflicts.md' \
             'fs/crypto/inline_crypt.c' \
             'fs/crypto/keyring.c' \
             'fs/f2fs/checkpoint.c' \
-            'fs/incfs/data_mgmt.c' \
+            'scripts/miru/adjust_step4_incfs_resolution.py' \
             'scripts/miru/audit_step4.py' \
             'scripts/miru/resolve_step4.py' | sort > "$RUNNER_TEMP/expected.txt"
           git diff --cached --name-only | sort > "$RUNNER_TEMP/actual.txt"
@@ -107,12 +123,13 @@ jobs:
           grep -q 'fscrypt_add_test_dummy_key' fs/crypto/keyring.c
           grep -q 'bdev_set_turbo_write' fs/f2fs/checkpoint.c
           grep -q 'f2fs_kvzalloc' fs/f2fs/checkpoint.c
-          grep -q 'bfc = incfs_alloc_bfc(bf);' fs/incfs/data_mgmt.c
-          ! grep -q 'kfree(df->df_signature);' fs/incfs/data_mgmt.c
+          grep -q 'bfc = incfs_alloc_bfc(mi, bf);' fs/incfs/data_mgmt.c
+          grep -q 'kfree(df->df_signature);' fs/incfs/data_mgmt.c
+          test "$(git hash-object fs/incfs/data_mgmt.c)" = "e0705be44fb2280fb65df30472368882fef136e3"
 
           git commit \
             -m "lts: resolve fscrypt f2fs and incfs conflicts" \
-            -m "Preserve H.40 private-mode DUN sizing, ext4 crypto context handling, wrapped-secret retry behavior, and UFSTW checkpoint hooks while adding Android 4.14.190's IV_INO_LBLK_32 safety gate, keyring refactor and dummy-key support, F2FS checkpoint fixes, and IncFS file-based backing-I/O API. Update the ledger to 15 of 28 conflicts resolved and remove the temporary Step 4 audit/resolver files."
+            -m "Preserve H.40 private-mode DUN sizing, ext4 crypto context handling, wrapped-secret retry behavior, UFSTW checkpoint hooks, and the mount-aware IncFS backing-context API. Add Android 4.14.190's IV_INO_LBLK_32 safety gate, keyring refactor and dummy-key support, and F2FS checkpoint fixes. Update the ledger to 15 of 28 conflicts resolved and remove all temporary Step 4 audit/resolver files."
           git push origin HEAD:h40-miru-lts-4.14.190
 
       - name: Report branch tip
