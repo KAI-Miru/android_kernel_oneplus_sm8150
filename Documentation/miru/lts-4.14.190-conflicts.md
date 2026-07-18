@@ -338,6 +338,7 @@ buffer and resets stream pointers only after drain has completed.
 Resolution commit:
 
 ```text
+451fde92c69043c080d49b2043eed5333c3c6b35
 lts: resolve ALSA compress and rawmidi conflicts
 ```
 
