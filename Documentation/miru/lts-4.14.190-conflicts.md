@@ -159,6 +159,7 @@ save/restore, reset workarounds and QTI CMDQ crypto integration are preserved.
 Resolution commit:
 
 ```text
+7443ab8fc7f0e58cff5c0280bd20685d73ce869f
 lts: resolve MMC core and SDHCI-MSM conflicts
 ```
 
