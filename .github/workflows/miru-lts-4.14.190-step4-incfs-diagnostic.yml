@@ -1,0 +1,50 @@
+name: Miru LTS 4.14.190 Step 4 IncFS diagnostic
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-incfs-api:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Sparse checkout IncFS
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 1
+          sparse-checkout: |
+            fs/incfs
+          sparse-checkout-cone-mode: true
+
+      - name: Capture IncFS API uses
+        run: |
+          {
+            echo '=== incfs_alloc_bfc ==='
+            git grep -n 'incfs_alloc_bfc' -- fs/incfs || true
+            echo
+            echo '=== incfs_kread ==='
+            git grep -n 'incfs_kread' -- fs/incfs || true
+            echo
+            echo '=== incfs_free_bfc ==='
+            git grep -n 'incfs_free_bfc' -- fs/incfs || true
+          } > "$RUNNER_TEMP/incfs-api.txt"
+          cat "$RUNNER_TEMP/incfs-api.txt"
+
+      - name: Upload IncFS API report
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts-4.14.190-step4-incfs-api
+          path: ${{ runner.temp }}/incfs-api.txt
+          if-no-files-found: error
+          retention-days: 30
