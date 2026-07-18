@@ -55,7 +55,6 @@ def validate_dm_default_key() -> None:
         if token not in text:
             raise SystemExit(f"dm-default-key lost required H.40 token: {token}")
 
-    # This path is intentionally preserved byte-for-byte in Step 3.
     if git("hash-object", str(DM)).strip() != EXPECTED_HASHES[DM]:
         raise SystemExit("dm-default-key changed unexpectedly")
 
@@ -64,9 +63,9 @@ def update_block_dev() -> None:
     text = BLOCK.read_text()
     iomonitor_before = text.count("OPLUS_FEATURE_IOMONITOR")
     update_calls_before = text.count("iomonitor_update_rw_stats")
-    if iomonitor_before != 3 or update_calls_before != 2:
+    if iomonitor_before != 6 or update_calls_before != 2:
         raise SystemExit(
-            f"unexpected Oplus I/O monitor layout: guards={iomonitor_before}, calls={update_calls_before}"
+            f"unexpected Oplus I/O monitor layout: tokens={iomonitor_before}, calls={update_calls_before}"
         )
 
     text = replace_exact(
@@ -89,7 +88,7 @@ def update_block_dev() -> None:
     )
 
     if text.count("OPLUS_FEATURE_IOMONITOR") != iomonitor_before:
-        raise SystemExit("Oplus I/O monitor guards changed")
+        raise SystemExit("Oplus I/O monitor feature tokens changed")
     if text.count("iomonitor_update_rw_stats") != update_calls_before:
         raise SystemExit("Oplus I/O monitor calls changed")
     if text.count("blk_queue_enter(bdev->bd_queue, false);") != 2:
