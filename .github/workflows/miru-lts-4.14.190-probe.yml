@@ -1,0 +1,79 @@
+name: Miru LTS 4.14.190 merge probe
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  merge-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout Miru integration branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "Miru LTS Integration"
+          git config user.email "actions@users.noreply.github.com"
+
+      - name: Fetch Android 4.14.190 stable reference
+        run: |
+          git remote add lineage https://github.com/LineageOS/android_kernel_oneplus_sm8150.git
+          git fetch --no-tags lineage d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac
+          git cat-file -t FETCH_HEAD
+          git show -s --format='stable_commit=%H%nsubject=%s%nparents=%P' FETCH_HEAD
+
+      - name: Probe merge and collect conflicts
+        id: probe
+        shell: bash
+        run: |
+          set +e
+          git merge --no-commit --no-ff FETCH_HEAD >merge-output.txt 2>&1
+          rc=$?
+          echo "merge_exit_code=$rc" | tee merge-summary.txt
+          echo "base_commit=$(git rev-parse HEAD)" | tee -a merge-summary.txt
+          echo "stable_commit=$(git rev-parse FETCH_HEAD)" | tee -a merge-summary.txt
+          echo "merge_base=$(git merge-base HEAD FETCH_HEAD)" | tee -a merge-summary.txt
+          echo "conflict_count=$(git diff --name-only --diff-filter=U | wc -l)" | tee -a merge-summary.txt
+          echo "changed_paths=$(git diff --name-only --cached | wc -l)" | tee -a merge-summary.txt
+          {
+            echo
+            echo '=== UNMERGED PATHS ==='
+            git status --short
+            echo
+            echo '=== CONFLICT FILES ==='
+            git diff --name-only --diff-filter=U
+            echo
+            echo '=== CONFLICT STAGES ==='
+            git ls-files -u
+            echo
+            echo '=== MERGE OUTPUT ==='
+            cat merge-output.txt
+          } | tee merge-details.txt
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload merge probe report
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts-4.14.190-merge-probe
+          path: |
+            merge-summary.txt
+            merge-details.txt
+            merge-output.txt
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Display summary
+        run: |
+          cat merge-summary.txt
+          echo
+          sed -n '/=== CONFLICT FILES ===/,/=== CONFLICT STAGES ===/p' merge-details.txt
