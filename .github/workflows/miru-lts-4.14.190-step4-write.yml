@@ -1,0 +1,105 @@
+name: Miru LTS 4.14.190 Step 4 write
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: write
+
+jobs:
+  resolve-step-4:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "Miru LTS Integration"
+          git config user.email "110590275+Benetsu@users.noreply.github.com"
+
+      - name: Check one-shot guard
+        id: guard
+        run: |
+          if git log --all --grep='^lts: resolve fscrypt f2fs and incfs conflicts$' --format='%H' | grep -q .; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch Android stable reference
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          git fetch --no-tags https://github.com/LineageOS/android_kernel_oneplus_sm8150.git \
+            d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac
+
+      - name: Apply guarded Step 4 resolution
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          python3 scripts/miru/resolve_step4.py
+
+          git rm \
+            scripts/miru/audit_step4.py \
+            scripts/miru/resolve_step4.py \
+            .github/workflows/miru-lts-4.14.190-step4-audit.yml \
+            .github/workflows/miru-lts-4.14.190-step4-write.yml
+
+          git add \
+            fs/crypto/inline_crypt.c \
+            fs/crypto/keyring.c \
+            fs/f2fs/checkpoint.c \
+            fs/incfs/data_mgmt.c \
+            Documentation/miru/lts-4.14.190-conflicts.md
+
+          printf '%s\n' \
+            '.github/workflows/miru-lts-4.14.190-step4-audit.yml' \
+            '.github/workflows/miru-lts-4.14.190-step4-write.yml' \
+            'Documentation/miru/lts-4.14.190-conflicts.md' \
+            'fs/crypto/inline_crypt.c' \
+            'fs/crypto/keyring.c' \
+            'fs/f2fs/checkpoint.c' \
+            'fs/incfs/data_mgmt.c' \
+            'scripts/miru/audit_step4.py' \
+            'scripts/miru/resolve_step4.py' | sort > "$RUNNER_TEMP/expected.txt"
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual.txt"
+          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
+
+          git diff --cached --check
+          ! git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- \
+            fs/crypto/inline_crypt.c \
+            fs/crypto/keyring.c \
+            fs/f2fs/checkpoint.c \
+            fs/incfs/data_mgmt.c \
+            Documentation/miru/lts-4.14.190-conflicts.md
+
+          grep -q 'fscrypt_find_storage_type' fs/crypto/inline_crypt.c
+          grep -q 'bio->bi_crypt_context->is_ext4 = true' fs/crypto/inline_crypt.c
+          grep -q 'retry_count++ <= 3' fs/crypto/keyring.c
+          grep -q 'fscrypt_add_test_dummy_key' fs/crypto/keyring.c
+          grep -q 'bdev_set_turbo_write' fs/f2fs/checkpoint.c
+          grep -q 'f2fs_kvzalloc' fs/f2fs/checkpoint.c
+          grep -q 'bfc = incfs_alloc_bfc(bf);' fs/incfs/data_mgmt.c
+          ! grep -q 'kfree(df->df_signature);' fs/incfs/data_mgmt.c
+
+          git commit \
+            -m "lts: resolve fscrypt f2fs and incfs conflicts" \
+            -m "Preserve H.40 private-mode DUN sizing, ext4 crypto context handling, wrapped-secret retry behavior, and UFSTW checkpoint hooks while adding Android 4.14.190's IV_INO_LBLK_32 safety gate, keyring refactor and dummy-key support, F2FS checkpoint fixes, and IncFS file-based backing-I/O API. Update the ledger to 15 of 28 conflicts resolved and remove the temporary Step 4 audit/resolver files."
+          git push origin HEAD:h40-miru-lts-4.14.190
+
+      - name: Report branch tip
+        if: always()
+        run: |
+          git log -1 --decorate --oneline
+          git show --stat --oneline --summary HEAD
