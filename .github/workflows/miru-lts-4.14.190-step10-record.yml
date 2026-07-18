@@ -1,0 +1,61 @@
+name: Miru LTS 4.14.190 Step 10 record
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: write
+
+jobs:
+  record-step-10:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 20
+          sparse-checkout: |
+            .github/workflows
+            Documentation/miru
+          sparse-checkout-cone-mode: true
+
+      - name: Configure Git
+        run: |
+          git config user.name "Miru LTS Integration"
+          git config user.email "110590275+Benetsu@users.noreply.github.com"
+
+      - name: Record Step 10 SHA
+        run: |
+          set -euo pipefail
+          ledger=Documentation/miru/lts-4.14.190-conflicts.md
+          test "$(git hash-object "$ledger")" = "81c6b0694bb89797ab0f406d72e7bcc35b2c3850"
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("Documentation/miru/lts-4.14.190-conflicts.md")
+          text = path.read_text()
+          old = "```text\nlts: resolve ALSA compress and rawmidi conflicts\n```"
+          new = "```text\n451fde92c69043c080d49b2043eed5333c3c6b35\nlts: resolve ALSA compress and rawmidi conflicts\n```"
+          if text.count(old) != 1:
+              raise SystemExit("Step 10 placeholder missing or duplicated")
+          path.write_text(text.replace(old, new, 1))
+          PY
+          git rm -f .github/workflows/miru-lts-4.14.190-step10-record.yml
+          git add "$ledger"
+          printf '%s\n' \
+            '.github/workflows/miru-lts-4.14.190-step10-record.yml' \
+            'Documentation/miru/lts-4.14.190-conflicts.md' | sort > "$RUNNER_TEMP/expected.txt"
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual.txt"
+          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
+          git diff --cached --check
+          grep -Fq '451fde92c69043c080d49b2043eed5333c3c6b35' "$ledger"
+          git commit -m "docs: record Step 10 ALSA resolution commit"
+          git push origin HEAD:h40-miru-lts-4.14.190
