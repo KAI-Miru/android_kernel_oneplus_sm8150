@@ -22,7 +22,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: h40-miru-lts-4.14.190
-          fetch-depth: 100
+          fetch-depth: 0
 
       - name: Run global source sanity scan
         run: |
@@ -37,20 +37,25 @@ jobs:
             git status --short
           } > sanity-probe/status.txt
 
+          git cat-file -e 59858c8f798778f4e6c1c4449baba631e353600e^{commit}
+          git cat-file -e 5d8cba39fefb935c6feaf30ea1a57dfffa80273a^{commit}
+          git cat-file -e d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac^{commit}
+
           git diff --check 59858c8f798778f4e6c1c4449baba631e353600e...HEAD \
             > sanity-probe/diff-check.txt 2>&1
 
-          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- . \
+          if git grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . \
               ':!Documentation/miru/lts-4.14.190-conflicts.md' \
               ':!.github/workflows/miru-lts-4.14.190-sanity-probe.yml' \
               > sanity-probe/conflict-markers.txt; then
-            echo "Unexpected conflict markers found" >&2
+            echo "Unexpected Git conflict headers found" >&2
             cat sanity-probe/conflict-markers.txt >&2
             exit 1
           else
             : > sanity-probe/conflict-markers.txt
           fi
 
+          test -z "$(git ls-files -u)"
           test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = "190"
           grep -Fq -- '- Resolved conflicts: 28' Documentation/miru/lts-4.14.190-conflicts.md
           grep -Fq -- '- Remaining conflicts: 0' Documentation/miru/lts-4.14.190-conflicts.md
@@ -68,7 +73,7 @@ jobs:
 
           {
             echo "Global source sanity scan: PASS"
-            echo "No unresolved conflict markers"
+            echo "No unresolved Git conflict headers or unmerged index entries"
             echo "git diff --check: PASS"
             echo "merge scaffold parents: PASS"
             echo "ledger: 28 resolved / 0 remaining"
@@ -77,28 +82,30 @@ jobs:
           } | tee sanity-probe/sanity-summary.txt
 
       - name: Inspect saved build environment
+        if: always()
         run: |
           set -euo pipefail
+          mkdir -p sanity-probe
 
           {
             echo "## h40-repro"
-            find h40-repro -maxdepth 4 -type f -printf '%p\n' 2>/dev/null | sort
+            find h40-repro -maxdepth 5 -type f -printf '%p\n' 2>/dev/null | sort
             echo
             echo "## workflows"
             find .github/workflows -maxdepth 1 -type f -printf '%p\n' | sort
             echo
             echo "## arm64 configs"
-            find arch/arm64/configs -maxdepth 3 -type f -printf '%p\n' | sort
+            find arch/arm64/configs -maxdepth 4 -type f -printf '%p\n' | sort
             echo
-            echo "## likely build scripts"
-            find . -maxdepth 4 -type f \
+            echo "## likely build scripts and configs"
+            find . -maxdepth 5 -type f \
               \( -iname '*build*.sh' -o -iname 'build.sh' -o -iname '*compile*.sh' \
-                 -o -iname '*defconfig*' -o -iname '.config' \) \
+                 -o -iname '*defconfig*' -o -iname '.config' -o -iname 'config' \) \
               -not -path './.git/*' -printf '%p\n' | sort
           } > sanity-probe/file-inventory.txt
 
           grep -RInE \
-            'clang|gcc|CROSS_COMPILE|CLANG_TRIPLE|LLVM=|LLVM_IAS|defconfig|Image.gz|dtbs|DTC_EXT|KBUILD_BUILD' \
+            'clang|gcc|CROSS_COMPILE|CLANG_TRIPLE|LLVM=|LLVM_IAS|defconfig|Image.gz|dtbs|DTC_EXT|KBUILD_BUILD|LOCALVERSION' \
             h40-repro .github arch/arm64/configs build.config* Makefile 2>/dev/null \
             > sanity-probe/build-references.txt || true
 
@@ -119,6 +126,7 @@ jobs:
           cat sanity-probe/build-references.txt
 
       - name: Upload sanity and build probe
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: miru-lts-4.14.190-sanity-build-probe
