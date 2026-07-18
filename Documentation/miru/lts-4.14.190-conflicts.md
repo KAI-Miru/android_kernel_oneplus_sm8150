@@ -6,8 +6,8 @@ stable 4.14.190 merge scaffold.
 - H.40/Miru scaffold merge: `5d8cba39fefb935c6feaf30ea1a57dfffa80273a`
 - Android stable parent: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
 - Initial deferred conflicts: 28
-- Resolved conflicts: 15
-- Remaining conflicts: 13
+- Resolved conflicts: 19
+- Remaining conflicts: 9
 - Status: **incomplete and not suitable for building or flashing as a release**
 
 ## Resolved in Step 1
@@ -125,16 +125,49 @@ Resolution commit:
 lts: resolve fscrypt f2fs and incfs conflicts
 ```
 
-## Remaining deferred conflicts
+## Resolved in Step 5
+
+The MMC core, MMC block path, host ABI and Qualcomm SDHCI driver were resolved
+as one request/host compatibility unit:
 
 ```text
 drivers/mmc/core/Kconfig
 drivers/mmc/core/block.c
 drivers/mmc/host/sdhci-msm.c
+include/linux/mmc/host.h
+```
+
+`Kconfig` adds the Android stable generic `MMC_CRYPTO` option while preserving
+H.40's ring-buffer, deferred-resume, clock-gating and speed-simulation options.
+The H.40 target configuration does not enable this generic option, so its
+shipping structure layout and legacy Qualcomm CMDQ/ICE path remain unchanged.
+
+`block.c` adds generic `mmc_crypto_prepare_req()` request metadata preparation.
+All H.40 legacy CMDQ, RPMB, timeout-abnormality detection, stuck-program-state,
+capacity reporting and vendor command-class compatibility behavior is retained.
+
+`host.h` adds the unused bit-1 `MMC_CAP2_CRYPTO` capability and the generic
+keyslot-manager fields under `CONFIG_MMC_CRYPTO`. H.40's vendor timeout tracking,
+card-detection retry, programming-state, devfreq, CMDQ and inline-crypto fields
+remain in place.
+
+`sdhci-msm.c` applies the stable HS400 re-initialization fix by clearing
+`tuning_done` before re-tuning, and enables the controller's supported automatic
+CMD12 handling for multiblock reads. Qualcomm bus voting, PM QoS, register
+save/restore, reset workarounds and QTI CMDQ crypto integration are preserved.
+
+Resolution commit:
+
+```text
+lts: resolve MMC core and SDHCI-MSM conflicts
+```
+
+## Remaining deferred conflicts
+
+```text
 drivers/scsi/ufs/ufs-qcom.c
 drivers/usb/gadget/composite.c
 drivers/usb/gadget/function/f_uac1_legacy.c
-include/linux/mmc/host.h
 include/net/netfilter/nf_conntrack.h
 mm/huge_memory.c
 net/ipv4/sysctl_net_ipv4.c
