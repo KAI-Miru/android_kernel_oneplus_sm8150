@@ -6,8 +6,8 @@ stable 4.14.190 merge scaffold.
 - H.40/Miru scaffold merge: `5d8cba39fefb935c6feaf30ea1a57dfffa80273a`
 - Android stable parent: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
 - Initial deferred conflicts: 28
-- Resolved conflicts: 6
-- Remaining conflicts: 22
+- Resolved conflicts: 8
+- Remaining conflicts: 20
 - Status: **incomplete and not suitable for building or flashing as a release**
 
 ## Resolved in Step 1
@@ -31,6 +31,28 @@ ef0ad709bdbc098fd98f02eeaacc04e47255762a
 lts: resolve non-target architecture and documentation conflicts
 ```
 
+## Resolved in Step 2
+
+The module matching and input ABI conflicts use the LineageOS SM8150
+4.14.190 resolution from `0190a01fb1cde1c2ba48e7836084bad818c14d94`:
+
+```text
+include/linux/mod_devicetable.h
+include/uapi/linux/input-event-codes.h
+```
+
+This preserves the H.40 GPR, SoundWire, Slimbus and MHI device-table
+structures and `INPUT_DEVICE_ID_SW_MAX=0x20`, while adding the stable
+x86 stepping field. All existing H.40 input codes retain their numeric
+values. `SW_MACHINE_COVER` is added at the unused value `0x14`, avoiding
+collisions with H.40 headset switch values `0x10` through `0x13`.
+
+Resolution commit:
+
+```text
+lts: resolve module matching and input ABI conflicts
+```
+
 ## Remaining deferred conflicts
 
 ```text
@@ -48,9 +70,7 @@ fs/f2fs/checkpoint.c
 fs/incfs/data_mgmt.c
 include/linux/fs.h
 include/linux/mmc/host.h
-include/linux/mod_devicetable.h
 include/net/netfilter/nf_conntrack.h
-include/uapi/linux/input-event-codes.h
 mm/huge_memory.c
 net/ipv4/sysctl_net_ipv4.c
 net/qrtr/qrtr.c
