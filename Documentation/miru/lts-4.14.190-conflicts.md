@@ -6,8 +6,8 @@ stable 4.14.190 merge scaffold.
 - H.40/Miru scaffold merge: `5d8cba39fefb935c6feaf30ea1a57dfffa80273a`
 - Android stable parent: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
 - Initial deferred conflicts: 28
-- Resolved conflicts: 19
-- Remaining conflicts: 9
+- Resolved conflicts: 20
+- Remaining conflicts: 8
 - Status: **incomplete and not suitable for building or flashing as a release**
 
 ## Resolved in Step 1
@@ -163,10 +163,35 @@ Resolution commit:
 lts: resolve MMC core and SDHCI-MSM conflicts
 ```
 
-## Remaining deferred conflicts
+## Resolved in Step 6
+
+The Qualcomm UFS conflict was resolved as a minimal atomic-context safety
+backport:
 
 ```text
 drivers/scsi/ufs/ufs-qcom.c
+```
+
+The file retains the complete H.40 implementation, including QTI ICE setup,
+secure-configuration restoration, retained ICE clock memory, bus voting,
+per-CPU PM QoS, clock scaling, regulator control, PHY reset/calibration,
+full-controller reset, debugfs and suspend/resume behavior.
+
+Android stable commit `291ae253fb695258fbdf2d73f5f37b43f597e537`
+(upstream `3be60b564de49875e47974c37fabced893cd0931`) is applied to
+`ufs_qcom_dump_dbg_regs()`: five `usleep_range(1000, 1100)` calls are replaced
+with `udelay(1000)` because this diagnostic path can be reached from interrupt
+and other atomic contexts. No other UFS behavior is changed.
+
+Resolution commit:
+
+```text
+lts: resolve Qualcomm UFS atomic dump conflict
+```
+
+## Remaining deferred conflicts
+
+```text
 drivers/usb/gadget/composite.c
 drivers/usb/gadget/function/f_uac1_legacy.c
 include/net/netfilter/nf_conntrack.h
