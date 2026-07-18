@@ -262,6 +262,7 @@ ordering remain unchanged.
 Resolution commit:
 
 ```text
+fdf8bc143cc6e6a911d645e0f2eb4b025ce6e3cd
 lts: resolve conntrack IPv4 sysctl and QRTR conflicts
 ```
 
