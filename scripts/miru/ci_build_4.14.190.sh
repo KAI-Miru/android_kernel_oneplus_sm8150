@@ -4,8 +4,11 @@ set -Eeuo pipefail
 BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e
 SCAFFOLD_SHA=5d8cba39fefb935c6feaf30ea1a57dfffa80273a
 STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac
+VENDOR_SHA=993439581252cf872cd3c184ed3eb9e0f286f4c3
 
 ANDROID_ROOT="${RUNNER_TEMP}/android-root"
+KERNEL_WORKTREE="${ANDROID_ROOT}/kernel/msm-4.14"
+VENDOR_SOURCE="${RUNNER_TEMP}/oneplus-sm8150-vendor-source"
 OUT_DIR="${ANDROID_ROOT}/out/h40-kernel"
 DTS_OUT_DIR="${ANDROID_ROOT}/out/h40-production-dts"
 ARTIFACT_DIR="${ANDROID_ROOT}/out/h40-artifacts"
@@ -63,6 +66,45 @@ sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
   build-essential bison flex libssl-dev libelf-dev cpio kmod rsync \
   zlib1g-dev libncurses-dev xz-utils file
+
+# Recreate the Android source layout used by the official OnePlus tree:
+#   android/kernel/msm-4.14  (this integration branch)
+#   android/vendor/...       (official modules/vendor repository)
+# Building from the GitHub checkout path directly breaks the relative OPlus
+# symlinks even when the vendor repository is present elsewhere.
+rm -rf "${ANDROID_ROOT}" "${VENDOR_SOURCE}"
+mkdir -p "${ANDROID_ROOT}/kernel" "${ANDROID_ROOT}/out"
+git worktree add --detach "${KERNEL_WORKTREE}" HEAD
+
+git init -q "${VENDOR_SOURCE}"
+git -C "${VENDOR_SOURCE}" remote add origin \
+  https://github.com/OnePlusOSS/android_kernel_modules_and_devicetree_oneplus_sm8150.git
+git -C "${VENDOR_SOURCE}" fetch -q --depth=1 --filter=blob:none origin "${VENDOR_SHA}"
+git -C "${VENDOR_SOURCE}" checkout -q --detach FETCH_HEAD
+test "$(git -C "${VENDOR_SOURCE}" rev-parse HEAD)" = "${VENDOR_SHA}"
+test -d "${VENDOR_SOURCE}/vendor"
+mkdir -p "${ANDROID_ROOT}/vendor"
+rsync -a "${VENDOR_SOURCE}/vendor/" "${ANDROID_ROOT}/vendor/"
+
+# Record the actual checked-in symlink graph and prove that the active Kconfig
+# dependency that blocked the first CI attempt now resolves through vendor/oplus.
+{
+  echo "kernel_worktree=${KERNEL_WORKTREE}"
+  echo "kernel_head=$(git -C "${KERNEL_WORKTREE}" rev-parse HEAD)"
+  echo "vendor_source_commit=$(git -C "${VENDOR_SOURCE}" rev-parse HEAD)"
+  echo "main_symlink_count=$(find "${KERNEL_WORKTREE}" -type l | wc -l)"
+  echo "vendor_symlink_count=$(find "${ANDROID_ROOT}/vendor" -type l | wc -l)"
+  echo
+  echo "block/oplus_foreground_io_opt -> $(readlink "${KERNEL_WORKTREE}/block/oplus_foreground_io_opt")"
+  echo
+  find "${KERNEL_WORKTREE}" -type l -printf '%P -> %l\n' | sort
+} > "${DIAG_DIR}/workspace-layout.txt"
+
+test -L "${KERNEL_WORKTREE}/block/oplus_foreground_io_opt"
+test -f "${KERNEL_WORKTREE}/block/oplus_foreground_io_opt/Kconfig"
+test -d "${ANDROID_ROOT}/vendor/oplus"
+test -d "${ANDROID_ROOT}/vendor/qcom/opensource/audio-kernel"
+test -d "${ANDROID_ROOT}/vendor/qcom/opensource/wlan"
 
 rm -rf "${TOOLCHAIN_ROOT}"
 mkdir -p "${TOOLCHAIN_ROOT}"
@@ -144,10 +186,9 @@ printf '%s  %s\n' \
   "${AOSP_BUILD_TOOLS}/bin/py2-cmd" --version 2>&1 | head -n1 || true
 } | tee "${DIAG_DIR}/toolchain-manifest.txt"
 
-mkdir -p "${ANDROID_ROOT}/vendor" "${ANDROID_ROOT}/out"
 export ANDROID_ROOT OUT_DIR DTS_OUT_DIR ARTIFACT_DIR BUILD_LOG
 export CLANG_DIR GCC64_DIR GCC32_DIR AOSP_BUILD_TOOLS
-export KERNEL_DIR="${GITHUB_WORKSPACE}"
+export KERNEL_DIR="${KERNEL_WORKTREE}"
 export CONFIG_MODE=stock
 export KERNEL_LOCALVERSION=-miru-h40-lts190-ci1
 export MODULE_SIG_POLICY=permit-untrusted
@@ -156,10 +197,10 @@ export JOBS=4
 export KBUILD_BUILD_USER=miru
 export KBUILD_BUILD_HOST=github-actions
 export KBUILD_BUILD_VERSION=1
-export KBUILD_BUILD_TIMESTAMP="$(git show -s --format=%cD HEAD)"
-export SOURCE_DATE_EPOCH="$(git show -s --format=%ct HEAD)"
+export KBUILD_BUILD_TIMESTAMP="$(git -C "${KERNEL_WORKTREE}" show -s --format=%cD HEAD)"
+export SOURCE_DATE_EPOCH="$(git -C "${KERNEL_WORKTREE}" show -s --format=%ct HEAD)"
 
-./h40-repro/build-h40.sh --clean 2>&1 | tee "${DIAG_DIR}/build-console.log"
+"${KERNEL_WORKTREE}/h40-repro/build-h40.sh" --clean 2>&1 | tee "${DIAG_DIR}/build-console.log"
 
 for rel in \
   arch/arm64/boot/Image \
@@ -179,13 +220,14 @@ banner="$(strings "${OUT_DIR}/arch/arm64/boot/Image" | grep -m1 '^Linux version 
 test -n "${banner}"
 
 cp "${BUILD_LOG}" "${DIAG_DIR}/h40-build.log"
-./scripts/diffconfig \
-  h40-repro/config/GM1911_11_H.40.config "${OUT_DIR}/.config" \
+"${KERNEL_WORKTREE}/scripts/diffconfig" \
+  "${KERNEL_WORKTREE}/h40-repro/config/GM1911_11_H.40.config" "${OUT_DIR}/.config" \
   > "${DIAG_DIR}/config-diff.txt" || true
 
 {
   echo "result=SUCCESS"
-  echo "head=$(git rev-parse HEAD)"
+  echo "head=$(git -C "${KERNEL_WORKTREE}" rev-parse HEAD)"
+  echo "vendor_source_commit=${VENDOR_SHA}"
   echo "banner=${banner}"
   echo "image_size=$(stat -c %s "${OUT_DIR}/arch/arm64/boot/Image")"
   echo "image_gz_size=$(stat -c %s "${OUT_DIR}/arch/arm64/boot/Image.gz")"
@@ -205,6 +247,7 @@ cp "${BUILD_LOG}" "${DIAG_DIR}/h40-build.log"
 cp "${DIAG_DIR}/build-summary.txt" "${ARTIFACT_DIR}/BUILD-SUMMARY.txt"
 cp "${DIAG_DIR}/toolchain-manifest.txt" "${ARTIFACT_DIR}/TOOLCHAIN-MANIFEST.txt"
 cp "${DIAG_DIR}/sanity-summary.txt" "${ARTIFACT_DIR}/SANITY-SUMMARY.txt"
+cp "${DIAG_DIR}/workspace-layout.txt" "${ARTIFACT_DIR}/WORKSPACE-LAYOUT.txt"
 cp "${DIAG_DIR}/config-diff.txt" "${ARTIFACT_DIR}/CONFIG-DIFF.txt"
 cp "${DIAG_DIR}/h40-build.log" "${ARTIFACT_DIR}/h40-build.log"
 
