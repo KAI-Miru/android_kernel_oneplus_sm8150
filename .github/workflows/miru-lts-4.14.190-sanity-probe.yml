@@ -1,0 +1,127 @@
+name: Miru LTS 4.14.190 sanity and build probe
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: read
+
+jobs:
+  sanity-probe:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 100
+
+      - name: Run global source sanity scan
+        run: |
+          set -euo pipefail
+          mkdir -p sanity-probe
+
+          {
+            echo "head=$(git rev-parse HEAD)"
+            echo "base=59858c8f798778f4e6c1c4449baba631e353600e"
+            echo "merge_scaffold=5d8cba39fefb935c6feaf30ea1a57dfffa80273a"
+            echo
+            git status --short
+          } > sanity-probe/status.txt
+
+          git diff --check 59858c8f798778f4e6c1c4449baba631e353600e...HEAD \
+            > sanity-probe/diff-check.txt 2>&1
+
+          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- . \
+              ':!Documentation/miru/lts-4.14.190-conflicts.md' \
+              ':!.github/workflows/miru-lts-4.14.190-sanity-probe.yml' \
+              > sanity-probe/conflict-markers.txt; then
+            echo "Unexpected conflict markers found" >&2
+            cat sanity-probe/conflict-markers.txt >&2
+            exit 1
+          else
+            : > sanity-probe/conflict-markers.txt
+          fi
+
+          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = "190"
+          grep -Fq -- '- Resolved conflicts: 28' Documentation/miru/lts-4.14.190-conflicts.md
+          grep -Fq -- '- Remaining conflicts: 0' Documentation/miru/lts-4.14.190-conflicts.md
+          grep -Fq 'None. All 28 merge conflicts now have explicit source-level resolutions.' \
+            Documentation/miru/lts-4.14.190-conflicts.md
+
+          git cat-file -p 5d8cba39fefb935c6feaf30ea1a57dfffa80273a \
+            > sanity-probe/merge-scaffold.txt
+          test "$(grep -c '^parent ' sanity-probe/merge-scaffold.txt)" = "2"
+          grep -Fq 'parent d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac' \
+            sanity-probe/merge-scaffold.txt
+
+          git fsck --no-progress --connectivity-only \
+            > sanity-probe/git-fsck.txt 2>&1
+
+          {
+            echo "Global source sanity scan: PASS"
+            echo "No unresolved conflict markers"
+            echo "git diff --check: PASS"
+            echo "merge scaffold parents: PASS"
+            echo "ledger: 28 resolved / 0 remaining"
+            echo "Makefile SUBLEVEL: 190"
+            echo "git fsck connectivity: PASS"
+          } | tee sanity-probe/sanity-summary.txt
+
+      - name: Inspect saved build environment
+        run: |
+          set -euo pipefail
+
+          {
+            echo "## h40-repro"
+            find h40-repro -maxdepth 4 -type f -printf '%p\n' 2>/dev/null | sort
+            echo
+            echo "## workflows"
+            find .github/workflows -maxdepth 1 -type f -printf '%p\n' | sort
+            echo
+            echo "## arm64 configs"
+            find arch/arm64/configs -maxdepth 3 -type f -printf '%p\n' | sort
+            echo
+            echo "## likely build scripts"
+            find . -maxdepth 4 -type f \
+              \( -iname '*build*.sh' -o -iname 'build.sh' -o -iname '*compile*.sh' \
+                 -o -iname '*defconfig*' -o -iname '.config' \) \
+              -not -path './.git/*' -printf '%p\n' | sort
+          } > sanity-probe/file-inventory.txt
+
+          grep -RInE \
+            'clang|gcc|CROSS_COMPILE|CLANG_TRIPLE|LLVM=|LLVM_IAS|defconfig|Image.gz|dtbs|DTC_EXT|KBUILD_BUILD' \
+            h40-repro .github arch/arm64/configs build.config* Makefile 2>/dev/null \
+            > sanity-probe/build-references.txt || true
+
+          {
+            command -v clang || true
+            clang --version || true
+            command -v aarch64-linux-gnu-gcc || true
+            aarch64-linux-gnu-gcc --version || true
+            command -v make
+            make --version | head -n2
+            nproc
+            free -h
+            df -h .
+          } > sanity-probe/runner-environment.txt 2>&1
+
+          cat sanity-probe/file-inventory.txt
+          echo
+          cat sanity-probe/build-references.txt
+
+      - name: Upload sanity and build probe
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts-4.14.190-sanity-build-probe
+          path: sanity-probe
+          if-no-files-found: error
+          retention-days: 30
