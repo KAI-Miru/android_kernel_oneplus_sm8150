@@ -6,8 +6,8 @@ stable 4.14.190 merge scaffold.
 - H.40/Miru scaffold merge: `5d8cba39fefb935c6feaf30ea1a57dfffa80273a`
 - Android stable parent: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
 - Initial deferred conflicts: 28
-- Resolved conflicts: 25
-- Remaining conflicts: 3
+- Resolved conflicts: 26
+- Remaining conflicts: 2
 - Status: **incomplete and not suitable for building or flashing as a release**
 
 ## Resolved in Step 1
@@ -266,10 +266,42 @@ fdf8bc143cc6e6a911d645e0f2eb4b025ce6e3cd
 lts: resolve conntrack IPv4 sysctl and QRTR conflicts
 ```
 
-## Remaining deferred conflicts
+## Resolved in Step 9
+
+The transparent-hugepage conflict was resolved as a minimal control-flow repair:
 
 ```text
 mm/huge_memory.c
+```
+
+Android stable commit `3b6c93db0a02b843694cf91f8bacd94f8e7259c8`
+(upstream `c444eb564fb16645c172d550359cb3d75fe8a040`) serializes the THP
+mapcount transfer performed by `__split_huge_pmd_locked()` with the compound
+page lock. H.40 already carried most of this backport, but its conflicted
+`__split_huge_pmd()` block left the page-lock closing brace misplaced and
+therefore evaluated `PageMlocked(page)` outside the `pmd_trans_huge()` branch.
+That could dereference a non-THP or absent page when handling devmap or migration
+PMDs.
+
+The corrected function exactly matches the Lineage SM8150 4.14.190 merge result:
+it retains the caller-supplied locked-page validation, retries safely if the PMD
+changes while acquiring the page lock, limits mlock clearing to real THPs, and
+continues to permit devmap and migration entries to reach
+`__split_huge_pmd_locked()` without touching a normal `struct page`.
+
+H.40's older `vm_fault` fields and `maybe_mkwrite(..., vm_flags)` API are
+preserved in both unrelated conflict regions. No other THP allocation, collapse,
+copy, migration, zero-page, deferred-split or khugepaged behavior is changed.
+
+Resolution commit:
+
+```text
+lts: resolve transparent hugepage split conflict
+```
+
+## Remaining deferred conflicts
+
+```text
 sound/core/compress_offload.c
 sound/core/rawmidi.c
 ```
