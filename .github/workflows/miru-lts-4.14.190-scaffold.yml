@@ -1,0 +1,183 @@
+name: Miru LTS 4.14.190 merge scaffold
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: write
+
+jobs:
+  create-scaffold:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "Miru LTS Integration"
+          git config user.email "110590275+Benetsu@users.noreply.github.com"
+
+      - name: Check one-shot guard
+        id: guard
+        shell: bash
+        run: |
+          if git log -1 --pretty=%B | grep -q '^Merge Android stable 4.14.190 into H.40 Miru'; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "The scaffold merge is already the branch tip."
+          elif git log --all --grep='^Merge Android stable 4.14.190 into H.40 Miru' --format='%H' | grep -q .; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "A scaffold merge already exists in branch history."
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch Android 4.14.190 stable reference
+        if: steps.guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          git fetch --no-tags https://github.com/LineageOS/android_kernel_oneplus_sm8150.git \
+            d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac
+          git update-ref refs/remotes/android-stable/4.14.190 FETCH_HEAD
+
+      - name: Create guarded merge scaffold
+        if: steps.guard.outputs.run == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          stable=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac
+          expected_file="$RUNNER_TEMP/expected-conflicts.txt"
+          actual_file="$RUNNER_TEMP/actual-conflicts.txt"
+
+          cat > "$expected_file" <<'EOF'
+          Documentation/devicetree/bindings/usb/dwc3.txt
+          arch/x86/kernel/cpu/bugs.c
+          drivers/block/virtio_blk.c
+          drivers/md/dm-default-key.c
+          drivers/mmc/core/Kconfig
+          drivers/mmc/core/block.c
+          drivers/mmc/host/sdhci-msm.c
+          drivers/net/ethernet/stmicro/stmmac/stmmac.h
+          drivers/net/ethernet/stmicro/stmmac/stmmac_ethtool.c
+          drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+          drivers/scsi/ufs/ufs-qcom.c
+          drivers/usb/gadget/composite.c
+          drivers/usb/gadget/function/f_uac1_legacy.c
+          fs/block_dev.c
+          fs/crypto/inline_crypt.c
+          fs/crypto/keyring.c
+          fs/f2fs/checkpoint.c
+          fs/incfs/data_mgmt.c
+          include/linux/fs.h
+          include/linux/mmc/host.h
+          include/linux/mod_devicetable.h
+          include/net/netfilter/nf_conntrack.h
+          include/uapi/linux/input-event-codes.h
+          mm/huge_memory.c
+          net/ipv4/sysctl_net_ipv4.c
+          net/qrtr/qrtr.c
+          sound/core/compress_offload.c
+          sound/core/rawmidi.c
+          EOF
+          sed -i 's/^          //' "$expected_file"
+          sort -o "$expected_file" "$expected_file"
+
+          set +e
+          git merge --no-ff --no-commit "$stable"
+          merge_rc=$?
+          set -e
+
+          git diff --name-only --diff-filter=U | sort > "$actual_file"
+
+          echo "Merge exit code: $merge_rc"
+          echo "Detected conflicts: $(wc -l < "$actual_file")"
+          cat "$actual_file"
+
+          if ! diff -u "$expected_file" "$actual_file"; then
+            echo "Unexpected conflict set; aborting without pushing." >&2
+            git merge --abort || true
+            exit 1
+          fi
+
+          mapfile -t conflicts < "$actual_file"
+          git checkout --ours -- "${conflicts[@]}"
+          git add -A
+
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "Unresolved paths remain after preserving the H.40 side." >&2
+            exit 1
+          fi
+
+          mkdir -p Documentation/miru
+          cat > Documentation/miru/lts-4.14.190-conflicts.md <<'EOF'
+          # Miru H.40 to Android 4.14.190 conflict ledger
+
+          This file marks the initial Android stable 4.14.190 merge scaffold.
+
+          - H.40/Miru parent: the branch tip before this merge
+          - Android stable parent: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
+          - Cleanly merged paths: accepted from Git's three-way merge
+          - Conflicted paths: temporarily preserved from the H.40/Miru parent
+          - Status: **incomplete and not suitable for building or flashing**
+
+          Each path below must receive an explicit follow-up resolution before the
+          milestone can be considered integrated:
+
+          ```text
+          Documentation/devicetree/bindings/usb/dwc3.txt
+          arch/x86/kernel/cpu/bugs.c
+          drivers/block/virtio_blk.c
+          drivers/md/dm-default-key.c
+          drivers/mmc/core/Kconfig
+          drivers/mmc/core/block.c
+          drivers/mmc/host/sdhci-msm.c
+          drivers/net/ethernet/stmicro/stmmac/stmmac.h
+          drivers/net/ethernet/stmicro/stmmac/stmmac_ethtool.c
+          drivers/net/ethernet/stmicro/stmmac/stmmac_main.c
+          drivers/scsi/ufs/ufs-qcom.c
+          drivers/usb/gadget/composite.c
+          drivers/usb/gadget/function/f_uac1_legacy.c
+          fs/block_dev.c
+          fs/crypto/inline_crypt.c
+          fs/crypto/keyring.c
+          fs/f2fs/checkpoint.c
+          fs/incfs/data_mgmt.c
+          include/linux/fs.h
+          include/linux/mmc/host.h
+          include/linux/mod_devicetable.h
+          include/net/netfilter/nf_conntrack.h
+          include/uapi/linux/input-event-codes.h
+          mm/huge_memory.c
+          net/ipv4/sysctl_net_ipv4.c
+          net/qrtr/qrtr.c
+          sound/core/compress_offload.c
+          sound/core/rawmidi.c
+          ```
+          EOF
+          sed -i 's/^          //' Documentation/miru/lts-4.14.190-conflicts.md
+          git add Documentation/miru/lts-4.14.190-conflicts.md
+
+          git commit \
+            -m "Merge Android stable 4.14.190 into H.40 Miru (conflicts deferred)" \
+            -m "Merge d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac as the first LTS milestone scaffold. Git's clean three-way results are retained. The 28 measured conflicts deliberately keep the H.40/Miru side and are recorded in Documentation/miru/lts-4.14.190-conflicts.md for explicit follow-up resolution. This commit is incomplete and must not be built or flashed as a release."
+
+          test "$(git rev-list --parents -n 1 HEAD | wc -w)" -eq 3
+          git push origin HEAD:h40-miru-lts-4.14.190
+
+      - name: Report branch tip
+        if: always()
+        run: |
+          git log -1 --decorate --oneline
+          git show -s --format='parents: %P%nsubject: %s' HEAD
