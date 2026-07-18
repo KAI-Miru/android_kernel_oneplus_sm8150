@@ -1,0 +1,61 @@
+name: Miru LTS 4.14.190 Step 3 write
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: write
+
+jobs:
+  resolve-step-3:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "Miru LTS Integration"
+          git config user.email "110590275+Benetsu@users.noreply.github.com"
+
+      - name: Check one-shot guard
+        id: guard
+        run: |
+          if git log --all --grep='^lts: resolve block core and dm-default-key conflicts$' --format='%H' | grep -q .; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply guarded Step 3 resolution
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          set -euo pipefail
+          python3 scripts/miru/resolve_step3.py
+          git rm scripts/miru/audit_step3.py scripts/miru/resolve_step3.py .github/workflows/miru-lts-4.14.190-step3-audit.yml .github/workflows/miru-lts-4.14.190-step3-write.yml
+          git add fs/block_dev.c include/linux/fs.h Documentation/miru/lts-4.14.190-conflicts.md
+          printf '%s\n' '.github/workflows/miru-lts-4.14.190-step3-audit.yml' '.github/workflows/miru-lts-4.14.190-step3-write.yml' 'Documentation/miru/lts-4.14.190-conflicts.md' 'fs/block_dev.c' 'include/linux/fs.h' 'scripts/miru/audit_step3.py' 'scripts/miru/resolve_step3.py' | sort > "$RUNNER_TEMP/expected.txt"
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual.txt"
+          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
+          git diff --cached --check
+          ! git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- drivers/md/dm-default-key.c fs/block_dev.c include/linux/fs.h Documentation/miru/lts-4.14.190-conflicts.md
+          test "$(git hash-object drivers/md/dm-default-key.c)" = "277a21d74830a462d16828c6e8f3b40f7ff338ce"
+          git commit -m "lts: resolve block core and dm-default-key conflicts" -m "Preserve H.40 dm-default-key compatibility and Oplus I/O monitoring while applying the Android 4.14.190 blkdev_get error-path use-after-free fix, boolean blk_queue_enter cleanups, and the file_handle flexible-array conversion. Keep RWF_APPEND and all H.40 filesystem interfaces. Update the ledger to 11 of 28 conflicts resolved and remove the temporary Step 3 audit/resolver files."
+          git push origin HEAD:h40-miru-lts-4.14.190
+
+      - name: Report branch tip
+        if: always()
+        run: |
+          git log -1 --decorate --oneline
+          git show --stat --oneline --summary HEAD
