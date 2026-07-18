@@ -1,0 +1,150 @@
+name: Miru LTS 4.14.190 Step 5 write
+
+on:
+  pull_request:
+    branches:
+      - h40-miru-module-compat-test
+    types:
+      - synchronize
+
+permissions:
+  contents: write
+
+jobs:
+  resolve-step-5:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout experimental branch
+        uses: actions/checkout@v4
+        with:
+          ref: h40-miru-lts-4.14.190
+          fetch-depth: 50
+          sparse-checkout: |
+            .github/workflows
+            Documentation/miru
+            scripts/miru
+            drivers/mmc/core
+            drivers/mmc/host
+            include/linux/mmc
+            arch/arm64/configs
+            h40-repro/config
+          sparse-checkout-cone-mode: true
+
+      - name: Configure Git
+        run: |
+          git config user.name "Miru LTS Integration"
+          git config user.email "110590275+Benetsu@users.noreply.github.com"
+
+      - name: Check one-shot guard
+        id: guard
+        run: |
+          if git log --all --grep='^lts: resolve MMC core and SDHCI-MSM conflicts$' --format='%H' | grep -q .; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run guarded Step 5 resolver
+        if: steps.guard.outputs.run == 'true'
+        run: |
+          set +e
+          python3 scripts/miru/resolve_step5.py > "$RUNNER_TEMP/step5-resolver.log" 2>&1
+          status=$?
+          cat "$RUNNER_TEMP/step5-resolver.log"
+          exit "$status"
+
+      - name: Upload Step 5 resolver diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts-4.14.190-step5-resolver-diagnostics
+          path: ${{ runner.temp }}/step5-resolver.log
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Stage and validate Step 5
+        id: final_validation
+        if: steps.guard.outputs.run == 'true' && success()
+        run: |
+          set -euo pipefail
+
+          git rm -f \
+            scripts/miru/audit_step5.py \
+            scripts/miru/resolve_step5.py \
+            .github/workflows/miru-lts-4.14.190-step5-audit.yml \
+            .github/workflows/miru-lts-4.14.190-step5-write.yml
+
+          git add \
+            drivers/mmc/core/Kconfig \
+            drivers/mmc/core/block.c \
+            drivers/mmc/host/sdhci-msm.c \
+            include/linux/mmc/host.h \
+            Documentation/miru/lts-4.14.190-conflicts.md
+
+          printf '%s\n' \
+            '.github/workflows/miru-lts-4.14.190-step5-audit.yml' \
+            '.github/workflows/miru-lts-4.14.190-step5-write.yml' \
+            'Documentation/miru/lts-4.14.190-conflicts.md' \
+            'drivers/mmc/core/Kconfig' \
+            'drivers/mmc/core/block.c' \
+            'drivers/mmc/host/sdhci-msm.c' \
+            'include/linux/mmc/host.h' \
+            'scripts/miru/audit_step5.py' \
+            'scripts/miru/resolve_step5.py' | sort > "$RUNNER_TEMP/expected.txt"
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/actual.txt"
+          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
+
+          git diff --cached --check
+          ! git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- \
+            drivers/mmc/core/Kconfig \
+            drivers/mmc/core/block.c \
+            drivers/mmc/host/sdhci-msm.c \
+            include/linux/mmc/host.h \
+            Documentation/miru/lts-4.14.190-conflicts.md
+
+          grep -Fq 'config MMC_CRYPTO' drivers/mmc/core/Kconfig
+          grep -Fq 'config MMC_RING_BUFFER' drivers/mmc/core/Kconfig
+          grep -Fq 'config MMC_CLKGATE' drivers/mmc/core/Kconfig
+
+          grep -Fq '#include "crypto.h"' drivers/mmc/core/block.c
+          grep -Fq 'mmc_crypto_prepare_req(mqrq);' drivers/mmc/core/block.c
+          grep -Fq 'static bool mmc_blk_timeout_check(' drivers/mmc/core/block.c
+          grep -Fq 'card_stuck_in_programing_status = true;' drivers/mmc/core/block.c
+          grep -Fq 'char *capacity_string(struct mmc_card *card)' drivers/mmc/core/block.c
+
+          grep -Fq 'msm_host->tuning_done = false;' drivers/mmc/host/sdhci-msm.c
+          grep -Fq 'SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12' drivers/mmc/host/sdhci-msm.c
+          grep -Fq '#include "cmdq_hci-crypto-qti.h"' drivers/mmc/host/sdhci-msm.c
+          grep -Fq 'sdhci_msm_bus_register' drivers/mmc/host/sdhci-msm.c
+          grep -Fq 'sdhci_msm_pm_qos_parse' drivers/mmc/host/sdhci-msm.c
+
+          grep -Fq '#define MMC_CAP2_CRYPTO' include/linux/mmc/host.h
+          grep -Fq 'struct keyslot_manager' include/linux/mmc/host.h
+          grep -Fq 'crypto_DO_NOT_USE[7]' include/linux/mmc/host.h
+          grep -Fq 'MAX_MULTIREAD_TIMEOUT_ERR_CNT' include/linux/mmc/host.h
+          grep -Fq 'detect_change_retry' include/linux/mmc/host.h
+          grep -Fq 'inlinecrypt_support' include/linux/mmc/host.h
+          grep -Fq 'cmdq_private' include/linux/mmc/host.h
+
+          test "$(git grep -n '^CONFIG_MMC_CRYPTO=y' -- arch/arm64/configs h40-repro/config | grep -vc 'cuttlefish_defconfig' || true)" = "0"
+
+          echo 'ready=true' >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push Step 5
+        if: steps.final_validation.outputs.ready == 'true'
+        run: |
+          set -euo pipefail
+          git commit \
+            -m "lts: resolve MMC core and SDHCI-MSM conflicts" \
+            -m "Preserve H.40 legacy CMDQ, QTI ICE, RPMB, vendor timeout diagnostics, host ABI fields, bus voting, PM QoS and register save/restore behavior. Add Android 4.14.190 generic MMC crypto plumbing, the Qualcomm HS400 retuning fix and automatic CMD12 support for multiblock reads. Update the ledger to 19 of 28 conflicts resolved and remove temporary Step 5 tooling."
+          git push origin HEAD:h40-miru-lts-4.14.190
+
+      - name: Report branch tip
+        if: always()
+        run: |
+          git log -1 --decorate --oneline
+          git show --stat --oneline --summary HEAD
