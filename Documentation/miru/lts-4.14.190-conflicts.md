@@ -206,8 +206,9 @@ drivers/usb/gadget/function/f_uac1_legacy.c
 `config_ep_by_speed_and_alt()` selects the interface descriptor for the
 requested alternate setting before locating its endpoint and SuperSpeed
 companion descriptor. The existing `config_ep_by_speed()` API remains as an
-alternate-setting-zero wrapper. H.40's Qualcomm boot-stat include, OS
-descriptor handling and composite setup/disconnect behavior are preserved.
+alternate-setting-zero wrapper. H.40's Qualcomm boot-stat include, EP0 length
+clamping, OS-descriptor bounds validation, zeroed control-buffer allocation,
+resume marker and composite setup/disconnect behavior are preserved.
 
 `f_uac1_legacy.c` remains byte-for-byte H.40 and already matches the Lineage
 4.14.190 resolution. Its expanded driver protects `play_queue` insertion and
@@ -220,6 +221,7 @@ packet-drop policy and ColorOS legacy audio descriptors remain unchanged.
 Resolution commit:
 
 ```text
+98ef978aa19abe7ab4f1463c41e3f86312ac6bb1
 lts: resolve USB composite and legacy UAC1 conflicts
 ```
 
