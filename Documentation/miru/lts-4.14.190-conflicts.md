@@ -6,8 +6,8 @@ stable 4.14.190 merge scaffold.
 - H.40/Miru scaffold merge: `5d8cba39fefb935c6feaf30ea1a57dfffa80273a`
 - Android stable parent: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
 - Initial deferred conflicts: 28
-- Resolved conflicts: 22
-- Remaining conflicts: 6
+- Resolved conflicts: 25
+- Remaining conflicts: 3
 - Status: **incomplete and not suitable for building or flashing as a release**
 
 ## Resolved in Step 1
@@ -225,13 +225,50 @@ Resolution commit:
 lts: resolve USB composite and legacy UAC1 conflicts
 ```
 
-## Remaining deferred conflicts
+## Resolved in Step 8
+
+The conntrack ABI marker, IPv4 sysctl registration and Qualcomm QRTR conflict
+were resolved as one networking compatibility unit:
 
 ```text
 include/net/netfilter/nf_conntrack.h
-mm/huge_memory.c
 net/ipv4/sysctl_net_ipv4.c
 net/qrtr/qrtr.c
+```
+
+`nf_conntrack.h` applies stable commit
+`7addf56d9a45e8601b726a7efbcbe75713a15e91` (upstream
+`2c407aca64977ede9b9f35158e919773cae2082f`), replacing the zero-length
+`__nfct_init_offset[0]` marker with an empty structure so GCC 10 does not emit
+an out-of-bounds warning. H.40's Oplus application UID, SFE pointer, SIP
+segmentation state, NATTYPE field and protocol tail remain in their original
+order and continue to be covered by the existing allocation-time `memset()`.
+
+`sysctl_net_ipv4.c` applies Android commit
+`08870bd1a24fc7f3ae4ff30bc7e64c09edd931d4`, moving
+`tcp_default_init_rwnd` from the global IPv4 table into `ipv4_net_table` and
+using `proc_dointvec_minmax` with limits 3 through 100. This makes the Android
+sysctl use the existing per-network-namespace field. H.40's delayed-ACK,
+user-config, reserved-port, timestamp-control and random-timestamp sysctls are
+preserved.
+
+`qrtr.c` applies stable commit `33fe397c18f4788232793f3fbf5d3156f3100b6f`
+(upstream `6dbf02acef69b0742c238574583b3068afbd227c`) by passing `NULL` to the
+local leg after broadcast endpoint iteration instead of reusing the loop's
+last node pointer. H.40's modem wake accounting, service matching, IPC logging,
+emergency skb backup pools, multi-node forwarding and socket-orphan release
+ordering remain unchanged.
+
+Resolution commit:
+
+```text
+lts: resolve conntrack IPv4 sysctl and QRTR conflicts
+```
+
+## Remaining deferred conflicts
+
+```text
+mm/huge_memory.c
 sound/core/compress_offload.c
 sound/core/rawmidi.c
 ```
