@@ -10,7 +10,7 @@ anchor = '''# Qualcomm qcacld WLAN was already proven buildable directly with Kb
 WLAN_ROOT="${WLAN_PARENT}/qcacld-3.0"
 '''
 
-injected = '''# Qualcomm qcacld contains several thousand objects.  Expanding all paths on
+injected = r'''# Qualcomm qcacld contains several thousand objects.  Expanding all paths on
 # the final ld command exceeds Linux ARG_MAX, so patch only the detached build
 # worktree to write the composite object list with GNU make's file function and
 # feed it to GNU ld through a response file.  The same response file is reused
@@ -51,9 +51,9 @@ text = text.replace(old_meta, new_meta, 1)
 path.write_text(text)
 
 report.write_text(
-    "WLAN composite link response-file patch applied.\\n"
-    f"original_blob={expected}\\n"
-    f"patched_blob={subprocess.check_output(['git', 'hash-object', str(path)], text=True).strip()}\\n"
+    "WLAN composite link response-file patch applied.\n"
+    f"original_blob={expected}\n"
+    f"patched_blob={subprocess.check_output(['git', 'hash-object', str(path)], text=True).strip()}\n"
 )
 PY
 
