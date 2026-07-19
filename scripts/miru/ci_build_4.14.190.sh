@@ -4,7 +4,7 @@ set -Eeuo pipefail
 BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e
 SCAFFOLD_SHA=5d8cba39fefb935c6feaf30ea1a57dfffa80273a
 STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac
-VENDOR_SHA=993439581252cf872cd3c184ed3eb9e0f286f4c3
+VENDOR_SHA=dd598e265cbe2ed58870872dc3f151ccd0d42c88
 
 ANDROID_ROOT="${RUNNER_TEMP}/android-root"
 KERNEL_WORKTREE="${ANDROID_ROOT}/kernel/msm-4.14"
@@ -76,7 +76,7 @@ git worktree add --detach "${KERNEL_WORKTREE}" HEAD
 
 git init -q "${VENDOR_SOURCE}"
 git -C "${VENDOR_SOURCE}" remote add origin \
-  https://github.com/OnePlusOSS/android_kernel_modules_and_devicetree_oneplus_sm8150.git
+  https://github.com/KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150.git
 git -C "${VENDOR_SOURCE}" fetch -q --depth=1 --filter=blob:none origin "${VENDOR_SHA}"
 git -C "${VENDOR_SOURCE}" checkout -q --detach FETCH_HEAD
 test "$(git -C "${VENDOR_SOURCE}" rev-parse HEAD)" = "${VENDOR_SHA}"
