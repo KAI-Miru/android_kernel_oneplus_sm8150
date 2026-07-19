@@ -348,4 +348,4 @@ None. All 28 merge conflicts have explicit source-level resolutions. Clean
 GitHub Actions run #48 built the 4.14.190 kernel, DTBs and all 32 external
 modules with matching vermagic and symbol CRCs. Device validation on 2026-07-19
 confirmed a successful boot, complete module loading, WLAN and audio. The
-milestone is suitable for integration into the `miru-h40` production branch.
+milestone was merged into `miru-h40` as `a48222c3baa9c73943821da6b841d5a533a62fb1`; post-merge Actions run #4 also completed successfully.

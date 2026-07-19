@@ -19,7 +19,7 @@ The 4.14.190 milestone preserves the H.40 Qualcomm/Oplus hardware architecture a
 
 Kernel, DTBs and external modules are built by [GitHub Actions](.github/workflows/miru-h40-build.yml). The workflow performs the source sanity checks, builds the kernel and five production DTBs, rebuilds all 32 external modules against the final `Module.symvers`, verifies vermagic and symbol CRCs, and publishes installable and diagnostic artifacts.
 
-The final pre-merge validation run was Actions run #48 at commit `c25ef04cb498fb9b23393aa7ee10a50359258fb8`.
+Production merge commit `a48222c3baa9c73943821da6b841d5a533a62fb1` passed **Miru H.40 kernel and external modules** run #4 (`29681658485`) on `miru-h40`. The run uploaded the complete kernel build, kernel diagnostics, Miru v3 module drop-in package and module diagnostics.
 
 ## Source references
 
