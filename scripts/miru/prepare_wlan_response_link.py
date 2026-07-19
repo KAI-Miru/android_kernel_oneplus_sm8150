@@ -51,9 +51,9 @@ text = text.replace(old_meta, new_meta, 1)
 path.write_text(text)
 
 report.write_text(
-    "WLAN composite link response-file patch applied.\n"
-    f"original_blob={expected}\n"
-    f"patched_blob={subprocess.check_output(['git', 'hash-object', str(path)], text=True).strip()}\n"
+    "WLAN composite link response-file patch applied.\\n"
+    f"original_blob={expected}\\n"
+    f"patched_blob={subprocess.check_output(['git', 'hash-object', str(path)], text=True).strip()}\\n"
 )
 PY
 
