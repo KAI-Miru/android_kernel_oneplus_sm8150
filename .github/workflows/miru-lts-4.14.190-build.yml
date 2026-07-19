@@ -39,7 +39,9 @@ jobs:
         run: bash scripts/miru/ci_build_4.14.190.sh
 
       - name: Rebuild and package external modules
-        run: bash scripts/miru/build_external_modules_4.14.190.sh
+        run: |
+          python3 scripts/miru/prepare_external_modules_toolchain.py
+          bash scripts/miru/build_external_modules_4.14.190.sh
 
       - name: Upload external module drop-in packages
         if: always()
