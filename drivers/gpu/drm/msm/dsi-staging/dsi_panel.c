@@ -1114,9 +1114,14 @@ static int dsi_panel_update_backlight(struct dsi_panel *panel,
 	dsi = &panel->mipi_device;
 #ifdef OPLUS_BUG_STABILITY
 
-	/* Brightness level 1 is the legacy sentinel used while entering AOD. */
-	if ((get_oplus_display_scene() == OPLUS_DISPLAY_AOD_SCENE) &&
-			(bl_lvl == 1)) {
+	/*
+	 * H.40 programs AOD luminance through the dedicated high/low light
+	 * command path.  ColorOS still animates the normal backlight towards
+	 * level 1 while entering doze; allowing those intermediate writes would
+	 * overwrite the AOD level and leave the panel barely visible.
+	 */
+	if ((get_oplus_display_scene() == OPLUS_DISPLAY_AOD_SCENE) ||
+			(get_oplus_display_scene() == OPLUS_DISPLAY_AOD_HBM_SCENE)) {
 		pr_err("dsi_cmd AOD mode return bl_lvl:%d\n",bl_lvl);
 		return 0;
 	}
