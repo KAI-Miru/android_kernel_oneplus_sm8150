@@ -96,7 +96,7 @@ struct nf_conn {
 #endif
 	/* all members below initialized via memset */
 
-	u8 __nfct_init_offset[0];
+	struct { } __nfct_init_offset;
 
 #ifdef OPLUS_FEATURE_WIFI_LUCKYMONEY
 	u32 oplus_app_uid;
