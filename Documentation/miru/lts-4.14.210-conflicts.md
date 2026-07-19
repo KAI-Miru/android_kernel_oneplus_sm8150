@@ -10,8 +10,8 @@ through 4.14.210 into the validated Miru H.40 OnePlus 7 Pro kernel.
 - Phase 1 ledger initialization: **complete**
 - Merge scaffold: **created; conflicts deferred**
 - Initial merge conflicts: **19**
-- Resolved conflicts: **0**
-- Remaining conflicts: **19 semantic resolutions**
+- Resolved conflicts: **4**
+- Remaining conflicts: **15 semantic resolutions**
 - Build status: **not started**
 - Flash status: **not permitted**
 
@@ -206,6 +206,72 @@ net/ipv4/inet_connection_sock.c
 ```
 
 The paths above are staged only to make the merge commit representable. They are not considered semantically resolved. Each remains counted in `Remaining conflicts` until its owning subsystem commit records and validates the final resolution.
+
+## Phase 3: non-target architecture and documentation
+
+- Owning commit: `lts: resolve non-target architecture and documentation conflicts`
+- Conflicts resolved in this batch: `4`
+- Conflicts remaining after this batch: `15`
+- Documentation conflicts: `0`; all clean Android 4.14.191-210 documentation merges remain retained.
+- Resolution rule: accept Android stable deletion of obsolete Ranchu/Goldfish emulator defconfigs because none participates in the SM8150/guacamole build, external-module ABI, DTB/DTBO generation or OnePlus runtime behavior.
+- Validation performed: exact changed-path gate; all four files absent; `Makefile` remains at 4.14.210; no production branch change.
+- Build/flash status: not started and still prohibited while semantic conflicts remain.
+
+### `arch/arm/configs/ranchu_defconfig`
+
+- Subsystem batch: non-target architecture and documentation
+- Android 4.14.191-210 change: remove obsolete Ranchu emulator defconfig from the generic Android kernel tree.
+- Relevant Android commit: `cc34fcefe97688d21f83e3d544e155f55a847bed` (`ANDROID: Delete goldfish build configs and defconfigs`)
+- LineageOS/Qualcomm reference: not required; this file is an emulator-only configuration and is not selected by the OnePlus SM8150 build.
+- Miru/H.40 behavior retained: all guacamole and Qualcomm target configurations remain untouched.
+- Final resolution: delete the file, matching Android stable 4.14.210.
+- External-module ABI impact: none.
+- Runtime risk: none for OnePlus 7 Pro; the file cannot affect a guacamole kernel image.
+- Required validation: verify absence and verify no target defconfig, source, DT or module path changed in this commit.
+- Resolution commit: this commit.
+- Status: resolved
+
+### `arch/arm64/configs/ranchu64_defconfig`
+
+- Subsystem batch: non-target architecture and documentation
+- Android 4.14.191-210 change: remove obsolete Ranchu emulator defconfig from the generic Android kernel tree.
+- Relevant Android commit: `cc34fcefe97688d21f83e3d544e155f55a847bed` (`ANDROID: Delete goldfish build configs and defconfigs`)
+- LineageOS/Qualcomm reference: not required; this file is an emulator-only configuration and is not selected by the OnePlus SM8150 build.
+- Miru/H.40 behavior retained: all guacamole and Qualcomm target configurations remain untouched.
+- Final resolution: delete the file, matching Android stable 4.14.210.
+- External-module ABI impact: none.
+- Runtime risk: none for OnePlus 7 Pro; the file cannot affect a guacamole kernel image.
+- Required validation: verify absence and verify no target defconfig, source, DT or module path changed in this commit.
+- Resolution commit: this commit.
+- Status: resolved
+
+### `arch/x86/configs/i386_ranchu_defconfig`
+
+- Subsystem batch: non-target architecture and documentation
+- Android 4.14.191-210 change: remove obsolete Ranchu emulator defconfig from the generic Android kernel tree.
+- Relevant Android commit: `cc34fcefe97688d21f83e3d544e155f55a847bed` (`ANDROID: Delete goldfish build configs and defconfigs`)
+- LineageOS/Qualcomm reference: not required; this file is an emulator-only configuration and is not selected by the OnePlus SM8150 build.
+- Miru/H.40 behavior retained: all guacamole and Qualcomm target configurations remain untouched.
+- Final resolution: delete the file, matching Android stable 4.14.210.
+- External-module ABI impact: none.
+- Runtime risk: none for OnePlus 7 Pro; the file cannot affect a guacamole kernel image.
+- Required validation: verify absence and verify no target defconfig, source, DT or module path changed in this commit.
+- Resolution commit: this commit.
+- Status: resolved
+
+### `arch/x86/configs/x86_64_ranchu_defconfig`
+
+- Subsystem batch: non-target architecture and documentation
+- Android 4.14.191-210 change: remove obsolete Ranchu emulator defconfig from the generic Android kernel tree.
+- Relevant Android commit: `cc34fcefe97688d21f83e3d544e155f55a847bed` (`ANDROID: Delete goldfish build configs and defconfigs`)
+- LineageOS/Qualcomm reference: not required; this file is an emulator-only configuration and is not selected by the OnePlus SM8150 build.
+- Miru/H.40 behavior retained: all guacamole and Qualcomm target configurations remain untouched.
+- Final resolution: delete the file, matching Android stable 4.14.210.
+- External-module ABI impact: none.
+- Runtime risk: none for OnePlus 7 Pro; the file cannot affect a guacamole kernel image.
+- Required validation: verify absence and verify no target defconfig, source, DT or module path changed in this commit.
+- Resolution commit: this commit.
+- Status: resolved
 
 ## Planned conflict-resolution batches
 
