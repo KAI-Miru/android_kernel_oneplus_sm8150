@@ -1,4 +1,4 @@
-name: Miru LTS 4.14.190 clean kernel build
+name: Miru LTS 4.14.190 kernel and external modules
 
 on:
   pull_request:
@@ -11,12 +11,12 @@ permissions:
   contents: read
 
 jobs:
-  sanity-and-build:
+  sanity-build-and-modules:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 180
 
     steps:
       - name: Checkout experimental branch
@@ -35,8 +35,32 @@ jobs:
           grep -Fq 'apply_vendor_lts190_compat_v6.py' scripts/miru/ci_build_4.14.190.sh
           grep -Fq 'fix_vendor_lts190_format_quotes.py' scripts/miru/ci_build_4.14.190.sh
 
-      - name: Run sanity scan and clean build
+      - name: Run sanity scan and clean kernel build
         run: bash scripts/miru/ci_build_4.14.190.sh
+
+      - name: Rebuild and package external modules
+        run: bash scripts/miru/build_external_modules_4.14.190.sh
+
+      - name: Upload external module drop-in packages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-v3-modules-dropin-4.14.190
+          path: |
+            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.190.7z
+            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.190-audit.zip
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload external module diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-v3-modules-dropin-4.14.190-diagnostics
+          path: external-module-diagnostics
+          if-no-files-found: warn
+          retention-days: 30
 
       - name: Upload kernel build outputs
         if: always()
@@ -48,7 +72,7 @@ jobs:
           compression-level: 0
           retention-days: 30
 
-      - name: Upload build diagnostics
+      - name: Upload kernel build diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
