@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 
 DRIVER = Path("scripts/miru/ci_build_4.14.190.sh")
-EXPECTED_BLOB = "220ad25b0cd57cebdaea3aa2cf73f1db93cdf4c1"
+EXPECTED_BLOB = "f3fef27fc132c26ed661e3afabe0fe9301937ed4"
 
 actual = subprocess.check_output(["git", "hash-object", str(DRIVER)], text=True).strip()
 if actual != EXPECTED_BLOB:

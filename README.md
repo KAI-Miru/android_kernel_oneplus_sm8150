@@ -24,7 +24,7 @@ Production merge commit `a48222c3baa9c73943821da6b841d5a533a62fb1` passed **Miru
 ## Source references
 
 - Main H.40 source: `OnePlusOSS/android_kernel_oneplus_sm8150@180d787684d5965be5145bcfbf666ed427b4ea18`
-- Companion vendor/module source: `KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150@dd598e265cbe2ed58870872dc3f151ccd0d42c88`
+- Companion vendor/module source: `KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150@125ff7d0153cbb3aaa8f9fd618c33b7f728d7798`
 - Android 4.14.190 stable parent: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
 
 ## Documentation
