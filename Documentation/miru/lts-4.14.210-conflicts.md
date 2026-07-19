@@ -8,10 +8,10 @@ through 4.14.210 into the validated Miru H.40 OnePlus 7 Pro kernel.
 - Integration branch: `miru-h40-lts210-integration`
 - Phase 0 reference audit: **complete**
 - Phase 1 ledger initialization: **complete**
-- Merge scaffold: **not created**
-- Initial merge conflicts: **pending scaffold measurement**
+- Merge scaffold: **created; conflicts deferred**
+- Initial merge conflicts: **19**
 - Resolved conflicts: **0**
-- Remaining conflicts: **pending scaffold measurement**
+- Remaining conflicts: **19 semantic resolutions**
 - Build status: **not started**
 - Flash status: **not permitted**
 
@@ -171,6 +171,42 @@ The following behavior is explicitly protected throughout the integration:
 - [ ] QRTR, modem IPC and networking vendor extensions remain intact.
 - [ ] Charging, thermal, suspend/resume, camera and sensor paths remain intact.
 
+## Phase 2 merge scaffold record
+
+- Scaffold first parent: `33168a42f34f630ebeb87d90c250a53cac262b39`
+- Miru production integration base: `40a2cb6fcf0411c100a7aaa609e128705a0bc2d8`
+- Scaffold second parent: `39a7f9a39c0bd6d0f67869df227f6fa23286edd2`
+- Initial semantic conflict count: `19`
+- Index-level unmerged entries after deferral: `0`
+- Conflict policy: retain every clean three-way merge result; temporarily retain the Miru side only for the paths listed below.
+- Build/flash status: prohibited until all listed paths receive explicit subsystem-level resolution.
+
+### Exact deferred-conflict manifest
+
+```text
+arch/arm/configs/ranchu_defconfig
+arch/arm64/configs/ranchu64_defconfig
+arch/x86/configs/i386_ranchu_defconfig
+arch/x86/configs/x86_64_ranchu_defconfig
+drivers/clk/clk.c
+drivers/gpu/drm/msm/msm_drv.c
+drivers/hwtracing/coresight/coresight-tmc-etf.c
+drivers/mailbox/mailbox.c
+drivers/mmc/core/queue.c
+drivers/mmc/host/sdhci-msm.c
+drivers/scsi/ufs/ufs-qcom.c
+drivers/scsi/ufs/ufshcd.c
+drivers/usb/dwc3/core.c
+drivers/usb/dwc3/gadget.c
+fs/incfs/format.c
+fs/incfs/main.c
+fs/incfs/vfs.c
+mm/memory.c
+net/ipv4/inet_connection_sock.c
+```
+
+The paths above are staged only to make the merge commit representable. They are not considered semantically resolved. Each remains counted in `Remaining conflicts` until its owning subsystem commit records and validates the final resolution.
+
 ## Planned conflict-resolution batches
 
 Conflicts and semantic collisions will be assigned to exactly one primary batch:
@@ -212,7 +248,7 @@ Status: pending | resolved
 
 The next phase must create one authentic two-parent merge commit with:
 
-- first parent: `40a2cb6fcf0411c100a7aaa609e128705a0bc2d8`
+- first parent: `33168a42f34f630ebeb87d90c250a53cac262b39` (the Phase 1 ledger commit; integration base `40a2cb6fcf0411c100a7aaa609e128705a0bc2d8` remains its parent)
 - second parent: `39a7f9a39c0bd6d0f67869df227f6fa23286edd2`
 
 During scaffold creation:
@@ -235,5 +271,5 @@ During scaffold creation:
 - [x] Runtime-critical preservation checklist created.
 - [x] Conflict-record template created.
 - [x] Integration branch created from the validated production head.
-- [ ] Authentic 4.14.210 merge scaffold created.
-- [ ] Exact conflict list measured.
+- [x] Authentic 4.14.210 merge scaffold created.
+- [x] Exact conflict list measured.
