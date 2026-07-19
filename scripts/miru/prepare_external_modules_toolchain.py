@@ -65,6 +65,27 @@ if text.count(old_env) != 1:
     raise SystemExit("external-module toolchain environment block missing or duplicated")
 text = text.replace(old_env, new_env, 1)
 
+# Qualcomm's unpublished AndroidKernelModule.mk added sibling audio source
+# directories to every DLKM's include search path.  Isolated per-module builds
+# need those same private headers (for example soc/pinctrl-wcd.c ->
+# asoc/codecs/core.h) while retaining a single obj-m target.
+old_isolated_kbuild = '''text = re.sub(r"^\\s*obj-[^\\n]*$", "", text, flags=re.M)
+text += f"\\nobj-m += {target}.o\\n"
+'''
+new_isolated_kbuild = '''text = re.sub(r"^\\s*obj-[^\\n]*$", "", text, flags=re.M)
+text += (
+    "\\nEXTRA_CFLAGS += -I$(AUDIO_ROOT)"
+    " -I$(AUDIO_ROOT)/soc -I$(AUDIO_ROOT)/ipc"
+    " -I$(AUDIO_ROOT)/dsp -I$(AUDIO_ROOT)/dsp/codecs"
+    " -I$(AUDIO_ROOT)/asoc -I$(AUDIO_ROOT)/asoc/codecs"
+    " -I$(AUDIO_ROOT)/asoc/codecs/wcd934x\\n"
+)
+text += f"\\nobj-m += {target}.o\\n"
+'''
+if text.count(old_isolated_kbuild) != 1:
+    raise SystemExit("isolated audio Kbuild rewrite block missing or duplicated")
+text = text.replace(old_isolated_kbuild, new_isolated_kbuild, 1)
+
 old_audio = '''  make -j4 -C "${KERNEL_DIR}" O="${OUT_DIR}" M="${work}" \\
     AUDIO_ROOT="${AUDIO_ROOT}" \\
 '''
@@ -96,4 +117,4 @@ if text.count(old_wlan) != 1:
 text = text.replace(old_wlan, new_wlan, 1)
 
 SCRIPT.write_text(text)
-print("External-module builder now uses the exact successful kernel toolchain interface.")
+print("External-module builder now uses the kernel toolchain and complete audio include topology.")
