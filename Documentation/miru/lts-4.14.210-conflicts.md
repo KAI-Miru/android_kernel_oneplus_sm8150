@@ -10,8 +10,8 @@ through 4.14.210 into the validated Miru H.40 OnePlus 7 Pro kernel.
 - Phase 1 ledger initialization: **complete**
 - Merge scaffold: **created; conflicts deferred**
 - Initial merge conflicts: **19**
-- Resolved conflicts: **4**
-- Remaining conflicts: **15 semantic resolutions**
+- Resolved conflicts: **7**
+- Remaining conflicts: **12 semantic resolutions**
 - Build status: **not started**
 - Flash status: **not permitted**
 
@@ -270,6 +270,49 @@ The paths above are staged only to make the merge commit representable. They are
 - External-module ABI impact: none.
 - Runtime risk: none for OnePlus 7 Pro; the file cannot affect a guacamole kernel image.
 - Required validation: verify absence and verify no target defconfig, source, DT or module path changed in this commit.
+- Resolution commit: this commit.
+- Status: resolved
+
+## Phase 4: build and module ABI
+
+- Owning commit: `lts: resolve build and module ABI conflicts`
+- Conflicts resolved in this batch: `3`
+- Conflicts remaining after this batch: `12`
+- Direct Makefile, Kconfig, modpost, symversion, exported-header and device-table conflicts: `0`; their clean Android 4.14.191-210 merges remain retained.
+- ABI policy: preserve all H.40 exported interfaces and Qualcomm/OPlus extensions; import only fixes that change internal implementation without changing exported function signatures or structure layouts.
+- Validation status: **PASS** — pinned Clang/GCC/AOSP tools and vendor tree; stock H.40 config completed `olddefconfig` and `modules_prepare`; `CONFIG_MODULES=y`, `CONFIG_MODVERSIONS=y`, generated `autoconf.h`/`utsrelease.h`, and `modpost` were verified.
+- Full kernel and external-module compilation: deferred until all semantic conflicts are resolved.
+
+### `drivers/clk/clk.c`
+
+- Android change: evict an unregistered clock from every cached parent array to prevent dangling `clk_core` pointers.
+- Relevant Android commit: `f114a36246812b5c06b0a6066412215e45b3ac8c` (`clk: Evict unregistered clks from parent caches`).
+- Miru/H.40 behavior retained: Qualcomm voltage voting, bus-vote callbacks, clock debugfs extensions, OPlus standby diagnostics and all existing exported clock APIs.
+- Final resolution: make the root/orphan list arrays available outside `CONFIG_DEBUG_FS`, add the stable recursive cache eviction helpers, and call eviction before unlinking the unregistered clock.
+- External-module ABI impact: none; no exported symbol, prototype, device ID or structure layout changes.
+- Runtime risk/validation: shared clock framework; require stock-config `olddefconfig` and `modules_prepare`, followed later by full build and device clock/display/storage validation.
+- Resolution commit: this commit.
+- Status: resolved
+
+### `drivers/hwtracing/coresight/coresight-tmc-etf.c`
+
+- Android change: read `TMC_MODE` only while the active SYSFS trace path guarantees the CoreSight hardware is powered.
+- Relevant Android commit: `93934e5d463b31e9d118c4b52aa8d1266c7f503e` (`coresight: tmc: Fix TMC mode read in tmc_read_unprepare_etb()`).
+- Miru/H.40 behavior retained: ETB/ETF buffer ownership, enable state, PERF exclusion and Qualcomm CoreSight integration.
+- Final resolution: move the circular-buffer mode check inside the `CS_MODE_SYSFS` re-enable block, matching the stable and later Qualcomm/LineageOS implementation.
+- External-module ABI impact: none.
+- Runtime risk/validation: prevents a powered-down register read and asynchronous SError; validate through `modules_prepare` now and boot/debug tracing later.
+- Resolution commit: this commit.
+- Status: resolved
+
+### `drivers/mailbox/mailbox.c`
+
+- Android change: prevent polling hrtimer re-enqueue from its own callback and keep polling while any request remains active.
+- Relevant Android commit: `e1d8263a59494079666d2ed7be058f54a127a693` (`mailbox: avoid timer start from callback`).
+- Miru/H.40 behavior retained: the Qualcomm/H.40 `-EAGAIN` submission retry loop and all mailbox client/controller interfaces.
+- Final resolution: start the polling timer only when inactive and set `resched` before checking completion for every active request.
+- External-module ABI impact: none; internal timer behavior only.
+- Runtime risk/validation: shared IPC infrastructure; require `modules_prepare`, then later QRTR/modem/audio/WLAN runtime testing.
 - Resolution commit: this commit.
 - Status: resolved
 
