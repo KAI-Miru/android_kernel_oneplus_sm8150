@@ -1,0 +1,155 @@
+name: Phase 2 scaffold runner
+
+on:
+  pull_request:
+    branches:
+      - phase2-scaffold-runner
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  scaffold:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out trusted runner branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: phase2-scaffold-runner
+
+      - name: Create authentic deferred-conflict scaffold
+        shell: bash
+        env:
+          LEDGER_PARENT: 33168a42f34f630ebeb87d90c250a53cac262b39
+          STABLE_SHA: 39a7f9a39c0bd6d0f67869df227f6fa23286edd2
+          INTEGRATION_BASE: 40a2cb6fcf0411c100a7aaa609e128705a0bc2d8
+          BRANCH_NAME: miru-h40-lts210-integration
+          LEDGER_PATH: Documentation/miru/lts-4.14.210-conflicts.md
+        run: |
+          set -euo pipefail
+
+          git config user.name "KAI-Miru LTS Integration"
+          git config user.email "110590275+KAI-Miru@users.noreply.github.com"
+
+          git fetch origin "refs/heads/${BRANCH_NAME}:refs/remotes/origin/${BRANCH_NAME}"
+          expected_remote_head=$(git rev-parse "refs/remotes/origin/${BRANCH_NAME}")
+
+          git remote add lineage https://github.com/LineageOS/android_kernel_oneplus_sm8150.git
+          git fetch --no-tags lineage "${STABLE_SHA}"
+          git checkout -B phase2-scaffold-work "${LEDGER_PARENT}"
+
+          set +e
+          git merge --no-commit --no-ff "${STABLE_SHA}"
+          merge_status=$?
+          set -e
+
+          mapfile -t conflicts < <(git diff --name-only --diff-filter=U | LC_ALL=C sort)
+          conflict_count=${#conflicts[@]}
+
+          if [[ ${merge_status} -ne 0 && ${conflict_count} -eq 0 ]]; then
+            echo "Merge failed without ordinary file conflicts" >&2
+            exit 1
+          fi
+
+          : > /tmp/lts210-conflicts.txt
+          for path in "${conflicts[@]}"; do
+            printf '%s\n' "${path}" >> /tmp/lts210-conflicts.txt
+            if git cat-file -e ":2:${path}" 2>/dev/null; then
+              git checkout --ours -- "${path}"
+              git add -- "${path}"
+            else
+              git rm -f -- "${path}"
+            fi
+          done
+
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "Unmerged index entries remain after deferred resolution" >&2
+            git diff --name-only --diff-filter=U >&2
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+
+          ledger = Path(os.environ["LEDGER_PATH"])
+          conflict_file = Path("/tmp/lts210-conflicts.txt")
+          conflicts = [line for line in conflict_file.read_text().splitlines() if line]
+          n = len(conflicts)
+          text = ledger.read_text()
+
+          replacements = {
+              "- Merge scaffold: **not created**": "- Merge scaffold: **created; conflicts deferred**",
+              "- Initial merge conflicts: **pending scaffold measurement**": f"- Initial merge conflicts: **{n}**",
+              "- Remaining conflicts: **pending scaffold measurement**": f"- Remaining conflicts: **{n} semantic resolutions**",
+              "- first parent: `40a2cb6fcf0411c100a7aaa609e128705a0bc2d8`": "- first parent: `33168a42f34f630ebeb87d90c250a53cac262b39` (the Phase 1 ledger commit; integration base `40a2cb6fcf0411c100a7aaa609e128705a0bc2d8` remains its parent)",
+              "- [ ] Authentic 4.14.210 merge scaffold created.": "- [x] Authentic 4.14.210 merge scaffold created.",
+              "- [ ] Exact conflict list measured.": "- [x] Exact conflict list measured.",
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f"Expected ledger marker missing: {old}")
+              text = text.replace(old, new, 1)
+
+          manifest = [
+              "## Phase 2 merge scaffold record",
+              "",
+              "- Scaffold first parent: `33168a42f34f630ebeb87d90c250a53cac262b39`",
+              "- Miru production integration base: `40a2cb6fcf0411c100a7aaa609e128705a0bc2d8`",
+              "- Scaffold second parent: `39a7f9a39c0bd6d0f67869df227f6fa23286edd2`",
+              f"- Initial semantic conflict count: `{n}`",
+              "- Index-level unmerged entries after deferral: `0`",
+              "- Conflict policy: retain every clean three-way merge result; temporarily retain the Miru side only for the paths listed below.",
+              "- Build/flash status: prohibited until all listed paths receive explicit subsystem-level resolution.",
+              "",
+              "### Exact deferred-conflict manifest",
+              "",
+              "```text",
+              *conflicts,
+              "```",
+              "",
+              "The paths above are staged only to make the merge commit representable. They are not considered semantically resolved. Each remains counted in `Remaining conflicts` until its owning subsystem commit records and validates the final resolution.",
+              "",
+          ]
+
+          anchor = "## Planned conflict-resolution batches\n"
+          if anchor not in text:
+              raise SystemExit("Ledger insertion anchor missing")
+          text = text.replace(anchor, "\n".join(manifest) + "\n" + anchor, 1)
+          ledger.write_text(text)
+          PY
+
+          git add -- "${LEDGER_PATH}"
+
+          commit_body=$(cat <<EOF
+          Merge Android stable ${STABLE_SHA} as the Miru H.40 4.14.210 scaffold.
+
+          Clean three-way merge results are retained. Every actual conflict temporarily retains the current Miru side and is recorded in Documentation/miru/lts-4.14.210-conflicts.md for explicit subsystem-level resolution.
+
+          This state is incomplete and must not be built, flashed or released.
+          EOF
+          )
+
+          git commit \
+            -m "Merge Android stable 4.14.210 into H.40 Miru (conflicts deferred)" \
+            -m "${commit_body}"
+
+          parent_line=$(git show --no-patch --format=%P HEAD)
+          expected_parents="${LEDGER_PARENT} ${STABLE_SHA}"
+          if [[ "${parent_line}" != "${expected_parents}" ]]; then
+            echo "Unexpected scaffold parents" >&2
+            echo "expected: ${expected_parents}" >&2
+            echo "actual:   ${parent_line}" >&2
+            exit 1
+          fi
+
+          if git ls-tree -r --name-only HEAD | grep -Fxq '.github/workflows/phase2-scaffold.yml'; then
+            echo "Temporary integration-branch workflow leaked into scaffold tree" >&2
+            exit 1
+          fi
+
+          git push \
+            --force-with-lease="refs/heads/${BRANCH_NAME}:${expected_remote_head}" \
+            origin "HEAD:refs/heads/${BRANCH_NAME}"
