@@ -18,6 +18,7 @@ replacement = '''  rsync -a --exclude='*.o' --exclude='*.ko' --exclude='*.cmd' \
   # name. AndroidKernelModule.mk supplied the kernel source topology; recreate
   # only those two required headers in this isolated module workspace.
   if [[ "${source_rel}" == "soc" && "${target}" == "pinctrl_wcd_dlkm" ]]; then
+    rm -f "${work}/core.h" "${work}/pinctrl-utils.h"
     cp -f "${KERNEL_DIR}/drivers/pinctrl/core.h" "${work}/core.h"
     cp -f "${KERNEL_DIR}/drivers/pinctrl/pinctrl-utils.h" "${work}/pinctrl-utils.h"
   fi
