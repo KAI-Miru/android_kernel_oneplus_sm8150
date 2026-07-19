@@ -8,7 +8,7 @@ stable 4.14.190 merge scaffold.
 - Initial deferred conflicts: 28
 - Resolved conflicts: 28
 - Remaining conflicts: 0
-- Status: **incomplete and not suitable for building or flashing as a release**
+- Status: **integration complete; source, build, module and initial device validation passed on 2026-07-19**
 
 ## Resolved in Step 1
 
@@ -344,6 +344,8 @@ lts: resolve ALSA compress and rawmidi conflicts
 
 ## Remaining deferred conflicts
 
-None. All 28 merge conflicts now have explicit source-level resolutions. The
-branch remains unsuitable for release until the full build, symbol/ABI audit and
-device validation are complete.
+None. All 28 merge conflicts have explicit source-level resolutions. Clean
+GitHub Actions run #48 built the 4.14.190 kernel, DTBs and all 32 external
+modules with matching vermagic and symbol CRCs. Device validation on 2026-07-19
+confirmed a successful boot, complete module loading, WLAN and audio. The
+milestone is suitable for integration into the `miru-h40` production branch.

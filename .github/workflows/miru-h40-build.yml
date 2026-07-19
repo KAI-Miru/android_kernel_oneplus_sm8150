@@ -1,11 +1,18 @@
-name: Miru LTS 4.14.190 kernel and external modules
+name: Miru H.40 kernel and external modules
 
 on:
+  push:
+    branches:
+      - miru-h40
   pull_request:
     branches:
-      - h40-miru-module-compat-test
+      - miru-h40
     types:
+      - opened
+      - reopened
       - synchronize
+      - ready_for_review
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,16 +20,16 @@ permissions:
 jobs:
   sanity-build-and-modules:
     if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'h40-miru-lts-4.14.190'
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 180
 
     steps:
-      - name: Checkout experimental branch
+      - name: Checkout requested revision
         uses: actions/checkout@v4
         with:
-          ref: h40-miru-lts-4.14.190
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 1
 
       - name: Prepare final vendor compatibility build driver

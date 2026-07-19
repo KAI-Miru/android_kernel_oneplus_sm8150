@@ -33,8 +33,6 @@ git fetch --no-tags --depth=1 origin "${STABLE_SHA}"
 git diff --check "${BASE_SHA}" HEAD > "${DIAG_DIR}/diff-check.txt" 2>&1
 if git grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . \
     ':!Documentation/miru/lts-4.14.190-conflicts.md' \
-    ':!.github/workflows/miru-lts-4.14.190-build.yml' \
-    ':!.github/workflows/miru-lts-4.14.190-sanity-probe.yml' \
     > "${DIAG_DIR}/conflict-markers.txt"; then
   echo "Unexpected Git conflict headers found"
   cat "${DIAG_DIR}/conflict-markers.txt"
