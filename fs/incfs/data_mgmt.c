@@ -1658,4 +1658,3 @@ int incfs_collect_logged_reads(struct mount_info *mi,
 	spin_unlock(&log->rl_lock);
 	return dst_idx;
 }
-
