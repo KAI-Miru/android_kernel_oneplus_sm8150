@@ -10,8 +10,8 @@ through 4.14.210 into the validated Miru H.40 OnePlus 7 Pro kernel.
 - Phase 1 ledger initialization: **complete**
 - Merge scaffold: **created; conflicts deferred**
 - Initial merge conflicts: **19**
-- Resolved conflicts: **8**
-- Remaining conflicts: **11 semantic resolutions**
+- Resolved conflicts: **11**
+- Remaining conflicts: **8 semantic resolutions**
 - Build status: **not started**
 - Flash status: **not permitted**
 
@@ -374,6 +374,58 @@ The reversible net-patch proof confirms that every 4.14.191-210 stable hunk rema
 - External-module ABI impact: none.
 - Required validation: Binder reversal proof and isolated `drivers/android/binder.o` compilation.
 - Status: resolved
+
+## Phase 7: block, fscrypt, F2FS and IncFS
+
+- Owning commit: `lts: resolve block, fscrypt, F2FS and IncFS conflicts`
+- Deferred source conflicts resolved in this batch: `3` (`fs/incfs/format.c`, `fs/incfs/main.c`, and `fs/incfs/vfs.c`).
+- Clean semantic collision reconciled: `fs/incfs/pseudo_files.c` now passes `mount_info` to the preserved credential-aware backing-context API.
+- Conflicts remaining after this batch: `8`.
+- Clean block, device-mapper, fscrypt and F2FS merges: retained after exact stable-delta reversal proof.
+- Build validation: **PASS** — pinned stock-config setup completed `olddefconfig`, `modules_prepare`, every IncFS object, block core/cgroup objects, and all enabled audited F2FS, fscrypt, ext4 and UBIFS objects.
+- Full kernel and external-module compilation remains deferred until all semantic conflicts are resolved.
+
+### IncFS resolution policy
+
+The deferred Miru files belonged to an older IncFS source layout while the cleanly merged headers, data-management code, pseudo files and UAPI had already advanced to Android 4.14.210. The final resolution uses the complete Android 4.14.210 implementation and reapplies the validated mount-owner credential feature across every backing-context allocation and backing-file I/O path.
+
+### `fs/incfs/format.c`
+
+- Android change: adopt the 4.14.210 metadata layout, mapped-file support, status records, report-UID support and current backing-file APIs.
+- Miru/H.40 behavior retained: `backing_file_context.bc_cred`, mount-aware `incfs_alloc_bfc()`, and credential overrides around every kernel backing-file read and write.
+- Final resolution: Android 4.14.210 source plus credential-aware `incfs_kread()`/`incfs_kwrite()` wrappers.
+- Compatibility result: no references remain to removed fields `h_record_crc`, `h_prev_md_offset`, or `fh_file_header_flags`.
+- External-module ABI impact: none.
+- Status: resolved
+
+### `fs/incfs/main.c`
+
+- Android change: retain the `report_uid` feature marker.
+- Miru/H.40 behavior retained: retain the `mounter_context_for_backing_rw` feature marker.
+- Final resolution: expose both feature markers under `/sys/fs/incremental-fs/features`.
+- External-module ABI impact: none.
+- Status: resolved
+
+### `fs/incfs/vfs.c`
+
+- Android change: adopt the 4.14.210 VFS layout compatible with the cleanly merged pseudo-file and data-management code.
+- Miru/H.40 behavior retained: wrap backing-file open in `override_creds(mi->mi_owner)` and restore caller credentials afterward.
+- Status: resolved
+
+### `fs/incfs/pseudo_files.c`
+
+- Merge status: clean source merge with a semantic API collision discovered by complete IncFS compilation.
+- Final resolution: pass `mi` to both `incfs_alloc_bfc()` calls used for regular and mapped file creation.
+- Runtime behavior retained: each new backing context inherits the mount owner's credentials.
+- External-module ABI impact: none.
+- Status: reconciled
+
+### Cleanly merged block and encrypted-filesystem paths
+
+- Block core, block cgroup and device-mapper/bcache/RAID stable fixes remain present.
+- F2FS checkpoint, node, superblock, sysfs and encrypted rename/link fixes remain present.
+- Fscrypt-incompatible rename and link operations retain stable `-EXDEV` behavior.
+- Proof: **PASS** — reversing the complete non-IncFS Android 4.14.191-210 delta reproduces the validated H.40 base exactly.
 
 ## Planned conflict-resolution batches
 
