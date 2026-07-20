@@ -10,8 +10,8 @@ through 4.14.210 into the validated Miru H.40 OnePlus 7 Pro kernel.
 - Phase 1 ledger initialization: **complete**
 - Merge scaffold: **created; conflicts deferred**
 - Initial merge conflicts: **19**
-- Resolved conflicts: **17**
-- Remaining conflicts: **2 semantic resolutions**
+- Resolved conflicts: **18**
+- Remaining conflicts: **1 semantic resolution**
 - Build status: **not started**
 - Flash status: **not permitted**
 
@@ -502,6 +502,21 @@ The deferred Miru files belonged to an older IncFS source layout while the clean
 - DWC3 EP0 ZLP handling, USB core descriptor/bounds/race fixes, gadget leak fixes and NCM validation fixes remain present.
 - Clean reversal proof: **PASS** for all non-conflict USB paths except the separately proven duplicate `f_ncm.c` SSP fix.
 - `f_ncm.c` proof: H.40 already contained the correct SuperSpeed Plus descriptor mapping before this LTS range. Reverse-applying Android 4.14.191-210 changes therefore yields the older `NULL` mapping; replacing that one duplicate stable hunk reproduces H.40 exactly. The SSP mapping is retained and compiled explicitly.
+
+## Phase 10: MSM DRM shutdown
+
+- Owning commit: `lts: resolve MSM DRM shutdown conflict`
+- Deferred source conflicts resolved in this batch: `1` (`drivers/gpu/drm/msm/msm_drv.c`).
+- Conflicts remaining after this batch: `1`.
+- Source changes: none; the merge scaffold already retained the correct Qualcomm shutdown implementation.
+- Android change: `3d516e369e3a563e7da39c72b06d78c7f1b09b1e` adds generic atomic shutdown so CRTCs stop requesting transactions during reboot.
+- Qualcomm/LineageOS reference: `msm_pdev_shutdown()` matches exact reference `0190a01fb1cde1c2ba48e7836084bad818c14d94`.
+- Miru/H.40 behavior retained: null guards, `msm_lastclose()`, downstream all-mode disable, KMS last-close handling, vblank/workqueue cleanup, and the post-lastclose `shutdown_in_progress` transition.
+- Final resolution: retain the downstream callback unchanged. `msm_lastclose()` already calls `msm_disable_all_modes()` and the KMS last-close hook, fulfilling the stable shutdown intent without a duplicate generic atomic teardown.
+- Clean MSM DRM reversal proof: **PASS**.
+- Build validation: **PASS** — pinned stock config completed `olddefconfig`, `modules_prepare`, MSM DRM core and available SDE KMS/CRTC objects.
+- External-module ABI impact: none.
+- Status: resolved
 
 ## Planned conflict-resolution batches
 
