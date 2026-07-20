@@ -10,8 +10,8 @@ through 4.14.210 into the validated Miru H.40 OnePlus 7 Pro kernel.
 - Phase 1 ledger initialization: **complete**
 - Merge scaffold: **created; conflicts deferred**
 - Initial merge conflicts: **19**
-- Resolved conflicts: **18**
-- Remaining conflicts: **1 semantic resolution**
+- Resolved conflicts: **19**
+- Remaining conflicts: **0 — semantic resolution complete**
 - Build status: **not started**
 - Flash status: **not permitted**
 
@@ -517,6 +517,26 @@ The deferred Miru files belonged to an older IncFS source layout while the clean
 - Build validation: **PASS** — pinned stock config completed `olddefconfig`, `modules_prepare`, MSM DRM core and available SDE KMS/CRTC objects.
 - External-module ABI impact: none.
 - Status: resolved
+
+## Phase 11: Networking and QRTR
+
+- Owning commit: `lts: resolve networking and QRTR conflict`
+- Deferred source conflicts resolved in this batch: `1` (`net/ipv4/inet_connection_sock.c`).
+- Conflicts remaining after this batch: `0`.
+- Android change: `6de6d1ca5f3e8383cb175777f0e9aba7a3c397f5` extracts bind-bucket fast-reuse updates into `inet_csk_update_fastreuse()` for use by additional socket paths.
+- Source resolution: import the stable helper body exactly, remove the now-redundant local UID variable from `inet_csk_get_port()`, and call the helper once at the original success point.
+- Miru/H.40 behavior retained: the downstream `sysctl_reserved_port_bind` check remains between bucket locking and bucket lookup, preserving explicit reserved-port rejection and its override.
+- Clean networking/QRTR reversal proof: **PASS** — all non-conflict Android 4.14.191-210 changes reverse to the validated H.40 base exactly.
+- Build validation: **PASS** — pinned stock config completed IPv4 connection-socket, hash-table, TCP/IPv4 and QRTR core objects when present.
+- External-module ABI impact: the stable helper declaration was already cleanly merged; no downstream structure layout changes were introduced.
+- Status: resolved
+
+### Semantic-conflict completion
+
+- All `19` authentic merge conflicts now have an owning resolution commit and ledger record.
+- Index-level unmerged entries remain `0`.
+- Full kernel and external-module compilation has not yet been run.
+- Flashing remains prohibited until that final build and artifact audit pass.
 
 ## Planned conflict-resolution batches
 
