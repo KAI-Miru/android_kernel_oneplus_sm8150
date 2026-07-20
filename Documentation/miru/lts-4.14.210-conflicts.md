@@ -10,8 +10,8 @@ through 4.14.210 into the validated Miru H.40 OnePlus 7 Pro kernel.
 - Phase 1 ledger initialization: **complete**
 - Merge scaffold: **created; conflicts deferred**
 - Initial merge conflicts: **19**
-- Resolved conflicts: **15**
-- Remaining conflicts: **4 semantic resolutions**
+- Resolved conflicts: **17**
+- Remaining conflicts: **2 semantic resolutions**
 - Build status: **not started**
 - Flash status: **not permitted**
 
@@ -471,6 +471,37 @@ The deferred Miru files belonged to an older IncFS source layout while the clean
 - MMC partition-size overflow, SDIO CIS bounds checking, VIA-SDMMC race handling and Micron UFS low-power quirks remain present.
 - UFS hold-loop, shared-interrupt and completed-request cleanup fixes remain present.
 - Proof: **PASS** — reversing the complete non-conflict Android 4.14.191-210 storage delta reproduces the validated H.40 base exactly.
+
+## Phase 9: USB core and gadget
+
+- Owning commit: `lts: resolve USB core and gadget conflicts`
+- Deferred source conflicts resolved in this batch: `2` (`drivers/usb/dwc3/core.c` and `drivers/usb/dwc3/gadget.c`).
+- Conflicts remaining after this batch: `2`.
+- Build validation: **PASS** — pinned stock-config setup completed `olddefconfig`, `modules_prepare`, DWC3 core/gadget/EP0, Qualcomm DWC3 glue when present, NCM/u_ether and selected USB-core objects.
+- Full kernel and external-module compilation remains deferred until all semantic conflicts are resolved.
+
+### `drivers/usb/dwc3/core.c`
+
+- Android changes: `00275153aa523d4ac28010155927e54c83661134` adds PHY cleanup to the upstream probe-error path; `d92f1821ad6de4ab754ab7bd30cde747fef07a4d` prevents runtime suspend from being triggered during driver removal.
+- Qualcomm/LineageOS reference: the downstream probe does not execute upstream `dwc3_core_init()` or possess the `err5`/`err4` teardown path, so applying the PHY cleanup would shut down PHYs that this function did not initialize. Modern LineageOS retains the downstream structure.
+- Miru/H.40 behavior retained: gadget-only initialization, Qualcomm IPC logging, shared IRQ ownership, external MSM core/PHY sequencing and `pm_runtime_allow()` before disable.
+- Final resolution: do not add the inapplicable upstream probe cleanup; after `pm_runtime_disable()`, add `pm_runtime_put_noidle()` and `pm_runtime_set_suspended()` so removal cannot invoke runtime suspend and double-disable clocks.
+- External-module ABI impact: none.
+- Status: resolved
+
+### `drivers/usb/dwc3/gadget.c`
+
+- Android change: `5a174aebcf54030c654c5fdd51a8294ecedd2f19` increases the DEPCMD active-bit timeout to tolerate controllers operating from a slow suspend clock.
+- Miru/H.40 behavior retained: Qualcomm wakeup handling, FIFO resizing, GSI hooks, endpoint logging and downstream request lifecycle.
+- Final resolution: increase the downstream timeout from `3000` to `5000` iterations.
+- External-module ABI impact: none.
+- Status: resolved
+
+### Clean USB paths and NCM reconciliation
+
+- DWC3 EP0 ZLP handling, USB core descriptor/bounds/race fixes, gadget leak fixes and NCM validation fixes remain present.
+- Clean reversal proof: **PASS** for all non-conflict USB paths except the separately proven duplicate `f_ncm.c` SSP fix.
+- `f_ncm.c` proof: H.40 already contained the correct SuperSpeed Plus descriptor mapping before this LTS range. Reverse-applying Android 4.14.191-210 changes therefore yields the older `NULL` mapping; replacing that one duplicate stable hunk reproduces H.40 exactly. The SSP mapping is retained and compiled explicitly.
 
 ## Planned conflict-resolution batches
 
