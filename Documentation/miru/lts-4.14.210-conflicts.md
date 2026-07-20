@@ -10,8 +10,8 @@ through 4.14.210 into the validated Miru H.40 OnePlus 7 Pro kernel.
 - Phase 1 ledger initialization: **complete**
 - Merge scaffold: **created; conflicts deferred**
 - Initial merge conflicts: **19**
-- Resolved conflicts: **11**
-- Remaining conflicts: **8 semantic resolutions**
+- Resolved conflicts: **15**
+- Remaining conflicts: **4 semantic resolutions**
 - Build status: **not started**
 - Flash status: **not permitted**
 
@@ -426,6 +426,51 @@ The deferred Miru files belonged to an older IncFS source layout while the clean
 - F2FS checkpoint, node, superblock, sysfs and encrypted rename/link fixes remain present.
 - Fscrypt-incompatible rename and link operations retain stable `-EXDEV` behavior.
 - Proof: **PASS** — reversing the complete non-IncFS Android 4.14.191-210 delta reproduces the validated H.40 base exactly.
+
+## Phase 8: MMC, SDHCI and UFS
+
+- Owning commit: `lts: resolve MMC, SDHCI and UFS conflicts`
+- Deferred source conflicts resolved in this batch: `4`.
+- Conflicts remaining after this batch: `4`.
+- Source changes: MMC discard handling, Qualcomm SDHCI retry budget, and UFS-core clean-merge reconciliation discovered by isolated compilation.
+- Qualcomm UFS testbus conflict: resolved by verified retention of the existing implementation without source churn.
+- Build validation: **PASS** — pinned stock-config setup completed `olddefconfig`, `modules_prepare`, MMC queue/core/SDIO objects, Qualcomm SDHCI, Qualcomm UFS glue and UFS core objects.
+- Full kernel and external-module compilation remains deferred until all semantic conflicts are resolved.
+
+### `drivers/mmc/core/queue.c`
+
+- Android change: commit `387026b76afb69a349bc5aa7e18fa9ef4aa0bd23` prevents a discard-capable queue from advertising zero discard granularity.
+- Miru/H.40 behavior retained: Qualcomm CMDQ request dispatch, queue setup, scatter-gather allocation and suspend/resume handling.
+- Final resolution: change only the downstream discard fallback from `0` to `SECTOR_SIZE`.
+- Status: resolved
+
+### `drivers/mmc/host/sdhci-msm.c`
+
+- Android change: commit `c63027f79c173dfea880d0f265dd1f9513181b48` increases the tuning retry budget from three attempts to ten.
+- Miru/H.40 behavior retained: downstream status-command recovery, drive-strength sweep, saved phase, HS400 calibration and host locking.
+- Final resolution: set `tuning_seq_cnt` to `10` while retaining Qualcomm's stronger all-valid drive-strength retune path.
+- Status: resolved
+
+### `drivers/scsi/ufs/ufs-qcom.c`
+
+- Android change: commit `73eae769d588d97ce5f2e8b88fcfbf1052ae77e5` removes nested runtime-PM and hold calls from testbus configuration.
+- Final resolution: retain the current function unchanged; it already omits those calls and preserves downstream validation, dynamic offsets, locking and error returns.
+- Status: resolved
+
+### `drivers/scsi/ufs/ufshcd.c`
+
+- Android change: commit `8541087975223fa664c1e1fb263e8446509ef725` routes shutdown resume through runtime PM.
+- Miru/H.40 behavior retained: `pm_runtime_get_sync()` plus downstream hold-all, shutdown marking, clock-scaling shutdown, write locking, request blocking, doorbell drain and error-handler flush.
+- Clean semantic collisions found by compilation: two old one-argument clock-release calls, request-queue declaration hidden under `CONFIG_UFSFEATURE`, a misplaced completion-path `#endif`, a stale sysfs cleanup helper name, and a Clang-rejected `DMA_BIT_MASK(64)` expansion.
+- Final resolution: pass `false` to both release calls, keep `q` unconditionally scoped, correctly close the OPlus trace guard, call `ufshcd_remove_sysfs_nodes()`, and use `~0ULL` for the 64-bit DMA mask.
+- External-module ABI impact: none; no exported function signature or structure layout changes.
+- Status: resolved
+
+### Cleanly merged storage paths
+
+- MMC partition-size overflow, SDIO CIS bounds checking, VIA-SDMMC race handling and Micron UFS low-power quirks remain present.
+- UFS hold-loop, shared-interrupt and completed-request cleanup fixes remain present.
+- Proof: **PASS** — reversing the complete non-conflict Android 4.14.191-210 storage delta reproduces the validated H.40 base exactly.
 
 ## Planned conflict-resolution batches
 
