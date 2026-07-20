@@ -316,6 +316,33 @@ The paths above are staged only to make the merge commit representable. They are
 - Resolution commit: this commit.
 - Status: resolved
 
+## Phase 5: arm64 core
+
+- Owning commit: `lts: resolve arm64 core conflicts`
+- Original deferred conflicts under `arch/arm64`: `1` (`arch/arm64/configs/ranchu64_defconfig`), already resolved in Phase 3.
+- New conflicts resolved in this batch: `0`.
+- Global conflict ledger remains: `7` resolved, `12` remaining.
+- Android 4.14.191-210 scope: `41` history entries touching `28` arm64 paths; `19` paths match Android stable directly and `9` retain downstream Qualcomm/H.40 content.
+- Merge proof: **PASS** — reversing the complete net Android 4.14.191-210 arm64 delta on all 27 non-conflicted paths reproduces integration base `40a2cb6fcf0411c100a7aaa609e128705a0bc2d8` byte-for-byte.
+- Ranchu proof: **PASS** — the obsolete emulator defconfig remains absent and Phase 3 commit `362a43496c01099d9099cf35697d26f2d9254f8c` is in ancestry.
+- Source resolution: no additional arm64 source edit is required; retain the clean merge results and existing Qualcomm/H.40 variants.
+- Build validation: **PASS** — pinned vendor/toolchain setup completed `olddefconfig`, `modules_prepare`, and isolated compilation of every arm64 object enabled by the stock H.40 configuration among the audited CPU-feature, PSCI, setup, NUMA and KVM paths.
+- Full kernel and external-module compilation remains deferred until all semantic conflicts are resolved.
+
+### Downstream arm64 paths reviewed
+
+- `arch/arm64/Kconfig.platforms`
+- `arch/arm64/Makefile`
+- `arch/arm64/boot/dts/qcom/msm8916.dtsi`
+- `arch/arm64/configs/cuttlefish_defconfig`
+- `arch/arm64/include/asm/kvm_arm.h`
+- `arch/arm64/include/asm/pgtable.h`
+- `arch/arm64/kernel/cpufeature.c`
+- `arch/arm64/kernel/psci.c`
+- `arch/arm64/kernel/vmlinux.lds.S`
+
+The reversible net-patch proof confirms that every 4.14.191-210 stable hunk remains present on top of the retained downstream Qualcomm/H.40 content.
+
 ## Planned conflict-resolution batches
 
 Conflicts and semantic collisions will be assigned to exactly one primary batch:
