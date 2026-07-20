@@ -10,8 +10,8 @@ through 4.14.210 into the validated Miru H.40 OnePlus 7 Pro kernel.
 - Phase 1 ledger initialization: **complete**
 - Merge scaffold: **created; conflicts deferred**
 - Initial merge conflicts: **19**
-- Resolved conflicts: **7**
-- Remaining conflicts: **12 semantic resolutions**
+- Resolved conflicts: **8**
+- Remaining conflicts: **11 semantic resolutions**
 - Build status: **not started**
 - Flash status: **not permitted**
 
@@ -342,6 +342,38 @@ The paths above are staged only to make the merge commit representable. They are
 - `arch/arm64/kernel/vmlinux.lds.S`
 
 The reversible net-patch proof confirms that every 4.14.191-210 stable hunk remains present on top of the retained downstream Qualcomm/H.40 content.
+
+## Phase 6: memory management and Binder
+
+- Owning commit: `lts: resolve memory management and Binder conflicts`
+- Deferred source conflicts resolved in this batch: `1` (`mm/memory.c`).
+- Conflicts remaining after this batch: `11`.
+- Binder merge conflicts: `0`; the clean Android stable Binder delta is retained.
+- Build validation: **PASS** — pinned vendor/toolchain setup completed stock-config `olddefconfig`, `modules_prepare`, isolated `mm/memory.o` compilation and isolated `drivers/android/binder.o` compilation.
+- Full kernel and external-module compilation remains deferred until all semantic conflicts are resolved.
+
+### `mm/memory.c`
+
+- Android change: make PFN-mapped COW copying safe when arm64 access flags are software-managed and when `MADV_DONTNEED` races the copy.
+- Relevant Android commits: `90fad04bd42104bf7a0a23b52c883d8f4e4174c0` (`mm: fix double page fault on arm64 if PTE_AF is cleared`) and `2cffad47fa5c7a41632ddeb749da09ac49f7f845` (`mm: avoid data corruption on CoW fault into PFN-mapped VMA`).
+- Qualcomm/LineageOS reference: `lineage-21` keeps the same boolean `cow_user_page()` implementation on top of the downstream speculative page-fault framework.
+- Miru/H.40 behavior retained: speculative page-fault locking, `vmf->vma_flags`/`vmf->vma_page_prot`, downstream anonymous-rmap/LRU helpers, `VM_FAULT_RETRY` cleanup and the existing `out_uncharge`/`out_free_new`/`out` labels.
+- Final resolution: add the generic `arch_faults_on_old_pte()` fallback, port the Qualcomm-integrated PTE revalidation and second-copy logic, and treat a concurrently solved COW fault as a retry instead of installing potentially corrupted data.
+- External-module ABI impact: none; no exported symbol or public structure layout changes.
+- Runtime risk: high-value correctness path affecting process forks, COW, PFN/DAX-style mappings and concurrent unmap behavior.
+- Required validation: exact helper comparison with the surviving Qualcomm implementation, stock-config `olddefconfig`/`modules_prepare`, and isolated `mm/memory.o` compilation.
+- Resolution commit: this commit.
+- Status: resolved
+
+### `drivers/android/binder.c`
+
+- Android net change: retain the Binder todo-list release UAF fix from `be84da1dd835245b4f3a1890fe83b07966f0937a`; the earlier context-manager refcount change was reverted within the same stable range and has no net source effect.
+- Final resolution: no additional source edit. Snapshot the work type while holding `inner_lock`, switch on the snapshot after dequeue, and tolerate `BINDER_WORK_NODE` exactly as the clean merge already does.
+- Miru/H.40 behavior retained: all OPlus scheduler-assist fields, transaction priority hooks and inherited-UX behavior.
+- Proof: **PASS** — reversing the complete Android 4.14.191-210 `drivers/android` delta reproduces the validated H.40 base exactly.
+- External-module ABI impact: none.
+- Required validation: Binder reversal proof and isolated `drivers/android/binder.o` compilation.
+- Status: resolved
 
 ## Planned conflict-resolution batches
 
