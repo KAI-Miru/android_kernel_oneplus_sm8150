@@ -1,0 +1,1 @@
+Trigger the final fail-closed Miru H.40 Linux 4.14.241 kernel and exact 32 external-module validation transaction.
