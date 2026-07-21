@@ -95,10 +95,8 @@ jobs:
 
           git config user.name 'Miru LTS Integration Bot'
           git config user.email 'actions@users.noreply.github.com'
-          set +e
-          git merge --no-commit --no-ff "$TARGET" >"$DIAG/merge.log" 2>&1
-          MERGE_RC=$?
-          set -e
+          MERGE_RC=0
+          git merge --no-commit --no-ff "$TARGET" >"$DIAG/merge.log" 2>&1 || MERGE_RC=$?
           test "$MERGE_RC" -ne 0
 
           git diff --name-only --diff-filter=U | sort > "$DIAG/actual-conflicts.txt"
