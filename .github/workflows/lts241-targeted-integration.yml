@@ -19,17 +19,32 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Preserve existing source file modes
+      - name: Fix generated source and preserve file modes
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          path = Path('scripts/miru/lts241_targeted_integration.sh')
-          text = path.read_text()
+
+          resolver = Path('scripts/miru/lts241_semantic_resolve.py')
+          text = resolver.read_text()
+          replacements = {
+              '"failed to put link in Recovery\\n"':
+                  '"failed to put link in Recovery\\\\n"',
+              '"failed to send transfer wakeup\\n"':
+                  '"failed to send transfer wakeup\\\\n"',
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'missing generated DWC3 string: {old!r}')
+              text = text.replace(old, new, 1)
+          resolver.write_text(text)
+
+          transaction = Path('scripts/miru/lts241_targeted_integration.sh')
+          text = transaction.read_text()
           old = '      install -D -m 0644 "${RESOLVE_ROOT}/${path}" "${KERNEL_WORKTREE}/${path}"'
           new = '      mkdir -p "${KERNEL_WORKTREE}/$(dirname "${path}")"\n      cp "${RESOLVE_ROOT}/${path}" "${KERNEL_WORKTREE}/${path}"'
           if old not in text:
               raise SystemExit('missing source installation line')
-          path.write_text(text.replace(old, new, 1))
+          transaction.write_text(text.replace(old, new, 1))
           PY
 
       - name: Resolve, reverse-check and compile every conflict batch
