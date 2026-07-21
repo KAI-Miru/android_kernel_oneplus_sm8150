@@ -168,6 +168,25 @@ jobs:
           set -Eeuo pipefail
           python3 scripts/miru/prepare_external_modules_toolchain.py
           python3 scripts/miru/prepare_external_pinctrl_headers.py
+          test "$(git hash-object scripts/Makefile.build)" = ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/miru/prepare_wlan_response_link.py')
+          text = path.read_text()
+          old = 'expected = "74ce588c69513197a354ef0032c2145e91ee0641"'
+          new = 'expected = "ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3"'
+          if text.count(old) != 1:
+              raise SystemExit('legacy WLAN Makefile.build baseline guard missing or duplicated')
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+          {
+            echo 'wlan_response_link_baseline=ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3'
+            echo 'baseline_source=audited semantic head 259c596bf59d5717aa72f313437317ba72adda14'
+            echo 'link_pattern=unchanged and required exactly once'
+            echo 'metadata_pattern=unchanged and required exactly once'
+          } | tee full-validation-diagnostics/wlan-response-link-baseline.txt
           python3 scripts/miru/prepare_wlan_response_link.py
           python3 - <<'PY'
           from pathlib import Path
