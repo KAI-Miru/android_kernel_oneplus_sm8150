@@ -38,6 +38,7 @@ Pull-request workflow run #8 (`29792358348`) passed all kernel, DTB, external-mo
 ## Documentation
 
 - [LTS milestone history and validation](Documentation/miru-lts-integration.md)
+- [4.14.210 release validation summary](Documentation/miru/lts-4.14.210-validation.md)
 - [4.14.210 conflict and resolution ledger](Documentation/miru/lts-4.14.210-conflicts.md)
 - [Historical 4.14.190 conflict ledger](Documentation/miru/lts-4.14.190-conflicts.md)
 - [Historical H.40 source reproducibility audit](Documentation/miru/h40-source-reproducibility-audit.md)
