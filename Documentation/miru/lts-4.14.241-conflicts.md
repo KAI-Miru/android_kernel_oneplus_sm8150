@@ -355,3 +355,12 @@ the device owner tests the generated build and authorizes a later merge.
 - Index state: resolved in the scaffold; this commit provides the semantic resolution.
 - Targeted compilation: performed immediately after this commit.
 - Clean-reversal validation: performed immediately after this commit against the scaffold.
+
+### lts: resolve USB core and gadget conflicts for 4.14.241
+
+- Batch ID: `usb`
+- Paths: `drivers/usb/core/hub.c drivers/usb/dwc3/core.c drivers/usb/dwc3/gadget.c drivers/usb/gadget/configfs.c drivers/usb/gadget/function/f_accessory.c drivers/usb/gadget/function/f_fs.c drivers/usb/gadget/function/f_uac1.c drivers/usb/gadget/function/f_uac2.c include/linux/usb/usbnet.h`
+- Decision: Import stable resume, teardown, lifetime, descriptor and packet-size fixes while preserving Android gadget, ADB, synchronous audio and Qualcomm usbnet behavior.
+- Index state: resolved in the scaffold; this commit provides the semantic resolution.
+- Targeted compilation: performed immediately after this commit.
+- Clean-reversal validation: performed immediately after this commit against the scaffold.
