@@ -364,3 +364,12 @@ the device owner tests the generated build and authorizes a later merge.
 - Index state: resolved in the scaffold; this commit provides the semantic resolution.
 - Targeted compilation: performed immediately after this commit.
 - Clean-reversal validation: performed immediately after this commit against the scaffold.
+
+### lts: resolve Incremental FS conflicts for 4.14.241
+
+- Batch ID: `incfs`
+- Paths: `fs/incfs/data_mgmt.c fs/incfs/format.c fs/incfs/main.c fs/incfs/pseudo_files.c fs/incfs/vfs.c`
+- Decision: Follow Android Common's deliberate v2 rollback and preserve mount-owner credential overrides and downstream open validation.
+- Index state: resolved in the scaffold; this commit provides the semantic resolution.
+- Targeted compilation: performed immediately after this commit.
+- Clean-reversal validation: performed immediately after this commit against the scaffold.
