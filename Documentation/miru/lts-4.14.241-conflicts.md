@@ -15,12 +15,12 @@ downstream semantic review.
 - Reconnaissance: **complete**
 - Target verification: **complete**
 - Initial authentic conflicts: **32**
-- Index-resolved conflicts: **0**
-- Semantically resolved conflicts: **0**
-- Remaining semantic conflicts: **32**
-- Merge scaffold: **not yet created**
-- Targeted compilation: **not started**
-- Full kernel build: **not started and prohibited while semantic conflicts remain**
+- Index-resolved conflicts: **32**
+- Semantically resolved conflicts: **32**
+- Remaining semantic conflicts: **0**
+- Merge scaffold: `ff895111416c91c1aaf9acf518ca79ac3f66a80b` — authentic two-parent merge
+- Targeted compilation: **PASS for every resolution batch**
+- Full kernel build: **not started; semantic gate is now open**
 - External-module build: **not started**
 - Device-test status: **not performed; physical testing is reserved for the device owner**
 - Flash status: **not performed and not permitted in this integration task**
@@ -154,38 +154,38 @@ The list below is complete and is not inferred from a compare API.
 
 | # | Path | Semantic subsystem | Index status | Semantic status | Owning resolution commit | Validation |
 |---:|---|---|---|---|---|---|
-| 1 | `arch/x86/Makefile` | non-target x86 build system | pending scaffold | unresolved | pending | pending |
-| 2 | `drivers/block/zram/zram_drv.c` | block / compressed memory | pending scaffold | unresolved | pending | pending |
-| 3 | `drivers/dma-buf/dma-buf.c` | dma-buf core | pending scaffold | unresolved | pending | pending |
-| 4 | `drivers/gpu/drm/msm/msm_drv.c` | MSM DRM / display shutdown | pending scaffold | unresolved | pending | pending |
-| 5 | `drivers/mmc/core/core.c` | MMC core | pending scaffold | unresolved | pending | pending |
-| 6 | `drivers/mmc/core/mmc.c` | MMC device initialization | pending scaffold | unresolved | pending | pending |
-| 7 | `drivers/scsi/ufs/ufshcd.c` | UFS core / power management | pending scaffold | unresolved | pending | pending |
-| 8 | `drivers/soc/qcom/smp2p.c` | Qualcomm SMP2P IPC | pending scaffold | unresolved | pending | pending |
-| 9 | `drivers/tty/tty_jobctrl.c` | TTY job control | pending scaffold | unresolved | pending | pending |
-| 10 | `drivers/usb/core/hub.c` | USB hub / enumeration | pending scaffold | unresolved | pending | pending |
-| 11 | `drivers/usb/dwc3/core.c` | DWC3 core / power and role handling | pending scaffold | unresolved | pending | pending |
-| 12 | `drivers/usb/dwc3/gadget.c` | DWC3 gadget | pending scaffold | unresolved | pending | pending |
-| 13 | `drivers/usb/gadget/configfs.c` | USB gadget configfs / Android composition | pending scaffold | unresolved | pending | pending |
-| 14 | `drivers/usb/gadget/function/f_accessory.c` | Android USB accessory function | pending scaffold | unresolved | pending | pending |
-| 15 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | pending scaffold | unresolved | pending | pending |
-| 16 | `drivers/usb/gadget/function/f_uac1.c` | USB audio gadget UAC1 | pending scaffold | unresolved | pending | pending |
-| 17 | `drivers/usb/gadget/function/f_uac2.c` | USB audio gadget UAC2 | pending scaffold | unresolved | pending | pending |
-| 18 | `fs/incfs/data_mgmt.c` | Incremental FS data management | pending scaffold | unresolved | pending | pending |
-| 19 | `fs/incfs/format.c` | Incremental FS on-disk format | pending scaffold | unresolved | pending | pending |
-| 20 | `fs/incfs/main.c` | Incremental FS module lifecycle | pending scaffold | unresolved | pending | pending |
-| 21 | `fs/incfs/pseudo_files.c` | Incremental FS pseudo files; modify/delete conflict | pending scaffold | unresolved | pending | pending |
-| 22 | `fs/incfs/vfs.c` | Incremental FS VFS and mount behavior | pending scaffold | unresolved | pending | pending |
-| 23 | `include/linux/usb/usbnet.h` | USB networking private interface | pending scaffold | unresolved | pending | pending |
-| 24 | `kernel/bpf/helpers.c` | BPF helper ABI | pending scaffold | unresolved | pending | pending |
-| 25 | `kernel/cgroup/cgroup.c` | cgroup core | pending scaffold | unresolved | pending | pending |
-| 26 | `kernel/cpu.c` | CPU hotplug / core lifecycle | pending scaffold | unresolved | pending | pending |
-| 27 | `kernel/futex.c` | futex core | pending scaffold | unresolved | pending | pending |
-| 28 | `kernel/sched/fair.c` | CFS scheduler | pending scaffold | unresolved | pending | pending |
-| 29 | `net/core/skbuff.c` | networking skb core | pending scaffold | unresolved | pending | pending |
-| 30 | `net/qrtr/qrtr.c` | Qualcomm QRTR IPC | pending scaffold | unresolved | pending | pending |
-| 31 | `net/sctp/sm_make_chunk.c` | SCTP networking | pending scaffold | unresolved | pending | pending |
-| 32 | `security/selinux/avc.c` | SELinux AVC | pending scaffold | unresolved | pending | pending |
+| 1 | `arch/x86/Makefile` | non-target x86 build system | index-resolved in scaffold | resolved | `0818d274ec0f97a3fef70194b629821c3294e191` | targeted compile PASS; clean reversal PASS |
+| 2 | `drivers/block/zram/zram_drv.c` | block / compressed memory | index-resolved in scaffold | resolved | `648f5dd2045b4c016cc7c3c411f7946ee48ec914` | targeted compile PASS; clean reversal PASS |
+| 3 | `drivers/dma-buf/dma-buf.c` | dma-buf core | index-resolved in scaffold | resolved | `648f5dd2045b4c016cc7c3c411f7946ee48ec914` | targeted compile PASS; clean reversal PASS |
+| 4 | `drivers/gpu/drm/msm/msm_drv.c` | MSM DRM / display shutdown | index-resolved in scaffold | resolved | `33956504e5210f733b042f005b09de4d8c9fba3b` | targeted compile PASS; clean reversal PASS |
+| 5 | `drivers/mmc/core/core.c` | MMC core | index-resolved in scaffold | resolved | `4febfdd243664284e5c245b1664633ec3f8b816b` | targeted compile PASS; clean reversal PASS |
+| 6 | `drivers/mmc/core/mmc.c` | MMC device initialization | index-resolved in scaffold | resolved | `4febfdd243664284e5c245b1664633ec3f8b816b` | targeted compile PASS; clean reversal PASS |
+| 7 | `drivers/scsi/ufs/ufshcd.c` | UFS core / power management | index-resolved in scaffold | resolved | `4febfdd243664284e5c245b1664633ec3f8b816b` | targeted compile PASS; clean reversal PASS |
+| 8 | `drivers/soc/qcom/smp2p.c` | Qualcomm SMP2P IPC | index-resolved in scaffold | resolved | `72fd5a8910a28d4a7aa2498a58794b6c3282eb44` | targeted compile PASS; clean reversal PASS |
+| 9 | `drivers/tty/tty_jobctrl.c` | TTY job control | index-resolved in scaffold | resolved | `49d6e32da6048bbef578be52367256effeafb709` | targeted compile PASS; clean reversal PASS |
+| 10 | `drivers/usb/core/hub.c` | USB hub / enumeration | index-resolved in scaffold | resolved | `5fe5c247754d0b958f389fbde25541ff6c23526b` | targeted compile PASS; clean reversal PASS |
+| 11 | `drivers/usb/dwc3/core.c` | DWC3 core / power and role handling | index-resolved in scaffold | resolved | `5fe5c247754d0b958f389fbde25541ff6c23526b` | targeted compile PASS; clean reversal PASS |
+| 12 | `drivers/usb/dwc3/gadget.c` | DWC3 gadget | index-resolved in scaffold | resolved | `5fe5c247754d0b958f389fbde25541ff6c23526b` | targeted compile PASS; clean reversal PASS |
+| 13 | `drivers/usb/gadget/configfs.c` | USB gadget configfs / Android composition | index-resolved in scaffold | resolved | `5fe5c247754d0b958f389fbde25541ff6c23526b` | targeted compile PASS; clean reversal PASS |
+| 14 | `drivers/usb/gadget/function/f_accessory.c` | Android USB accessory function | index-resolved in scaffold | resolved | `5fe5c247754d0b958f389fbde25541ff6c23526b` | targeted compile PASS; clean reversal PASS |
+| 15 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | resolved | `5fe5c247754d0b958f389fbde25541ff6c23526b` | targeted compile PASS; clean reversal PASS |
+| 16 | `drivers/usb/gadget/function/f_uac1.c` | USB audio gadget UAC1 | index-resolved in scaffold | resolved | `5fe5c247754d0b958f389fbde25541ff6c23526b` | targeted compile PASS; clean reversal PASS |
+| 17 | `drivers/usb/gadget/function/f_uac2.c` | USB audio gadget UAC2 | index-resolved in scaffold | resolved | `5fe5c247754d0b958f389fbde25541ff6c23526b` | targeted compile PASS; clean reversal PASS |
+| 18 | `fs/incfs/data_mgmt.c` | Incremental FS data management | index-resolved in scaffold | resolved | `92bfc038c04c279027c0ddfb4cd88b9bbfa31273` | targeted compile PASS; clean reversal PASS |
+| 19 | `fs/incfs/format.c` | Incremental FS on-disk format | index-resolved in scaffold | resolved | `92bfc038c04c279027c0ddfb4cd88b9bbfa31273` | targeted compile PASS; clean reversal PASS |
+| 20 | `fs/incfs/main.c` | Incremental FS module lifecycle | index-resolved in scaffold | resolved | `92bfc038c04c279027c0ddfb4cd88b9bbfa31273` | targeted compile PASS; clean reversal PASS |
+| 21 | `fs/incfs/pseudo_files.c` | Incremental FS pseudo files; modify/delete conflict | index-resolved in scaffold | resolved | `92bfc038c04c279027c0ddfb4cd88b9bbfa31273` | targeted compile PASS; clean reversal PASS |
+| 22 | `fs/incfs/vfs.c` | Incremental FS VFS and mount behavior | index-resolved in scaffold | resolved | `92bfc038c04c279027c0ddfb4cd88b9bbfa31273` | targeted compile PASS; clean reversal PASS |
+| 23 | `include/linux/usb/usbnet.h` | USB networking private interface | index-resolved in scaffold | resolved | `5fe5c247754d0b958f389fbde25541ff6c23526b` | targeted compile PASS; clean reversal PASS |
+| 24 | `kernel/bpf/helpers.c` | BPF helper ABI | index-resolved in scaffold | resolved | `928cf84b7c73c03c14136efada744825a12d9d00` | targeted compile PASS; clean reversal PASS |
+| 25 | `kernel/cgroup/cgroup.c` | cgroup core | index-resolved in scaffold | resolved | `928cf84b7c73c03c14136efada744825a12d9d00` | targeted compile PASS; clean reversal PASS |
+| 26 | `kernel/cpu.c` | CPU hotplug / core lifecycle | index-resolved in scaffold | resolved | `928cf84b7c73c03c14136efada744825a12d9d00` | targeted compile PASS; clean reversal PASS |
+| 27 | `kernel/futex.c` | futex core | index-resolved in scaffold | resolved | `928cf84b7c73c03c14136efada744825a12d9d00` | targeted compile PASS; clean reversal PASS |
+| 28 | `kernel/sched/fair.c` | CFS scheduler | index-resolved in scaffold | resolved | `928cf84b7c73c03c14136efada744825a12d9d00` | targeted compile PASS; clean reversal PASS |
+| 29 | `net/core/skbuff.c` | networking skb core | index-resolved in scaffold | resolved | `768a262b43ee51ce8aeb02863e0cf3729e67462a` | targeted compile PASS; clean reversal PASS |
+| 30 | `net/qrtr/qrtr.c` | Qualcomm QRTR IPC | index-resolved in scaffold | resolved | `72fd5a8910a28d4a7aa2498a58794b6c3282eb44` | targeted compile PASS; clean reversal PASS |
+| 31 | `net/sctp/sm_make_chunk.c` | SCTP networking | index-resolved in scaffold | resolved | `768a262b43ee51ce8aeb02863e0cf3729e67462a` | targeted compile PASS; clean reversal PASS |
+| 32 | `security/selinux/avc.c` | SELinux AVC | index-resolved in scaffold | resolved | `ba427f46b9286f8bdd7223fc032472f26d519123` | targeted compile PASS; clean reversal PASS |
 
 ## Conflict-state definitions
 
@@ -278,7 +278,7 @@ reduce commit count.
 
 | Batch | Semantic paths | Index resolved | Semantic resolved | Targeted compilation | Clean reversal | Owning commit |
 |---|---:|---|---|---|---|---|
-| merge scaffold | 32 | pending | no | prohibited | not applicable | pending |
+| merge scaffold | 32 | yes | no | prohibited | not applicable | `ff895111416c91c1aaf9acf518ca79ac3f66a80b` |
 | non-target x86 build | 1 | pending | pending | pending | pending | pending |
 | zram and dma-buf | 2 | pending | pending | pending | pending | pending |
 | MSM DRM display | 1 | pending | pending | pending | pending | pending |
@@ -400,3 +400,36 @@ the device owner tests the generated build and authorizes a later merge.
 - Index state: resolved in the scaffold; this commit provides the semantic resolution.
 - Targeted compilation: performed immediately after this commit.
 - Clean-reversal validation: performed immediately after this commit against the scaffold.
+
+### Clean-merge audit: LPFC mailbox EOF whitespace
+
+- Owning commit: `e8e94d363e57ab89d61fff638c89a274b84feab6`
+- Source: `drivers/scsi/lpfc/lpfc_mbox.c`
+- Decision: remove one Android Common-introduced blank line at EOF so the strict repository-wide `git diff --check` gate remains clean.
+- Targeted compilation: `drivers/scsi/lpfc/lpfc_mbox.o` PASS.
+- Clean reversal to scaffold state: PASS.
+
+## CI transaction history
+
+- Successful authoritative reconnaissance: run `29798735690`; artifact `miru-lts241-recon-29798735690`.
+- Cancelled partial-clone reconnaissance: run `29798900321`; no artifact was uploaded and it is not used as evidence.
+- Successful scaffold transaction: run `29800349747`; scaffold `ff895111416c91c1aaf9acf518ca79ac3f66a80b`.
+- Earlier scaffold helper failures were closed without merge and did not move production or integration refs.
+
+## Semantic resolution commits
+
+| Batch | Commit | Subject | Source paths | Validation |
+|---|---|---|---|---|
+| `x86` | `0818d274ec0f97a3fef70194b629821c3294e191` | lts: resolve x86 build conflict for 4.14.241 | `arch/x86/Makefile` | targeted compile PASS; clean reversal PASS |
+| `corebuf` | `648f5dd2045b4c016cc7c3c411f7946ee48ec914` | lts: resolve zram and dma-buf conflicts for 4.14.241 | `drivers/block/zram/zram_drv.c drivers/dma-buf/dma-buf.c` | targeted compile PASS; clean reversal PASS |
+| `drm` | `33956504e5210f733b042f005b09de4d8c9fba3b` | lts: resolve MSM display conflict for 4.14.241 | `drivers/gpu/drm/msm/msm_drv.c` | targeted compile PASS; clean reversal PASS |
+| `storage` | `4febfdd243664284e5c245b1664633ec3f8b816b` | lts: resolve MMC and UFS conflicts for 4.14.241 | `drivers/mmc/core/core.c drivers/mmc/core/mmc.c drivers/scsi/ufs/ufshcd.c` | targeted compile PASS; clean reversal PASS |
+| `ipc` | `72fd5a8910a28d4a7aa2498a58794b6c3282eb44` | lts: resolve Qualcomm IPC conflicts for 4.14.241 | `drivers/soc/qcom/smp2p.c net/qrtr/qrtr.c` | targeted compile PASS; clean reversal PASS |
+| `tty` | `49d6e32da6048bbef578be52367256effeafb709` | lts: resolve TTY job-control conflict for 4.14.241 | `drivers/tty/tty_jobctrl.c` | targeted compile PASS; clean reversal PASS |
+| `usb` | `5fe5c247754d0b958f389fbde25541ff6c23526b` | lts: resolve USB core and gadget conflicts for 4.14.241 | `drivers/usb/core/hub.c drivers/usb/dwc3/core.c drivers/usb/dwc3/gadget.c drivers/usb/gadget/configfs.c drivers/usb/gadget/function/f_accessory.c drivers/usb/gadget/function/f_fs.c drivers/usb/gadget/function/f_uac1.c drivers/usb/gadget/function/f_uac2.c include/linux/usb/usbnet.h` | targeted compile PASS; clean reversal PASS |
+| `incfs` | `92bfc038c04c279027c0ddfb4cd88b9bbfa31273` | lts: resolve Incremental FS conflicts for 4.14.241 | `fs/incfs/data_mgmt.c fs/incfs/format.c fs/incfs/main.c fs/incfs/pseudo_files.c fs/incfs/vfs.c` | targeted compile PASS; clean reversal PASS |
+| `kcore` | `928cf84b7c73c03c14136efada744825a12d9d00` | lts: resolve kernel core and scheduler conflicts for 4.14.241 | `kernel/bpf/helpers.c kernel/cgroup/cgroup.c kernel/cpu.c kernel/futex.c kernel/sched/fair.c` | targeted compile PASS; clean reversal PASS |
+| `net` | `768a262b43ee51ce8aeb02863e0cf3729e67462a` | lts: resolve networking conflicts for 4.14.241 | `net/core/skbuff.c net/sctp/sm_make_chunk.c` | targeted compile PASS; clean reversal PASS |
+| `selinux` | `ba427f46b9286f8bdd7223fc032472f26d519123` | lts: resolve SELinux AVC conflict for 4.14.241 | `security/selinux/avc.c security/selinux/include/security.h` | targeted compile PASS; clean reversal PASS |
+
+All 32 authentic conflicts now have an owning resolution commit. The full kernel and external-module build remains a separate gate and has not yet been claimed. Physical device validation and flashing have not been performed.
