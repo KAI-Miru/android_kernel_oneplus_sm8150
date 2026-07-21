@@ -80,8 +80,20 @@ jobs:
               if s.count(duplicate_speed)!=1:
                   raise RuntimeError('FunctionFS clean-merge speed collision')
               s=s.replace(duplicate_speed,combined_speed,1)
+              declaration=''' + "'''" + r'''
+              \t\tcontainer_of(f->fi, struct f_fs_opts, func_inst);
+              \tstruct ffs_data *ffs_data;
+              \tint ret;
+              ''' + "'''" + r'''
+              declaration_fixed=''' + "'''" + r'''
+              \t\tcontainer_of(f->fi, struct f_fs_opts, func_inst);
+              \tstruct ffs_data *ffs;
+              \tint ret;
+              ''' + "'''" + r'''
+              if s.count(declaration)!=1:
+                  raise RuntimeError('FunctionFS bind declaration collision')
+              s=s.replace(declaration,declaration_fixed,1)
               replacements={
-                  '\tstruct ffs_data *ffs_data;\n': '\tstruct ffs_data *ffs;\n',
                   '\tffs_data = ffs_opts->dev->ffs_data;\n': '\tffs = ffs_opts->dev->ffs_data;\n',
                   '\tfunc->ffs = ffs_data;\n': '\tfunc->ffs = ffs;\n',
               }
