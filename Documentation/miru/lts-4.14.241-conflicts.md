@@ -382,3 +382,12 @@ the device owner tests the generated build and authorizes a later merge.
 - Index state: resolved in the scaffold; this commit provides the semantic resolution.
 - Targeted compilation: performed immediately after this commit.
 - Clean-reversal validation: performed immediately after this commit against the scaffold.
+
+### lts: resolve networking conflicts for 4.14.241
+
+- Batch ID: `net`
+- Paths: `net/core/skbuff.c net/sctp/sm_make_chunk.c`
+- Decision: Use stable tiny-skb/truesize and SCTP validation fixes while retaining forced DMA-zone allocation.
+- Index state: resolved in the scaffold; this commit provides the semantic resolution.
+- Targeted compilation: performed immediately after this commit.
+- Clean-reversal validation: performed immediately after this commit against the scaffold.
