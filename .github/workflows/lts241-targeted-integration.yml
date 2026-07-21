@@ -38,8 +38,8 @@ jobs:
                   raise SystemExit(f'missing generated DWC3 string: {old!r}')
               text = text.replace(old, new, 1)
 
-          marker = "resolve('drivers/usb/dwc3/gadget.c',[dwc3_gadget])\n"
-          addition = dedent(r'''
+          dwc3_marker = "resolve('drivers/usb/dwc3/gadget.c',[dwc3_gadget])\n"
+          dwc3_addition = dedent(r'''
               p=DST/'drivers/usb/dwc3/gadget.c'
               s=p.read_text()
               duplicate=''' + "'''" + r'''
@@ -60,9 +60,40 @@ jobs:
               s=s.replace(duplicate,combined,1)
               p.write_text(s)
           ''').lstrip()
-          if marker not in text:
+          if dwc3_marker not in text:
               raise SystemExit('missing DWC3 resolver marker')
-          text = text.replace(marker, marker + addition, 1)
+          text = text.replace(dwc3_marker, dwc3_marker + dwc3_addition, 1)
+
+          ffs_marker = "resolve('drivers/usb/gadget/function/f_fs.c',['theirs','theirs',ffs_ss,'theirs'])\n"
+          ffs_addition = dedent(r'''
+              p=DST/'drivers/usb/gadget/function/f_fs.c'
+              s=p.read_text()
+              duplicate_speed=''' + "'''" + r'''
+              \t\tcase USB_SPEED_SUPER_PLUS:
+              \t\tcase USB_SPEED_SUPER:
+              \t\tcase USB_SPEED_SUPER_PLUS:
+              ''' + "'''" + r'''
+              combined_speed=''' + "'''" + r'''
+              \t\tcase USB_SPEED_SUPER_PLUS:
+              \t\tcase USB_SPEED_SUPER:
+              ''' + "'''" + r'''
+              if s.count(duplicate_speed)!=1:
+                  raise RuntimeError('FunctionFS clean-merge speed collision')
+              s=s.replace(duplicate_speed,combined_speed,1)
+              replacements={
+                  '\tstruct ffs_data *ffs_data;\n': '\tstruct ffs_data *ffs;\n',
+                  '\tffs_data = ffs_opts->dev->ffs_data;\n': '\tffs = ffs_opts->dev->ffs_data;\n',
+                  '\tfunc->ffs = ffs_data;\n': '\tfunc->ffs = ffs;\n',
+              }
+              for old,new in replacements.items():
+                  if s.count(old)!=1:
+                      raise RuntimeError('FunctionFS locked ffs lookup collision: '+repr(old))
+                  s=s.replace(old,new,1)
+              p.write_text(s)
+          ''').lstrip()
+          if ffs_marker not in text:
+              raise SystemExit('missing FunctionFS resolver marker')
+          text = text.replace(ffs_marker, ffs_marker + ffs_addition, 1)
           resolver.write_text(text)
 
           transaction = Path('scripts/miru/lts241_targeted_integration.sh')
