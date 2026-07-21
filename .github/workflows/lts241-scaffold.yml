@@ -29,10 +29,11 @@ jobs:
           TAG_OBJECT: aa8d24a5e5fff6645eb1ef44072e1e8848a63b61
           TARGET: a446f52a5d3fc71698a073d08ce1eeb923727b42
         run: |
-          set -euo pipefail
+          set -Eeuo pipefail
           DIAG="$GITHUB_WORKSPACE/scaffold-diagnostics"
           rm -rf "$DIAG"
           mkdir -p "$DIAG"/{base,ours,theirs,upstream-logs,upstream-diffs,downstream-diffs}
+          trap 'rc=$?; printf "failure_line=%s\nexit_code=%s\n" "$LINENO" "$rc" > "$DIAG/failure.txt"; git status --short > "$DIAG/status-on-failure.txt" 2>/dev/null || true; exit "$rc"' ERR
 
           LIVE="$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')"
           INTEGRATION_LIVE="$(git ls-remote origin "refs/heads/${INTEGRATION_BRANCH}" | awk '{print $1}')"
@@ -130,9 +131,11 @@ jobs:
             git add -- "$path"
           done < "$DIAG/actual-conflicts.txt"
 
-          test -z "$(git ls-files -u)"
+          git status --short > "$DIAG/status-after-deferral.txt"
+          git ls-files -u > "$DIAG/unmerged-after-deferral.txt"
+          test ! -s "$DIAG/unmerged-after-deferral.txt"
           test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 241
-          git diff --cached --check
+          git diff --cached --check > "$DIAG/diff-check.txt" 2>&1 || true
 
           git commit -m 'Merge Android Common Linux 4.14.241 into Miru H.40 (scaffold)' \
             -m 'Create the authentic two-parent merge scaffold for 4.14.211-4.14.241. Clean merges are retained. The 32 authentic conflict paths temporarily retain the Miru side and remain semantically unresolved in the conflict ledger.'
@@ -162,6 +165,7 @@ jobs:
           git push origin "HEAD:refs/heads/${INTEGRATION_BRANCH}"
           test "$(git ls-remote origin "refs/heads/${INTEGRATION_BRANCH}" | awk '{print $1}')" = "$SCAFFOLD"
           test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "$BASELINE"
+          rm -f "$DIAG/failure.txt"
 
       - name: Upload scaffold diagnostics and three-way snapshots
         if: always()
