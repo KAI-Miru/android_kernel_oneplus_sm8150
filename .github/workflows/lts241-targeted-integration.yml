@@ -29,6 +29,8 @@ jobs:
           python3 scripts/miru/lts241_prepare_final_whitespace.py
           python3 -m py_compile scripts/miru/lts241_semantic_resolve.py
           bash -n scripts/miru/lts241_targeted_integration.sh
+          grep -Fq 'LPFC_PATH="drivers/scsi/lpfc/lpfc_mbox.c"' scripts/miru/lts241_targeted_integration.sh
+          grep -Fq "commit -m 'lts: clean up LPFC merge whitespace for 4.14.241'" scripts/miru/lts241_targeted_integration.sh
 
       - name: Resolve, reverse-check and compile every conflict batch
         run: bash scripts/miru/lts241_targeted_integration.sh
