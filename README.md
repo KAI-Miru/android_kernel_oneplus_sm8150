@@ -8,30 +8,31 @@ Miru H.40 is a maintained kernel line for the OnePlus 7 Pro (`guacamole`), based
 |---|---|
 | Kernel release | `4.14.210-miru-h40-lts210-ci1+` |
 | Production branch | `miru-h40` |
-| Integration branch | `miru-h40-lts210-integration` pending production merge |
+| Production merge | `f78e220d9b5b49fb309b25877f6f423e5eb4f55e` |
 | Target | OnePlus 7 Pro / SM8150 |
 | Userspace | ColorOS 14 port with H.40 vendor and ODM |
 | External modules | 32-module Miru v3 drop-in set rebuilt against the final kernel tree |
 | Integration status | Android stable 4.14.191-4.14.210 integrated; 19/19 semantic conflicts resolved |
-| Build validation | PASS — pull-request workflow run #8 (`29792358348`) |
+| Build validation | PASS — production pull-request workflow run #8 (`29792358348`) |
 | Device validation | PASS — tested on OnePlus 7 Pro on 2026-07-20 from source head `548efae59678abf8d9c1711df2a688a17a364f81`; boot, all modules and normal functionality confirmed |
-| Release status | Validated release candidate awaiting production merge and post-merge CI |
+| Release status | Production milestone merged into `miru-h40` |
 
 The 4.14.210 milestone preserves the H.40 Qualcomm/Oplus hardware architecture and the existing Miru DT2W, smart-PA, display, fingerprint, AOD and NFC compatibility work. The authentic Android-stable merge ancestry is retained rather than flattened.
 
-All commits after the device-tested source head modify only CI or documentation, so the runtime kernel source validated on the device is unchanged in the production merge candidate.
+All commits after the device-tested source head modify only CI or documentation, so the runtime kernel source in the production branch is the same source that passed device validation.
 
 ## Build and validation
 
 Kernel, DTBs and external modules are built by [GitHub Actions](.github/workflows/miru-h40-build.yml). The workflow performs source sanity checks, validates the 4.14.210 merge ancestry, builds the kernel and five production DTBs, rebuilds all 32 external modules against the final `Module.symvers`, verifies vermagic and symbol CRCs, and publishes installable and diagnostic artifacts.
 
-Pull-request workflow run #8 (`29792358348`) passed all kernel, DTB, external-module, audit and artifact-upload steps. Device testing of the build produced from `fix: use shared block sector size in dm-bow` (`548efae59678abf8d9c1711df2a688a17a364f81`) confirmed that the phone boots, all modules load and normal functionality works.
+Pull-request workflow run #8 (`29792358348`) passed all kernel, DTB, external-module, audit and artifact-upload steps. Device testing of the build produced from `fix: use shared block sector size in dm-bow` (`548efae59678abf8d9c1711df2a688a17a364f81`) confirmed that the phone boots, all modules load and normal functionality works. Pull request #24 was subsequently merged into `miru-h40` as `f78e220d9b5b49fb309b25877f6f423e5eb4f55e`.
 
 ## Source references
 
 - Main H.40 source: `OnePlusOSS/android_kernel_oneplus_sm8150@180d787684d5965be5145bcfbf666ed427b4ea18`
 - Miru 4.14.210 integration base: `40a2cb6fcf0411c100a7aaa609e128705a0bc2d8`
 - Device-tested 4.14.210 source head: `548efae59678abf8d9c1711df2a688a17a364f81`
+- Production 4.14.210 merge: `f78e220d9b5b49fb309b25877f6f423e5eb4f55e`
 - Companion vendor/module source: `KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150@125ff7d0153cbb3aaa8f9fd618c33b7f728d7798`
 - Android 4.14.210 stable parent: `39a7f9a39c0bd6d0f67869df227f6fa23286edd2`
 
