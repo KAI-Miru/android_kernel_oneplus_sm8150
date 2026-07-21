@@ -346,3 +346,12 @@ the device owner tests the generated build and authorizes a later merge.
 - Index state: resolved in the scaffold; this commit provides the semantic resolution.
 - Targeted compilation: performed immediately after this commit.
 - Clean-reversal validation: performed immediately after this commit against the scaffold.
+
+### lts: resolve TTY job-control conflict for 4.14.241
+
+- Batch ID: `tty`
+- Paths: `drivers/tty/tty_jobctrl.c`
+- Decision: Use the stable outer ctrl_lock coverage without nested re-locking.
+- Index state: resolved in the scaffold; this commit provides the semantic resolution.
+- Targeted compilation: performed immediately after this commit.
+- Clean-reversal validation: performed immediately after this commit against the scaffold.
