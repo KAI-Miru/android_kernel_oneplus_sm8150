@@ -391,3 +391,12 @@ the device owner tests the generated build and authorizes a later merge.
 - Index state: resolved in the scaffold; this commit provides the semantic resolution.
 - Targeted compilation: performed immediately after this commit.
 - Clean-reversal validation: performed immediately after this commit against the scaffold.
+
+### lts: resolve SELinux AVC conflict for 4.14.241
+
+- Batch ID: `selinux`
+- Paths: `security/selinux/avc.c security/selinux/include/security.h`
+- Decision: Retain the already-present __GFP_NOWARN allocation semantics, and remove the clean-merge duplicate android_netlink_getneigh field while preserving both Android netlink policy capabilities.
+- Index state: resolved in the scaffold; this commit provides the semantic resolution.
+- Targeted compilation: performed immediately after this commit.
+- Clean-reversal validation: performed immediately after this commit against the scaffold.
