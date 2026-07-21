@@ -1,0 +1,174 @@
+name: Temporary authentic LTS 4.14.241 scaffold
+
+on:
+  pull_request:
+    branches: [automation/lts241-scaffold-runner-20260721]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  scaffold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Partial checkout with complete ancestry
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Create and push authentic two-parent scaffold
+        env:
+          BASELINE: cc49ffcb5c5207746618a799b250c67decdc0d15
+          LEDGER_COMMIT: eefd4f0b8b4cf303fedb1cac8048cf9b4cdd3106
+          INTEGRATION_BRANCH: miru-h40-lts241-integration
+          STABLE_210: 39a7f9a39c0bd6d0f67869df227f6fa23286edd2
+          TAG_NAME: ASB-2021-08-05_4.14-stable
+          TAG_OBJECT: aa8d24a5e5fff6645eb1ef44072e1e8848a63b61
+          TARGET: a446f52a5d3fc71698a073d08ce1eeb923727b42
+        run: |
+          set -euo pipefail
+          DIAG="$GITHUB_WORKSPACE/scaffold-diagnostics"
+          rm -rf "$DIAG"
+          mkdir -p "$DIAG"/{base,ours,theirs,upstream-logs,upstream-diffs,downstream-diffs}
+
+          LIVE="$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')"
+          INTEGRATION_LIVE="$(git ls-remote origin "refs/heads/${INTEGRATION_BRANCH}" | awk '{print $1}')"
+          test "$LIVE" = "$BASELINE"
+          test "$INTEGRATION_LIVE" = "$LEDGER_COMMIT"
+
+          git fetch --force --no-tags origin \
+            "+refs/heads/${INTEGRATION_BRANCH}:refs/remotes/origin/${INTEGRATION_BRANCH}"
+          git fetch --force --no-tags https://android.googlesource.com/kernel/common \
+            "refs/tags/${TAG_NAME}:refs/tags/${TAG_NAME}"
+
+          test "$(git rev-parse refs/tags/${TAG_NAME})" = "$TAG_OBJECT"
+          test "$(git rev-parse refs/tags/${TAG_NAME}^{})" = "$TARGET"
+          test "$(git cat-file tag "$TAG_OBJECT" | git hash-object -t tag --stdin)" = "$TAG_OBJECT"
+          test "$(git cat-file commit "$TARGET" | git hash-object -t commit --stdin)" = "$TARGET"
+          test "$(git show "$TARGET":Makefile | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 241
+          git merge-base --is-ancestor "$STABLE_210" "$LEDGER_COMMIT"
+
+          git checkout -B "$INTEGRATION_BRANCH" "$LEDGER_COMMIT"
+          test "$(git rev-parse HEAD)" = "$LEDGER_COMMIT"
+          test "$(git rev-parse HEAD^)" = "$BASELINE"
+          test -f Documentation/miru/lts-4.14.241-conflicts.md
+
+          cat > "$DIAG/expected-conflicts.txt" <<'EOF'
+          arch/x86/Makefile
+          drivers/block/zram/zram_drv.c
+          drivers/dma-buf/dma-buf.c
+          drivers/gpu/drm/msm/msm_drv.c
+          drivers/mmc/core/core.c
+          drivers/mmc/core/mmc.c
+          drivers/scsi/ufs/ufshcd.c
+          drivers/soc/qcom/smp2p.c
+          drivers/tty/tty_jobctrl.c
+          drivers/usb/core/hub.c
+          drivers/usb/dwc3/core.c
+          drivers/usb/dwc3/gadget.c
+          drivers/usb/gadget/configfs.c
+          drivers/usb/gadget/function/f_accessory.c
+          drivers/usb/gadget/function/f_fs.c
+          drivers/usb/gadget/function/f_uac1.c
+          drivers/usb/gadget/function/f_uac2.c
+          fs/incfs/data_mgmt.c
+          fs/incfs/format.c
+          fs/incfs/main.c
+          fs/incfs/pseudo_files.c
+          fs/incfs/vfs.c
+          include/linux/usb/usbnet.h
+          kernel/bpf/helpers.c
+          kernel/cgroup/cgroup.c
+          kernel/cpu.c
+          kernel/futex.c
+          kernel/sched/fair.c
+          net/core/skbuff.c
+          net/qrtr/qrtr.c
+          net/sctp/sm_make_chunk.c
+          security/selinux/avc.c
+          EOF
+          sed -i 's/^          //' "$DIAG/expected-conflicts.txt"
+
+          git config user.name 'Miru LTS Integration Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          set +e
+          git merge --no-commit --no-ff "$TARGET" >"$DIAG/merge.log" 2>&1
+          MERGE_RC=$?
+          set -e
+          test "$MERGE_RC" -ne 0
+
+          git diff --name-only --diff-filter=U | sort > "$DIAG/actual-conflicts.txt"
+          diff -u "$DIAG/expected-conflicts.txt" "$DIAG/actual-conflicts.txt"
+          test "$(wc -l < "$DIAG/actual-conflicts.txt" | tr -d ' ')" = 32
+          git ls-files -u > "$DIAG/conflict-stages.txt"
+          git status --short > "$DIAG/status-before-deferral.txt"
+          git diff --cc > "$DIAG/combined-conflict.diff"
+
+          while IFS= read -r path; do
+            mkdir -p "$DIAG/base/$(dirname "$path")" \
+                     "$DIAG/ours/$(dirname "$path")" \
+                     "$DIAG/theirs/$(dirname "$path")" \
+                     "$DIAG/upstream-logs/$(dirname "$path")" \
+                     "$DIAG/upstream-diffs/$(dirname "$path")" \
+                     "$DIAG/downstream-diffs/$(dirname "$path")"
+            git show ":1:${path}" > "$DIAG/base/${path}" 2>/dev/null || :
+            git show ":2:${path}" > "$DIAG/ours/${path}" 2>/dev/null || :
+            git show ":3:${path}" > "$DIAG/theirs/${path}" 2>/dev/null || :
+            git log --reverse --format='%H%x09%s' "$STABLE_210..$TARGET" -- "$path" \
+              > "$DIAG/upstream-logs/${path}.txt"
+            git diff "$STABLE_210..$TARGET" -- "$path" \
+              > "$DIAG/upstream-diffs/${path}.diff"
+            git diff "$STABLE_210..$LEDGER_COMMIT" -- "$path" \
+              > "$DIAG/downstream-diffs/${path}.diff"
+          done < "$DIAG/actual-conflicts.txt"
+
+          while IFS= read -r path; do
+            git checkout --ours -- "$path"
+            git add -- "$path"
+          done < "$DIAG/actual-conflicts.txt"
+
+          test -z "$(git ls-files -u)"
+          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 241
+          git diff --cached --check
+
+          git commit -m 'Merge Android Common Linux 4.14.241 into Miru H.40 (scaffold)' \
+            -m 'Create the authentic two-parent merge scaffold for 4.14.211-4.14.241. Clean merges are retained. The 32 authentic conflict paths temporarily retain the Miru side and remain semantically unresolved in the conflict ledger.'
+
+          SCAFFOLD="$(git rev-parse HEAD)"
+          PARENTS="$(git show -s --format=%P HEAD)"
+          test "$PARENTS" = "$LEDGER_COMMIT $TARGET"
+          test "$(git show -s --format=%P HEAD | wc -w)" = 2
+          git merge-base --is-ancestor "$BASELINE" HEAD
+          git merge-base --is-ancestor "$TARGET" HEAD
+          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 241
+
+          {
+            echo "production_baseline=$BASELINE"
+            echo "ledger_parent=$LEDGER_COMMIT"
+            echo "android_common_parent=$TARGET"
+            echo "scaffold=$SCAFFOLD"
+            echo "parents=$PARENTS"
+            echo "conflicts=32"
+            echo "index_unmerged=0"
+            echo "semantic_unresolved=32"
+            echo "kernel_version=4.14.241"
+          } | tee "$DIAG/scaffold-summary.txt"
+          git show --stat --summary HEAD > "$DIAG/scaffold-show.txt"
+          git status --short > "$DIAG/status-after-commit.txt"
+
+          git push origin "HEAD:refs/heads/${INTEGRATION_BRANCH}"
+          test "$(git ls-remote origin "refs/heads/${INTEGRATION_BRANCH}" | awk '{print $1}')" = "$SCAFFOLD"
+          test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "$BASELINE"
+
+      - name: Upload scaffold diagnostics and three-way snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts241-scaffold-${{ github.run_id }}
+          path: scaffold-diagnostics
+          if-no-files-found: error
+          retention-days: 30
