@@ -7,19 +7,20 @@ on:
     types: [opened, reopened, synchronize]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   kernel-and-external-modules:
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     env:
-      SEMANTIC_HEAD: 259c596bf59d5717aa72f313437317ba72adda14
+      BASE_SEMANTIC_HEAD: 259c596bf59d5717aa72f313437317ba72adda14
       PRODUCTION_HEAD: cc49ffcb5c5207746618a799b250c67decdc0d15
       SCAFFOLD_HEAD: ff895111416c91c1aaf9acf518ca79ac3f66a80b
       SCAFFOLD_FIRST_PARENT: eefd4f0b8b4cf303fedb1cac8048cf9b4cdd3106
       ANDROID_COMMON_TARGET: a446f52a5d3fc71698a073d08ce1eeb923727b42
       VENDOR_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
+      INTEGRATION_BRANCH: miru-h40-lts241-integration
 
     steps:
       - name: Checkout exact audited semantic head
@@ -33,7 +34,7 @@ jobs:
           set -Eeuo pipefail
           mkdir -p full-validation-diagnostics
           exec > >(tee full-validation-diagnostics/input-verification.log) 2>&1
-          test "$(git rev-parse HEAD)" = "${SEMANTIC_HEAD}"
+          test "$(git rev-parse HEAD)" = "${BASE_SEMANTIC_HEAD}"
           test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 241
           git merge-base --is-ancestor "${PRODUCTION_HEAD}" HEAD
           git merge-base --is-ancestor "${ANDROID_COMMON_TARGET}" HEAD
@@ -46,7 +47,7 @@ jobs:
           grep -Fq "parent ${ANDROID_COMMON_TARGET}" full-validation-diagnostics/merge-scaffold.txt
           git diff --check "${PRODUCTION_HEAD}" HEAD
           {
-            echo "semantic_head=${SEMANTIC_HEAD}"
+            echo "base_semantic_head=${BASE_SEMANTIC_HEAD}"
             echo "production_head=${PRODUCTION_HEAD}"
             echo "scaffold_head=${SCAFFOLD_HEAD}"
             echo "android_common_target=${ANDROID_COMMON_TARGET}"
@@ -54,6 +55,47 @@ jobs:
             echo "kernel_version=4.14.241"
             echo "semantic_conflicts=32/32 resolved"
           } | tee full-validation-diagnostics/input-manifest.txt
+
+      - name: Apply and reverse-audit qmi rmnet ICMPv6 include
+        run: |
+          set -Eeuo pipefail
+          exec > >(tee full-validation-diagnostics/qmi-rmnet-audit.log) 2>&1
+          git config user.name 'Miru LTS Integration Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source = Path('drivers/soc/qcom/qmi_rmnet.c')
+          text = source.read_text()
+          old = '#include <linux/ipv6.h>\n#include <linux/alarmtimer.h>\n'
+          new = '#include <linux/ipv6.h>\n#include <linux/icmpv6.h>\n#include <linux/alarmtimer.h>\n'
+          if text.count(old) != 1:
+              raise SystemExit('qmi_rmnet include insertion point not found exactly once')
+          if '#include <linux/icmpv6.h>' in text:
+              raise SystemExit('qmi_rmnet already has explicit ICMPv6 owner include')
+          source.write_text(text.replace(old, new, 1))
+
+          ledger = Path('Documentation/miru/lts-4.14.241-conflicts.md')
+          with ledger.open('a') as out:
+              out.write('''\n## Full-build clean-merge audit: Qualcomm qmi_rmnet ICMPv6 helper\n\n- Source: `drivers/soc/qcom/qmi_rmnet.c`\n- Discovery: full validation run `29809621281` failed because `icmp6_hdr()` was no longer visible through the previous transitive include chain.\n- Decision: include the owning header `<linux/icmpv6.h>` explicitly; packet classification logic is unchanged.\n- Validation contract: clean reversal to semantic head `259c596bf59d5717aa72f313437317ba72adda14`, followed by the complete pinned kernel and 32-module build.\n''')
+          PY
+          git add drivers/soc/qcom/qmi_rmnet.c Documentation/miru/lts-4.14.241-conflicts.md
+          git diff --cached --check
+          git commit -m 'net: include ICMPv6 helpers for qmi rmnet'
+          VALIDATED_HEAD="$(git rev-parse HEAD)"
+          echo "VALIDATED_HEAD=${VALIDATED_HEAD}" >> "${GITHUB_ENV}"
+          echo "validated_head=${VALIDATED_HEAD}" | tee full-validation-diagnostics/qmi-rmnet-fix.txt
+
+          REVERSE_WT="${RUNNER_TEMP}/lts241-qmi-rmnet-reversal"
+          git worktree add --detach "${REVERSE_WT}" "${VALIDATED_HEAD}"
+          git -C "${REVERSE_WT}" revert --no-commit "${VALIDATED_HEAD}"
+          git -C "${REVERSE_WT}" diff --exit-code "${BASE_SEMANTIC_HEAD}" -- \
+            drivers/soc/qcom/qmi_rmnet.c Documentation/miru/lts-4.14.241-conflicts.md \
+            > full-validation-diagnostics/qmi-rmnet-reversal.diff
+          git -C "${REVERSE_WT}" revert --abort 2>/dev/null || true
+          git worktree remove --force "${REVERSE_WT}"
+          echo PASS > full-validation-diagnostics/qmi-rmnet-reversal.txt
+          git diff --check "${PRODUCTION_HEAD}" HEAD
 
       - name: Prepare pinned 4.14.241 kernel build driver
         run: |
@@ -158,7 +200,8 @@ jobs:
             '4.14.241-miru-h40-lts241-ci1+'
           {
             echo 'result=SUCCESS'
-            echo "semantic_head=${SEMANTIC_HEAD}"
+            echo "base_semantic_head=${BASE_SEMANTIC_HEAD}"
+            echo "validated_head=${VALIDATED_HEAD}"
             echo 'kernel_release=4.14.241-miru-h40-lts241-ci1+'
             echo 'external_module_count=32'
             echo "vendor_sha=${VENDOR_SHA}"
@@ -176,6 +219,22 @@ jobs:
             echo '[external module hashes]'
             find "${DROPIN}" -maxdepth 1 -type f -name '*.ko' -print0 | sort -z | xargs -0 sha256sum
           } | tee full-validation-diagnostics/final-validation-manifest.txt
+
+      - name: Atomically publish fully validated integration head
+        if: success()
+        run: |
+          set -Eeuo pipefail
+          live_integration="$(git ls-remote origin "refs/heads/${INTEGRATION_BRANCH}" | awk '{print $1}')"
+          test "${live_integration}" = "${BASE_SEMANTIC_HEAD}"
+          test "$(git rev-parse HEAD)" = "${VALIDATED_HEAD}"
+          git push origin "HEAD:refs/heads/${INTEGRATION_BRANCH}"
+          test "$(git ls-remote origin "refs/heads/${INTEGRATION_BRANCH}" | awk '{print $1}')" = "${VALIDATED_HEAD}"
+          test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_HEAD}"
+          {
+            echo "published_integration_head=${VALIDATED_HEAD}"
+            echo "production_head=${PRODUCTION_HEAD}"
+            echo 'production_unchanged=yes'
+          } | tee full-validation-diagnostics/publish-summary.txt
 
       - name: Upload 4.14.241 external module drop-in packages
         if: always()
