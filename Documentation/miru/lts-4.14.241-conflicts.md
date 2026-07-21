@@ -440,3 +440,11 @@ All 32 authentic conflicts now have an owning resolution commit. The full kernel
 - Discovery: full validation run `29809621281` failed because `icmp6_hdr()` was no longer visible through the previous transitive include chain.
 - Decision: include the owning header `<linux/icmpv6.h>` explicitly; packet classification logic is unchanged.
 - Validation contract: clean reversal to semantic head `259c596bf59d5717aa72f313437317ba72adda14`, followed by the complete pinned kernel and 32-module build.
+
+## Device-panic audit: downstream dma-buf ownership and release lifecycle
+
+- Panic: `mm/slub.c:343` from `delayed_fput -> dma_buf_release` after TWRP stopped `qseecomd`.
+- Root cause: downstream `dma_buf_export()` aliases `dmabuf->name` to `dmabuf->buf_name`; the 4.14.241 destructor freed both pointers unconditionally.
+- Ownership fix: free `dmabuf->name` only when it differs from `dmabuf->buf_name`, both when renaming and during final destruction.
+- Lifecycle fix: restore `db_list` removal to `dma_buf_file_release()` and wire it through `dma_buf_fops.release`, matching the device-tested 4.14.210 tree.
+- Validation contract: clean reversal to source head `65c63badd41cb56d98984ed664d6108ac7e36702`, full pinned kernel build, and exact 32-module ABI validation.
