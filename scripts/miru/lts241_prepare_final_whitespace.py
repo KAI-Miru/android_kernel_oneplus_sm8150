@@ -2,7 +2,7 @@ from pathlib import Path
 
 path = Path('scripts/miru/lts241_targeted_integration.sh')
 text = path.read_text()
-marker = '''printf '%s\n' "${RECORDS[@]}" > "${DIAG}/resolution-commits.txt"
+marker = r'''printf '%s\n' "${RECORDS[@]}" > "${DIAG}/resolution-commits.txt"
 
 export LEDGER_PATH="${KERNEL_WORKTREE}/Documentation/miru/lts-4.14.241-conflicts.md"
 '''
