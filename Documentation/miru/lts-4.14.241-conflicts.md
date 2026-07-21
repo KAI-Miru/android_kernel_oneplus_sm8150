@@ -301,3 +301,12 @@ the remaining semantic conflict count reaches zero.
 Physical device validation and flashing have not been performed and will not be
 performed by automation. Production promotion is explicitly out of scope until
 the device owner tests the generated build and authorizes a later merge.
+
+### lts: resolve x86 build conflict for 4.14.241
+
+- Batch ID: `x86`
+- Paths: `arch/x86/Makefile`
+- Decision: Retain Android CET disabling and Miru non-PIC policy; x86 is not a target architecture.
+- Index state: resolved in the scaffold; this commit provides the semantic resolution.
+- Targeted compilation: performed immediately after this commit.
+- Clean-reversal validation: performed immediately after this commit against the scaffold.
