@@ -319,3 +319,12 @@ the device owner tests the generated build and authorizes a later merge.
 - Index state: resolved in the scaffold; this commit provides the semantic resolution.
 - Targeted compilation: performed immediately after this commit.
 - Clean-reversal validation: performed immediately after this commit against the scaffold.
+
+### lts: resolve MSM display conflict for 4.14.241
+
+- Batch ID: `drm`
+- Paths: `drivers/gpu/drm/msm/msm_drv.c`
+- Decision: Guard failed component bind before preserving Miru last-close and shutdown ordering.
+- Index state: resolved in the scaffold; this commit provides the semantic resolution.
+- Targeted compilation: performed immediately after this commit.
+- Clean-reversal validation: performed immediately after this commit against the scaffold.
