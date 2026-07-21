@@ -48,4 +48,7 @@ export LEDGER_PATH="${KERNEL_WORKTREE}/Documentation/miru/lts-4.14.241-conflicts
 '''
 if text.count(marker) != 1:
     raise SystemExit('missing post-resolution ledger marker')
-path.write_text(text.replace(marker, replacement, 1))
+updated = text.replace(marker, replacement, 1)
+if updated.count('LPFC_PATH="drivers/scsi/lpfc/lpfc_mbox.c"') != 1:
+    raise SystemExit('LPFC audit insertion did not occur exactly once')
+path.write_text(updated)
