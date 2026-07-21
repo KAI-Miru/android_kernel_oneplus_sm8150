@@ -1,14 +1,16 @@
 # Miru H.40 Linux 4.14.210 release validation
 
-## Release candidate
+## Production release
 
 - Kernel release: `4.14.210-miru-h40-lts210-ci1+`
-- Production target: `miru-h40`
-- Integration branch: `miru-h40-lts210-integration`
+- Production branch: `miru-h40`
+- Production merge: `f78e220d9b5b49fb309b25877f6f423e5eb4f55e`
+- Pull request: `#24`
 - Android stable range: 4.14.191 through 4.14.210
 - Production integration base: `40a2cb6fcf0411c100a7aaa609e128705a0bc2d8`
 - Android stable parent: `39a7f9a39c0bd6d0f67869df227f6fa23286edd2`
 - Device-tested source head: `548efae59678abf8d9c1711df2a688a17a364f81`
+- Final pull-request head: `b265cd1f4f77b0cfe117d46adb7d18ac90821da2`
 
 ## Source integration
 
@@ -60,8 +62,10 @@ Result:
 - normal device functionality was confirmed working;
 - no regression was reported in the validated DT2W, smart-PA/audio, AOD, fingerprint/display, WLAN, storage, modem IPC, suspend/resume or charging paths.
 
-All commits after the tested source head modify only CI or documentation. The runtime kernel source promoted by pull request #24 is therefore the same source that passed device validation.
+All commits after the tested source head modified only CI or documentation. The runtime kernel source promoted by pull request #24 is therefore the same source that passed device validation.
 
 ## Release decision
 
-The 4.14.210 milestone has passed source integration, complete kernel/module CI and OnePlus 7 Pro device validation. It is approved for promotion to `miru-h40` through a merge commit, followed by one post-merge production workflow run.
+The 4.14.210 milestone passed source integration, complete kernel/module CI and OnePlus 7 Pro device validation. Pull request #24 was merged into the permanent `miru-h40` production branch with merge commit `f78e220d9b5b49fb309b25877f6f423e5eb4f55e` on 2026-07-21.
+
+The temporary integration workflow was removed before the merge. The permanent `.github/workflows/miru-h40-build.yml` workflow is now the sole production kernel-and-modules workflow.
