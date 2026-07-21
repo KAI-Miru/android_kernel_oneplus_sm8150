@@ -1,0 +1,147 @@
+name: Apply dma-buf 241 fix and build
+
+on:
+  push:
+    branches:
+      - miru-h40-lts241-integration
+    paths:
+      - .github/workflows/dmabuf-fix-build.yml
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  fix-and-dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out 241 branch
+        uses: actions/checkout@v4
+        with:
+          ref: miru-h40-lts241-integration
+          fetch-depth: 0
+
+      - name: Apply ownership-safe dma-buf lifecycle fix
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('drivers/dma-buf/dma-buf.c')
+          text = path.read_text()
+
+          old_release = '''\tmodule_put(dmabuf->owner);
+\tmutex_lock(&db_list.lock);
+\tlist_del(&dmabuf->list_node);
+\tmutex_unlock(&db_list.lock);
+
+\tkfree(dmabuf->name);
+\tkfree(dmabuf->buf_name);
+\tkfree(dmabuf);
+}
+
+static const struct dentry_operations dma_buf_dentry_ops = {
+'''
+          new_release = '''\tmodule_put(dmabuf->owner);
+
+\tif (dmabuf->name != dmabuf->buf_name)
+\t\tkfree(dmabuf->name);
+\tkfree(dmabuf->buf_name);
+\tkfree(dmabuf);
+}
+
+static int dma_buf_file_release(struct inode *inode, struct file *file)
+{
+\tstruct dma_buf *dmabuf;
+
+\tif (!is_dma_buf_file(file))
+\t\treturn -EINVAL;
+
+\tdmabuf = file->private_data;
+
+\tmutex_lock(&db_list.lock);
+\tlist_del(&dmabuf->list_node);
+\tmutex_unlock(&db_list.lock);
+
+\treturn 0;
+}
+
+static const struct dentry_operations dma_buf_dentry_ops = {
+'''
+          if text.count(old_release) != 1:
+              raise SystemExit('unexpected dma_buf_release layout')
+          text = text.replace(old_release, new_release, 1)
+
+          old_set_name = '''\tspin_lock(&dmabuf->name_lock);
+\tkfree(dmabuf->name);
+\tdmabuf->name = name;
+\tspin_unlock(&dmabuf->name_lock);
+'''
+          new_set_name = '''\tspin_lock(&dmabuf->name_lock);
+\tif (dmabuf->name != dmabuf->buf_name)
+\t\tkfree(dmabuf->name);
+\tdmabuf->name = name;
+\tspin_unlock(&dmabuf->name_lock);
+'''
+          if text.count(old_set_name) != 1:
+              raise SystemExit('unexpected dma_buf_set_name layout')
+          text = text.replace(old_set_name, new_set_name, 1)
+
+          old_fops = '''static const struct file_operations dma_buf_fops = {
+\t.mmap\t\t= dma_buf_mmap_internal,
+'''
+          new_fops = '''static const struct file_operations dma_buf_fops = {
+\t.release\t= dma_buf_file_release,
+\t.mmap\t\t= dma_buf_mmap_internal,
+'''
+          if text.count(old_fops) != 1:
+              raise SystemExit('unexpected dma_buf_fops layout')
+          text = text.replace(old_fops, new_fops, 1)
+
+          path.write_text(text)
+          PY
+
+          git diff --check
+          grep -n -A28 -B5 'static void dma_buf_release' drivers/dma-buf/dma-buf.c
+          grep -n -A25 'static int dma_buf_file_release' drivers/dma-buf/dma-buf.c
+          grep -n -A12 'static const struct file_operations dma_buf_fops' drivers/dma-buf/dma-buf.c
+
+      - name: Amend fix commit and remove bootstrap workflow
+        shell: bash
+        run: |
+          git config user.name 'KAI-Miru CI'
+          git config user.email 'actions@users.noreply.github.com'
+          git rm .github/workflows/dmabuf-fix-build.yml
+          git add drivers/dma-buf/dma-buf.c
+          git commit --amend --no-edit
+          git push --force-with-lease origin HEAD:miru-h40-lts241-integration
+          echo "FIX_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Dispatch existing kernel build workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set +e
+          dispatched=0
+          while IFS=$'\t' read -r id name path; do
+            lower=$(printf '%s %s' "$name" "$path" | tr '[:upper:]' '[:lower:]')
+            case "$lower" in
+              *kernel*|*build*|*compile*)
+                echo "Trying workflow: $name ($path, id=$id)"
+                gh api -X POST "repos/${GITHUB_REPOSITORY}/actions/workflows/${id}/dispatches" -f ref=miru-h40-lts241-integration
+                if [ $? -eq 0 ]; then
+                  echo "Dispatched: $name"
+                  dispatched=1
+                  break
+                fi
+                ;;
+            esac
+          done < <(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows" --jq '.workflows[] | select(.state == "active") | [.id, .name, .path] | @tsv')
+
+          if [ "$dispatched" -ne 1 ]; then
+            echo 'No compatible manual kernel build workflow could be dispatched.'
+            echo 'Available workflows:'
+            gh api "repos/${GITHUB_REPOSITORY}/actions/workflows" --jq '.workflows[] | [.id, .name, .path, .state] | @tsv'
+            exit 1
+          fi
