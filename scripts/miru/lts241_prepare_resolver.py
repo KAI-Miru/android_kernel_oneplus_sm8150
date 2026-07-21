@@ -111,6 +111,18 @@ insert_after(
     ''',
 )
 
+old_skb = "resolve('net/core/skbuff.c',['both'])"
+new_skb = dedent('''
+    def skbuff_hunk(ours, theirs):
+        if len(ours) < 3:
+            raise RuntimeError('short downstream skbuff conflict hunk')
+        return ours[:3] + theirs
+    resolve('net/core/skbuff.c',[skbuff_hunk])
+''').strip()
+if text.count(old_skb) != 1:
+    raise SystemExit('missing networking skb resolver')
+text = text.replace(old_skb, new_skb, 1)
+
 resolver.write_text(text)
 
 transaction = Path('scripts/miru/lts241_targeted_integration.sh')
