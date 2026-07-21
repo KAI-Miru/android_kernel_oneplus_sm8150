@@ -36,6 +36,30 @@ jobs:
               if old not in text:
                   raise SystemExit(f'missing generated DWC3 string: {old!r}')
               text = text.replace(old, new, 1)
+
+          marker = "resolve('drivers/usb/dwc3/gadget.c',[dwc3_gadget])\n"
+          insertion = marker + r'''p=DST/'drivers/usb/dwc3/gadget.c'
+s=p.read_text()
+duplicate=''' + "'''" + r'''
+	case DWC3_LINK_STATE_U2:	/* in HS, means Sleep (L1) */
+	case DWC3_LINK_STATE_U1:
+	case DWC3_LINK_STATE_RESUME:
+		break;
+	case DWC3_LINK_STATE_U1:
+''' + "'''" + r'''
+combined=''' + "'''" + r'''
+	case DWC3_LINK_STATE_U2:	/* in HS, means Sleep (L1) */
+	case DWC3_LINK_STATE_RESUME:
+		break;
+	case DWC3_LINK_STATE_U1:
+''' + "'''" + r'''
+if s.count(duplicate)!=1: raise RuntimeError('DWC3 clean-merge U1 collision')
+s=s.replace(duplicate,combined,1)
+p.write_text(s)
+'''
+          if marker not in text:
+              raise SystemExit('missing DWC3 resolver marker')
+          text = text.replace(marker, insertion, 1)
           resolver.write_text(text)
 
           transaction = Path('scripts/miru/lts241_targeted_integration.sh')
