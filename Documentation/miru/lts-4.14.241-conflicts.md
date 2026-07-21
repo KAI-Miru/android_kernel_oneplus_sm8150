@@ -373,3 +373,12 @@ the device owner tests the generated build and authorizes a later merge.
 - Index state: resolved in the scaffold; this commit provides the semantic resolution.
 - Targeted compilation: performed immediately after this commit.
 - Clean-reversal validation: performed immediately after this commit against the scaffold.
+
+### lts: resolve kernel core and scheduler conflicts for 4.14.241
+
+- Batch ID: `kcore`
+- Paths: `kernel/bpf/helpers.c kernel/cgroup/cgroup.c kernel/cpu.c kernel/futex.c kernel/sched/fair.c`
+- Decision: Import BPF boot time, CPU/cpuset, futex and scheduler fixes while retaining downstream cgroup feature controls and isolated-CPU policy.
+- Index state: resolved in the scaffold; this commit provides the semantic resolution.
+- Targeted compilation: performed immediately after this commit.
+- Clean-reversal validation: performed immediately after this commit against the scaffold.
