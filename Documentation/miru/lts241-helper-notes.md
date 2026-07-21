@@ -1,0 +1,1 @@
+Temporary helper branch for the isolated Android Common 4.14.241 integration transaction. This file is not part of the integration or production branch and will be neutralized with the helper ref after validation.
