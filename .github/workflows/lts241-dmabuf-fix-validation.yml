@@ -1,0 +1,393 @@
+name: Temporary Miru H.40 4.14.241 dma-buf fix validation
+
+on:
+  pull_request:
+    branches:
+      - automation/lts241-dmabuf-fix-runner-20260722
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  kernel-and-external-modules:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      BASE_SOURCE_HEAD: 65c63badd41cb56d98984ed664d6108ac7e36702
+      PRODUCTION_HEAD: cc49ffcb5c5207746618a799b250c67decdc0d15
+      SCAFFOLD_HEAD: ff895111416c91c1aaf9acf518ca79ac3f66a80b
+      SCAFFOLD_FIRST_PARENT: eefd4f0b8b4cf303fedb1cac8048cf9b4cdd3106
+      ANDROID_COMMON_TARGET: a446f52a5d3fc71698a073d08ce1eeb923727b42
+      VENDOR_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
+      INTEGRATION_BRANCH: miru-h40-lts241-integration
+
+    steps:
+      - name: Checkout exact panic-reproducing source head
+        uses: actions/checkout@v4
+        with:
+          ref: 65c63badd41cb56d98984ed664d6108ac7e36702
+          fetch-depth: 0
+
+      - name: Verify immutable inputs and regression shape
+        run: |
+          set -Eeuo pipefail
+          mkdir -p full-validation-diagnostics
+          exec > >(tee full-validation-diagnostics/input-verification.log) 2>&1
+          test "$(git rev-parse HEAD)" = "${BASE_SOURCE_HEAD}"
+          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 241
+          git merge-base --is-ancestor "${PRODUCTION_HEAD}" HEAD
+          git merge-base --is-ancestor "${ANDROID_COMMON_TARGET}" HEAD
+          test -z "$(git ls-files -u)"
+          grep -Fq -- '- Semantically resolved conflicts: **32**' Documentation/miru/lts-4.14.241-conflicts.md
+          grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.241-conflicts.md
+          grep -Fq '#include <linux/icmpv6.h>' drivers/soc/qcom/qmi_rmnet.c
+          git cat-file -p "${SCAFFOLD_HEAD}" > full-validation-diagnostics/merge-scaffold.txt
+          test "$(grep -c '^parent ' full-validation-diagnostics/merge-scaffold.txt)" = 2
+          grep -Fq "parent ${SCAFFOLD_FIRST_PARENT}" full-validation-diagnostics/merge-scaffold.txt
+          grep -Fq "parent ${ANDROID_COMMON_TARGET}" full-validation-diagnostics/merge-scaffold.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          
+          text = Path('drivers/dma-buf/dma-buf.c').read_text()
+          checks = {
+              'aliased destructor double-free':
+                  '\tkfree(dmabuf->name);\n\tkfree(dmabuf->buf_name);\n\tkfree(dmabuf);\n',
+              'list removal still in dentry destructor':
+                  '\tmutex_lock(&db_list.lock);\n\tlist_del(&dmabuf->list_node);\n\tmutex_unlock(&db_list.lock);\n\n\tkfree(dmabuf->name);',
+              'unsafe set-name free':
+                  '\tspin_lock(&dmabuf->name_lock);\n\tkfree(dmabuf->name);\n\tdmabuf->name = name;\n\tspin_unlock(&dmabuf->name_lock);\n',
+              'missing file release callback':
+                  'static const struct file_operations dma_buf_fops = {\n\t.mmap\t\t= dma_buf_mmap_internal,\n',
+          }
+          for label, needle in checks.items():
+              if text.count(needle) != 1:
+                  raise SystemExit(f'unexpected pre-fix state: {label}')
+          PY
+          git diff --check "${PRODUCTION_HEAD}" HEAD
+          {
+            echo "base_source_head=${BASE_SOURCE_HEAD}"
+            echo "production_head=${PRODUCTION_HEAD}"
+            echo "kernel_version=4.14.241"
+            echo "panic_signature=mm/slub.c:343 delayed_fput dma_buf_release"
+            echo "semantic_conflicts=32/32 resolved"
+          } | tee full-validation-diagnostics/input-manifest.txt
+
+      - name: Apply and reverse-audit dma-buf lifecycle fix
+        run: |
+          set -Eeuo pipefail
+          exec > >(tee full-validation-diagnostics/dmabuf-fix-audit.log) 2>&1
+          git config user.name 'Miru LTS Integration Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          python3 - <<'PY'
+          from pathlib import Path
+          
+          path = Path('drivers/dma-buf/dma-buf.c')
+          text = path.read_text()
+          
+          old_release = '''\tmodule_put(dmabuf->owner);
+          \tmutex_lock(&db_list.lock);
+          \tlist_del(&dmabuf->list_node);
+          \tmutex_unlock(&db_list.lock);
+          
+          \tkfree(dmabuf->name);
+          \tkfree(dmabuf->buf_name);
+          \tkfree(dmabuf);
+          }
+          
+          static const struct dentry_operations dma_buf_dentry_ops = {
+          '''
+          new_release = '''\tmodule_put(dmabuf->owner);
+          
+          \tif (dmabuf->name != dmabuf->buf_name)
+          \t\tkfree(dmabuf->name);
+          \tkfree(dmabuf->buf_name);
+          \tkfree(dmabuf);
+          }
+          
+          static int dma_buf_file_release(struct inode *inode, struct file *file)
+          {
+          \tstruct dma_buf *dmabuf;
+          
+          \tif (!is_dma_buf_file(file))
+          \t\treturn -EINVAL;
+          
+          \tdmabuf = file->private_data;
+          
+          \tmutex_lock(&db_list.lock);
+          \tlist_del(&dmabuf->list_node);
+          \tmutex_unlock(&db_list.lock);
+          
+          \treturn 0;
+          }
+          
+          static const struct dentry_operations dma_buf_dentry_ops = {
+          '''
+          if text.count(old_release) != 1:
+              raise SystemExit('unexpected dma_buf_release layout')
+          text = text.replace(old_release, new_release, 1)
+          
+          old_set_name = '''\tspin_lock(&dmabuf->name_lock);
+          \tkfree(dmabuf->name);
+          \tdmabuf->name = name;
+          \tspin_unlock(&dmabuf->name_lock);
+          '''
+          new_set_name = '''\tspin_lock(&dmabuf->name_lock);
+          \tif (dmabuf->name != dmabuf->buf_name)
+          \t\tkfree(dmabuf->name);
+          \tdmabuf->name = name;
+          \tspin_unlock(&dmabuf->name_lock);
+          '''
+          if text.count(old_set_name) != 1:
+              raise SystemExit('unexpected dma_buf_set_name layout')
+          text = text.replace(old_set_name, new_set_name, 1)
+          
+          old_fops = '''static const struct file_operations dma_buf_fops = {
+          \t.mmap\t\t= dma_buf_mmap_internal,
+          '''
+          new_fops = '''static const struct file_operations dma_buf_fops = {
+          \t.release\t= dma_buf_file_release,
+          \t.mmap\t\t= dma_buf_mmap_internal,
+          '''
+          if text.count(old_fops) != 1:
+              raise SystemExit('unexpected dma_buf_fops layout')
+          text = text.replace(old_fops, new_fops, 1)
+          path.write_text(text)
+          
+          ledger = Path('Documentation/miru/lts-4.14.241-conflicts.md')
+          with ledger.open('a') as out:
+              out.write('''
+          ## Device-panic audit: downstream dma-buf ownership and release lifecycle
+          
+          - Panic: `mm/slub.c:343` from `delayed_fput -> dma_buf_release` after TWRP stopped `qseecomd`.
+          - Root cause: downstream `dma_buf_export()` aliases `dmabuf->name` to `dmabuf->buf_name`; the 4.14.241 destructor freed both pointers unconditionally.
+          - Ownership fix: free `dmabuf->name` only when it differs from `dmabuf->buf_name`, both when renaming and during final destruction.
+          - Lifecycle fix: restore `db_list` removal to `dma_buf_file_release()` and wire it through `dma_buf_fops.release`, matching the device-tested 4.14.210 tree.
+          - Validation contract: clean reversal to source head `65c63badd41cb56d98984ed664d6108ac7e36702`, full pinned kernel build, and exact 32-module ABI validation.
+          ''')
+          PY
+
+          git add drivers/dma-buf/dma-buf.c Documentation/miru/lts-4.14.241-conflicts.md
+          git diff --cached --check
+          git commit -m 'dma-buf: preserve downstream ownership and release lifecycle'
+          VALIDATED_HEAD="$(git rev-parse HEAD)"
+          echo "VALIDATED_HEAD=${VALIDATED_HEAD}" >> "${GITHUB_ENV}"
+          echo "validated_head=${VALIDATED_HEAD}" | tee full-validation-diagnostics/dmabuf-fix.txt
+
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('drivers/dma-buf/dma-buf.c').read_text()
+          required = [
+              'if (dmabuf->name != dmabuf->buf_name)\n\t\tkfree(dmabuf->name);',
+              'static int dma_buf_file_release(struct inode *inode, struct file *file)',
+              '.release\t= dma_buf_file_release,',
+          ]
+          for needle in required:
+              if needle not in text:
+                  raise SystemExit(f'missing post-fix invariant: {needle}')
+          if '\tmutex_lock(&db_list.lock);\n\tlist_del(&dmabuf->list_node);\n\tmutex_unlock(&db_list.lock);\n\n\tif (dmabuf->name' in text:
+              raise SystemExit('db_list removal still present in dentry destructor')
+          PY
+
+          REVERSE_WT="${RUNNER_TEMP}/lts241-dmabuf-reversal"
+          git worktree add --detach "${REVERSE_WT}" "${VALIDATED_HEAD}"
+          git -C "${REVERSE_WT}" revert --no-commit "${VALIDATED_HEAD}"
+          git -C "${REVERSE_WT}" diff --exit-code "${BASE_SOURCE_HEAD}" -- \
+            drivers/dma-buf/dma-buf.c Documentation/miru/lts-4.14.241-conflicts.md \
+            > full-validation-diagnostics/dmabuf-reversal.diff
+          git -C "${REVERSE_WT}" revert --abort 2>/dev/null || true
+          git worktree remove --force "${REVERSE_WT}"
+          echo PASS > full-validation-diagnostics/dmabuf-reversal.txt
+          git diff --check "${PRODUCTION_HEAD}" HEAD
+
+      - name: Prepare pinned 4.14.241 kernel build driver
+        run: |
+          set -Eeuo pipefail
+          exec > >(tee -a full-validation-diagnostics/preparation.log) 2>&1
+          python3 scripts/miru/prepare_vendor_v6_linewise.py
+          python3 scripts/miru/inject_vendor_compat_v3_into_ci_build.py
+          sed -i 's/apply_vendor_lts190_compat_v3.py/apply_vendor_lts190_compat_v6.py/' \
+            scripts/miru/ci_build_4.14.190.sh
+          python3 scripts/miru/insert_vendor_format_fixer.py
+          grep -Fq 'apply_vendor_lts190_compat_v6.py' scripts/miru/ci_build_4.14.190.sh
+          grep -Fq 'fix_vendor_lts190_format_quotes.py' scripts/miru/ci_build_4.14.190.sh
+
+          python3 - <<'PY'
+          from pathlib import Path
+          
+          path = Path('scripts/miru/ci_build_4.14.190.sh')
+          text = path.read_text()
+          replacements = {
+              'BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e':
+                  'BASE_SHA=cc49ffcb5c5207746618a799b250c67decdc0d15',
+              'SCAFFOLD_SHA=5d8cba39fefb935c6feaf30ea1a57dfffa80273a':
+                  'SCAFFOLD_SHA=ff895111416c91c1aaf9acf518ca79ac3f66a80b',
+              'STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac':
+                  'STABLE_SHA=a446f52a5d3fc71698a073d08ce1eeb923727b42',
+              'echo "== Miru H.40 Android 4.14.190 CI build =="':
+                  'echo "== Miru H.40 Android 4.14.241 CI build =="',
+              "':!Documentation/miru/lts-4.14.190-conflicts.md'":
+                  "':!Documentation/miru/lts-4.14.241-conflicts.md'",
+              'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "190"':
+                  'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "241"',
+              "grep -Fq -- '- Resolved conflicts: 28' Documentation/miru/lts-4.14.190-conflicts.md":
+                  "grep -Fq -- '- Semantically resolved conflicts: **32**' Documentation/miru/lts-4.14.241-conflicts.md",
+              "grep -Fq -- '- Remaining conflicts: 0' Documentation/miru/lts-4.14.190-conflicts.md":
+                  "grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.241-conflicts.md",
+              'echo "kernel_version=4.14.190"':
+                  'echo "kernel_version=4.14.241"',
+              'echo "conflicts=28/28 resolved"':
+                  'echo "conflicts=32/32 resolved"',
+              'export KERNEL_LOCALVERSION=-miru-h40-lts190-ci1':
+                  'export KERNEL_LOCALVERSION=-miru-h40-lts241-ci2',
+              "grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts190-ci1\"' \"${OUT_DIR}/.config\"":
+                  "grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts241-ci2\"' \"${OUT_DIR}/.config\"",
+              "grep -m1 '^Linux version 4\\.14\\.190-'":
+                  "grep -m1 '^Linux version 4\\.14\\.241-'",
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'missing expected legacy build-driver text: {old}')
+              text = text.replace(old, new, 1)
+          
+          target_check = 'grep -Fq "parent ${STABLE_SHA}" "${DIAG_DIR}/merge-scaffold.txt"'
+          first_parent_check = target_check + '\ngrep -Fq "parent eefd4f0b8b4cf303fedb1cac8048cf9b4cdd3106" "${DIAG_DIR}/merge-scaffold.txt"'
+          if text.count(target_check) != 1:
+              raise SystemExit('missing scaffold target-parent check')
+          text = text.replace(target_check, first_parent_check, 1)
+          path.write_text(text)
+          PY
+
+          bash -n scripts/miru/ci_build_4.14.190.sh
+          grep -Fq 'kernel_version=4.14.241' scripts/miru/ci_build_4.14.190.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-lts241-ci2' scripts/miru/ci_build_4.14.190.sh
+
+      - name: Run clean pinned 4.14.241 kernel build
+        run: bash scripts/miru/ci_build_4.14.190.sh
+
+      - name: Rebuild and validate exact 32 external modules
+        run: |
+          set -Eeuo pipefail
+          python3 scripts/miru/prepare_external_modules_toolchain.py
+          python3 scripts/miru/prepare_external_pinctrl_headers.py
+          test "$(git hash-object scripts/Makefile.build)" = ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3
+          python3 - <<'PY'
+          from pathlib import Path
+          
+          path = Path('scripts/miru/prepare_wlan_response_link.py')
+          text = path.read_text()
+          old = 'expected = "74ce588c69513197a354ef0032c2145e91ee0641"'
+          new = 'expected = "ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3"'
+          if text.count(old) != 1:
+              raise SystemExit('legacy WLAN Makefile.build baseline guard missing or duplicated')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          python3 scripts/miru/prepare_wlan_response_link.py
+          python3 - <<'PY'
+          from pathlib import Path
+          
+          path = Path('scripts/miru/build_external_modules_4.14.190.sh')
+          text = path.read_text()
+          old_release = '4.14.190-miru-h40-lts190-ci1+'
+          new_release = '4.14.241-miru-h40-lts241-ci2+'
+          if old_release not in text:
+              raise SystemExit('missing expected external-module release gate')
+          text = text.replace(old_release, new_release)
+          text = text.replace('4.14.190', '4.14.241')
+          text = text.replace('lts190', 'lts241')
+          path.write_text(text)
+          PY
+          bash -n scripts/miru/build_external_modules_4.14.190.sh
+          bash scripts/miru/build_external_modules_4.14.190.sh
+
+      - name: Create final validation manifest
+        if: success()
+        run: |
+          set -Eeuo pipefail
+          OUT="${RUNNER_TEMP}/android-root/out/h40-kernel"
+          DROPIN="${RUNNER_TEMP}/miru-external-modules/dropin"
+          RELEASE='4.14.241-miru-h40-lts241-ci2+'
+          test "$(find "${DROPIN}" -maxdepth 1 -type f -name '*.ko' | wc -l)" = 32
+          test -s "${OUT}/arch/arm64/boot/Image"
+          test -s "${OUT}/arch/arm64/boot/Image.gz"
+          test -s "${OUT}/arch/arm64/boot/Image.gz-dtb"
+          test -s "${OUT}/Module.symvers"
+          test -s "${OUT}/.config"
+          test -s "${OUT}/include/config/kernel.release"
+          test "$(cat "${OUT}/include/config/kernel.release")" = "${RELEASE}"
+          grep -Fxq 'result=SUCCESS' build-diagnostics/build-summary.txt
+          grep -Fxq "kernel_release=${RELEASE}" external-module-diagnostics/kernel-release.txt
+          grep -Fxq 'result=SUCCESS' external-module-diagnostics/PACKAGE-SUMMARY.txt
+          grep -Fxq 'module_count=32' external-module-diagnostics/PACKAGE-SUMMARY.txt
+          grep -Fxq 'modules=32' external-module-diagnostics/MODULE-ABI-REPORT.txt
+          grep -Fxq 'errors=0' external-module-diagnostics/MODULE-ABI-REPORT.txt
+          test "$(git rev-parse HEAD)" = "${VALIDATED_HEAD}"
+          {
+            echo 'result=SUCCESS'
+            echo "base_source_head=${BASE_SOURCE_HEAD}"
+            echo "validated_head=${VALIDATED_HEAD}"
+            echo "kernel_release=${RELEASE}"
+            echo 'external_module_count=32'
+            echo 'module_abi_errors=0'
+            echo "vendor_sha=${VENDOR_SHA}"
+            echo 'panic_fix=dma-buf downstream ownership and file-release lifecycle'
+            echo
+            echo '[kernel hashes]'
+            sha256sum "${OUT}/arch/arm64/boot/Image" \
+              "${OUT}/arch/arm64/boot/Image.gz" \
+              "${OUT}/arch/arm64/boot/Image.gz-dtb" \
+              "${OUT}/Module.symvers" "${OUT}/.config"
+            echo
+            echo '[external module hashes]'
+            find "${DROPIN}" -maxdepth 1 -type f -name '*.ko' -print0 | sort -z | xargs -0 sha256sum
+          } | tee full-validation-diagnostics/final-validation-manifest.txt
+
+      - name: Atomically publish validated dma-buf fix
+        if: success()
+        run: |
+          set -Eeuo pipefail
+          live_integration="$(git ls-remote origin "refs/heads/${INTEGRATION_BRANCH}" | awk '{print $1}')"
+          test "${live_integration}" = "${BASE_SOURCE_HEAD}"
+          test "$(git rev-parse HEAD)" = "${VALIDATED_HEAD}"
+          git push origin "HEAD:refs/heads/${INTEGRATION_BRANCH}"
+          test "$(git ls-remote origin "refs/heads/${INTEGRATION_BRANCH}" | awk '{print $1}')" = "${VALIDATED_HEAD}"
+          test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_HEAD}"
+          {
+            echo "published_integration_head=${VALIDATED_HEAD}"
+            echo "production_head=${PRODUCTION_HEAD}"
+            echo 'production_unchanged=yes'
+          } | tee full-validation-diagnostics/publish-summary.txt
+
+      - name: Upload fixed kernel build outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts-4.14.241-ci2-dmabuf-fixed-build
+          path: ${{ runner.temp }}/android-root/out/h40-artifacts
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload fixed external module packages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-v3-modules-dropin-4.14.241-ci2
+          path: |
+            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.241.7z
+            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.241-audit.zip
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload full dma-buf validation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts-4.14.241-ci2-dmabuf-fixed-diagnostics
+          path: |
+            build-diagnostics
+            external-module-diagnostics
+            full-validation-diagnostics
+          if-no-files-found: error
+          retention-days: 30
