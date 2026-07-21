@@ -1,0 +1,128 @@
+name: Isolated LTS 4.14.241 reconnaissance
+
+on:
+  pull_request:
+    branches:
+      - automation/lts241-recon-runner-20260721
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Verify target, inventory repository, and preview merge
+        env:
+          BASELINE: cc49ffcb5c5207746618a799b250c67decdc0d15
+          STABLE_210: 39a7f9a39c0bd6d0f67869df227f6fa23286edd2
+          TAG_NAME: ASB-2021-08-05_4.14-stable
+          TAG_OBJECT: aa8d24a5e5fff6645eb1ef44072e1e8848a63b61
+          TARGET: a446f52a5d3fc71698a073d08ce1eeb923727b42
+        run: |
+          set -euxo pipefail
+          mkdir -p lts241-recon
+          LIVE="$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')"
+          test "$LIVE" = "$BASELINE"
+          git fetch --force --no-tags https://android.googlesource.com/kernel/common "refs/tags/${TAG_NAME}:refs/tags/${TAG_NAME}"
+          test "$(git rev-parse refs/tags/${TAG_NAME})" = "$TAG_OBJECT"
+          test "$(git rev-parse refs/tags/${TAG_NAME}^{})" = "$TARGET"
+          test "$(git cat-file -t "$TAG_OBJECT")" = tag
+          test "$(git cat-file -t "$TARGET")" = commit
+          test "$(git cat-file tag "$TAG_OBJECT" | git hash-object -t tag --stdin)" = "$TAG_OBJECT"
+          test "$(git cat-file commit "$TARGET" | git hash-object -t commit --stdin)" = "$TARGET"
+          test "$(git show "$BASELINE":Makefile | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 210
+          test "$(git show "$TARGET":Makefile | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 241
+          git merge-base --is-ancestor "$STABLE_210" "$BASELINE"
+          ! git merge-base --is-ancestor "$TARGET" "$BASELINE"
+
+          {
+            echo '# Miru H.40 LTS 4.14.241 reconnaissance'
+            echo
+            echo "- Production live head: \`${LIVE}\`"
+            echo "- Production version: \`$(git show "$BASELINE":Makefile | awk '/^(VERSION|PATCHLEVEL|SUBLEVEL) =/{printf "%s%s",sep,$3;sep="."} END{print ""}')\`"
+            echo "- Android Common tag: \`${TAG_NAME}\`"
+            echo "- Annotated tag object: \`${TAG_OBJECT}\`"
+            echo "- Peeled target commit: \`${TARGET}\`"
+            echo "- Target version: \`$(git show "$TARGET":Makefile | awk '/^(VERSION|PATCHLEVEL|SUBLEVEL) =/{printf "%s%s",sep,$3;sep="."} END{print ""}')\`"
+            echo '- Canonical Git object re-hash: PASS'
+            echo '- Authentic 4.14.210 Android Common ancestry in production: PASS'
+            echo '- Target already ancestor of production: NO'
+            echo
+            echo '## Recent production first-parent history'
+            echo '```text'
+            git log --first-parent --oneline -30 "$BASELINE"
+            echo '```'
+            echo
+            echo '## Remote branches'
+            echo '```text'
+            git ls-remote --heads origin | sort -k2
+            echo '```'
+            echo
+            echo '## LTS documentation'
+            echo '```text'
+            git ls-tree -r --name-only "$BASELINE" Documentation | grep -Ei 'miru|lts|4\.14' || true
+            echo '```'
+            echo
+            echo '## Workflows'
+            echo '```text'
+            git ls-tree -r --name-only "$BASELINE" .github/workflows || true
+            echo '```'
+            echo
+            echo '## Build entry points and defconfig references'
+            echo '```text'
+            git grep -nE 'DEFCONFIG|defconfig|KERNEL_CONFIG|BUILD_CONFIG|guacamole' "$BASELINE" -- .github/workflows scripts/miru 2>/dev/null | head -n 500 || true
+            echo '```'
+            echo
+            echo '## Pinned build inputs'
+            echo '```text'
+            git grep -nE '125ff7d0153cbb3aaa8f9fd618c33b7f728d7798|252aba16f513a857bc923172f67b0e55e23de35f|clang-r377782c|606f80986096476912e04e5c2913685a8f2c3b65|b0c6a654327ca8796bed1e61dffcf523d04dceaa|7322db1e1e4715fe217a27f721613e6be8438676|32.*\.ko|EXPECTED.*32' "$BASELINE" -- .github/workflows Documentation scripts/miru 2>/dev/null || true
+            echo '```'
+          } > lts241-recon/reconnaissance.md
+
+          git cat-file -p "$TAG_OBJECT" > lts241-recon/tag-object.txt
+          git show --no-patch --format=fuller "$TARGET" > lts241-recon/target-commit.txt
+          if git verify-tag "$TAG_NAME" >lts241-recon/tag-signature.txt 2>&1; then
+            echo '- GPG tag verification: PASS' >> lts241-recon/reconnaissance.md
+          else
+            echo '- GPG tag verification: unavailable; no signature claim made' >> lts241-recon/reconnaissance.md
+          fi
+          git diff --stat "$STABLE_210..$TARGET" > lts241-recon/delta-stat.txt
+          git diff --name-status "$STABLE_210..$TARGET" > lts241-recon/delta-paths.txt
+          git rev-list --count "$STABLE_210..$TARGET" > lts241-recon/delta-commit-count.txt
+          git cherry "$BASELINE" "$TARGET" > lts241-recon/cherry-audit.txt
+          echo "- 4.14.210..4.14.241 lineage commit count: \`$(cat lts241-recon/delta-commit-count.txt)\`" >> lts241-recon/reconnaissance.md
+          echo "- Patch-equivalent target commits already in production: \`$(grep -c '^-' lts241-recon/cherry-audit.txt || true)\`" >> lts241-recon/reconnaissance.md
+
+          git config user.name 'Miru LTS Audit Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git checkout --detach "$BASELINE"
+          set +e
+          git merge --no-commit --no-ff "$TARGET" >lts241-recon/merge-preview.log 2>&1
+          RC=$?
+          set -e
+          git diff --name-only --diff-filter=U | sort > lts241-recon/conflicts.txt
+          git ls-files -u > lts241-recon/conflict-stages.txt
+          {
+            echo
+            echo '## Authentic no-commit merge preview'
+            echo "- Exit code: \`${RC}\`"
+            echo "- Conflict count: \`$(wc -l < lts241-recon/conflicts.txt | tr -d ' ')\`"
+            echo '```text'
+            cat lts241-recon/conflicts.txt
+            echo '```'
+          } >> lts241-recon/reconnaissance.md
+          git merge --abort
+          test "$(git rev-parse HEAD)" = "$BASELINE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts241-recon-${{ github.run_id }}
+          path: lts241-recon
+          if-no-files-found: error
+          retention-days: 30
