@@ -1,10 +1,10 @@
 # Miru H.40 LTS integration
 
-This document records production LTS milestones for the OnePlus 7 Pro Miru H.40 kernel. The permanent production branch is `miru-h40`; milestone integration branches are temporary and are deleted after merge and tagging.
+This document records production LTS milestones for the OnePlus 7 Pro Miru H.40 kernel. The permanent production branch is `miru-h40`; milestone integration branches are temporary and may be deleted after merge and tagging.
 
 ## Milestone 2: Linux 4.14.210
 
-Status: **build-complete and device-validated; awaiting production merge**.
+Status: **completed, device-validated and merged into production on 2026-07-21**.
 
 This milestone advances the tested Miru H.40 line from Android stable 4.14.190 to 4.14.210 while preserving the Qualcomm/Oplus hardware architecture, ColorOS ABI and all validated post-4.14.190 compatibility work.
 
@@ -15,9 +15,9 @@ This milestone advances the tested Miru H.40 line from Android stable 4.14.190 t
 | Android stable 4.14.210 parent | `39a7f9a39c0bd6d0f67869df227f6fa23286edd2` |
 | Initial authentic merge scaffold | `33168a42f34f630ebeb87d90c250a53cac262b39` |
 | Device-tested source head | `548efae59678abf8d9c1711df2a688a17a364f81` |
-| Final validation/documentation head | `dc9a3843b8b284a000824f66f8903aa64179975f` |
-| Integration branch | `miru-h40-lts210-integration` |
-| Production target | `miru-h40` |
+| Final pull-request head | `b265cd1f4f77b0cfe117d46adb7d18ac90821da2` |
+| Production merge | `f78e220d9b5b49fb309b25877f6f423e5eb4f55e` |
+| Production branch | `miru-h40` |
 | Kernel release | `4.14.210-miru-h40-lts210-ci1+` |
 | Initial semantic conflicts | `19` |
 | Resolved semantic conflicts | `19` |
@@ -49,9 +49,10 @@ The Android stable parent carries Android/Linux changes from 4.14.191 through 4.
 - The production pull-request workflow passed as run #8 (`29792358348`).
 - The build produced from `fix: use shared block sector size in dm-bow` (`548efae59678abf8d9c1711df2a688a17a364f81`) booted successfully on the OnePlus 7 Pro.
 - All Miru v3 modules loaded and normal device functionality was confirmed working.
-- All commits after the tested source head modify only CI or documentation, leaving the validated runtime kernel source unchanged.
+- All commits after the tested source head changed only CI or documentation, leaving the validated runtime kernel source unchanged.
+- Pull request #24 was merged with a merge commit into the permanent `miru-h40` production branch.
 
-The remaining release steps are to merge pull request #24 into `miru-h40` with a merge commit, verify the post-merge production workflow, record the production merge SHA, and remove the temporary integration and CI helper branches.
+The milestone was promoted to production as `f78e220d9b5b49fb309b25877f6f423e5eb4f55e`. Remaining repository housekeeping consists only of release tagging, optional branch-protection settings and deletion of obsolete temporary branch refs.
 
 ## Milestone 1: Linux 4.14.190
 
