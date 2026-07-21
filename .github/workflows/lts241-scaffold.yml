@@ -13,12 +13,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - name: Partial checkout with complete ancestry
+      - name: Checkout complete repository ancestry
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          filter: blob:none
 
       - name: Create and push authentic two-parent scaffold
         env:
