@@ -310,3 +310,12 @@ the device owner tests the generated build and authorizes a later merge.
 - Index state: resolved in the scaffold; this commit provides the semantic resolution.
 - Targeted compilation: performed immediately after this commit.
 - Clean-reversal validation: performed immediately after this commit against the scaffold.
+
+### lts: resolve zram and dma-buf conflicts for 4.14.241
+
+- Batch ID: `corebuf`
+- Paths: `drivers/block/zram/zram_drv.c drivers/dma-buf/dma-buf.c`
+- Decision: Use atomic compacted-page accounting and move dma-buf destruction to dentry release while retaining dedup, names and ref tracking.
+- Index state: resolved in the scaffold; this commit provides the semantic resolution.
+- Targeted compilation: performed immediately after this commit.
+- Clean-reversal validation: performed immediately after this commit against the scaffold.
