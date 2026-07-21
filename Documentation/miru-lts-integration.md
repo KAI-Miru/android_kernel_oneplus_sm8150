@@ -4,7 +4,7 @@ This document records production LTS milestones for the OnePlus 7 Pro Miru H.40 
 
 ## Milestone 2: Linux 4.14.210
 
-Status: **source integration complete; production PR CI and final device validation pending**.
+Status: **build-complete and device-validated; awaiting production merge**.
 
 This milestone advances the tested Miru H.40 line from Android stable 4.14.190 to 4.14.210 while preserving the Qualcomm/Oplus hardware architecture, ColorOS ABI and all validated post-4.14.190 compatibility work.
 
@@ -14,13 +14,17 @@ This milestone advances the tested Miru H.40 line from Android stable 4.14.190 t
 | Existing 4.14.190 milestone merge | `a48222c3baa9c73943821da6b841d5a533a62fb1` |
 | Android stable 4.14.210 parent | `39a7f9a39c0bd6d0f67869df227f6fa23286edd2` |
 | Initial authentic merge scaffold | `33168a42f34f630ebeb87d90c250a53cac262b39` |
-| Final source-fix head before documentation cleanup | `548efae59678abf8d9c1711df2a688a17a364f81` |
+| Device-tested source head | `548efae59678abf8d9c1711df2a688a17a364f81` |
+| Final validation/documentation head | `dc9a3843b8b284a000824f66f8903aa64179975f` |
 | Integration branch | `miru-h40-lts210-integration` |
 | Production target | `miru-h40` |
-| Kernel release candidate | `4.14.210-miru-h40-lts210-ci1+` |
+| Kernel release | `4.14.210-miru-h40-lts210-ci1+` |
 | Initial semantic conflicts | `19` |
 | Resolved semantic conflicts | `19` |
 | Remaining semantic conflicts | `0` |
+| Integration build | PASS — temporary 4.14.210 workflow run #4 |
+| Final pull-request build | PASS — production workflow run #8 (`29792358348`) |
+| Device validation | PASS — OnePlus 7 Pro, 2026-07-20 |
 
 The Android stable parent carries Android/Linux changes from 4.14.191 through 4.14.210. The authentic two-parent merge ancestry is preserved rather than flattened. Every semantic conflict has an owning resolution commit and a detailed record in `Documentation/miru/lts-4.14.210-conflicts.md`.
 
@@ -34,19 +38,20 @@ The Android stable parent carries Android/Linux changes from 4.14.191 through 4.
 - F2FS, fscrypt, IncFS, UFS, MMC and inline-encryption behavior.
 - QRTR, modem IPC and downstream networking extensions.
 
-### Required release validation
+### Completed validation
 
-Before promotion to `miru-h40`, the final pull request must pass:
+- Global conflict-marker, unmerged-index and `git diff --check` scans passed.
+- All 19 authentic semantic conflicts were resolved and recorded.
+- Kernel and five production DTBs built successfully.
+- Configured in-tree modules built successfully.
+- All 32 Miru v3 external modules were rebuilt against the final 4.14.210 tree.
+- External-module filename, dependency, vermagic, imported-symbol and MODVERSIONS CRC audits passed.
+- The production pull-request workflow passed as run #8 (`29792358348`).
+- The build produced from `fix: use shared block sector size in dm-bow` (`548efae59678abf8d9c1711df2a688a17a364f81`) booted successfully on the OnePlus 7 Pro.
+- All Miru v3 modules loaded and normal device functionality was confirmed working.
+- All commits after the tested source head modify only CI or documentation, leaving the validated runtime kernel source unchanged.
 
-- global conflict-marker, unmerged-index and `git diff --check` scans;
-- kernel and five production DTB builds;
-- all configured in-tree modules;
-- rebuild and audit of all 32 Miru v3 external modules;
-- vermagic, dependency, imported-symbol and MODVERSIONS CRC checks.
-
-Before tagging the release, device testing must confirm boot, all modules loading, WLAN, audio, DT2W, AOD brightness, fingerprint HBM, maximum-volume smart-PA behavior, suspend/resume and charging.
-
-After those gates pass, the milestone is merged with a merge commit into `miru-h40`, followed by a clean production workflow run. The temporary integration and CI helper branches can then be deleted.
+The remaining release steps are to merge pull request #24 into `miru-h40` with a merge commit, verify the post-merge production workflow, record the production merge SHA, and remove the temporary integration and CI helper branches.
 
 ## Milestone 1: Linux 4.14.190
 
