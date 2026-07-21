@@ -19,6 +19,19 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
+      - name: Preserve existing source file modes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/miru/lts241_targeted_integration.sh')
+          text = path.read_text()
+          old = '      install -D -m 0644 "${RESOLVE_ROOT}/${path}" "${KERNEL_WORKTREE}/${path}"'
+          new = '      mkdir -p "${KERNEL_WORKTREE}/$(dirname "${path}")"\n      cp "${RESOLVE_ROOT}/${path}" "${KERNEL_WORKTREE}/${path}"'
+          if old not in text:
+              raise SystemExit('missing source installation line')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
       - name: Resolve, reverse-check and compile every conflict batch
         run: bash scripts/miru/lts241_targeted_integration.sh
 
