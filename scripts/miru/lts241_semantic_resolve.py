@@ -73,9 +73,20 @@ def mmc_core(o,t):
         '\t}\n',
     ]
 resolve('drivers/mmc/core/core.c',[mmc_core])
-p=DST/'drivers/mmc/core/core.c'; s=p.read_text(); dup='''\n\tif (!mmc_host_is_spi(host) && (cmd.resp[0] & R1_ERROR)) {\n\t\terr = -EIO;\n\t\tgoto err_command;\n\t}\n'''
+p=DST/'drivers/mmc/core/core.c'; s=p.read_text(); dup='''
+	if (!mmc_host_is_spi(host) && (cmd.resp[0] & R1_ERROR)) {
+		err = -EIO;
+		goto err_command;
+	}
+'''
 if s.count(dup)!=1: raise RuntimeError('mmc duplicate R1 block')
-s=s.replace(dup,'\n',1); p.write_text(s)
+s=s.replace(dup,'\n',1)
+label='''
+err_command:
+	mmc_host_clk_release(host);'''
+if s.count(label)!=1: raise RuntimeError('mmc obsolete cleanup label')
+s=s.replace(label,'\n\tmmc_host_clk_release(host);',1)
+p.write_text(s)
 resolve('drivers/mmc/core/mmc.c',['both'])
 
 def ufs2(o,t):
@@ -119,8 +130,38 @@ def dwc3_gadget(o,t):
         '\n',
     ]
 resolve('drivers/usb/dwc3/gadget.c',[dwc3_gadget])
-p=DST/'drivers/usb/dwc3/gadget.c'; s=p.read_text(); marker='''/**\n * dwc3_send_gadget_ep_cmd - issue an endpoint command\n'''
-helper='''static int dwc3_gadget_wakeup_for_transfer(struct dwc3 *dwc)\n{\n\tint retries = 20000;\n\tint ret;\n\tu32 reg;\n\n\tret = dwc3_gadget_set_link_state(dwc, DWC3_LINK_STATE_RECOV);\n\tif (ret < 0) {\n\t\tdev_err(dwc->dev, "failed to put link in Recovery\\n");\n\t\treturn ret;\n\t}\n\n\tif (dwc->revision < DWC3_REVISION_194A) {\n\t\treg = dwc3_readl(dwc->regs, DWC3_DCTL);\n\t\treg &= ~DWC3_DCTL_ULSTCHNGREQ_MASK;\n\t\tdwc3_writel(dwc->regs, DWC3_DCTL, reg);\n\t}\n\n\twhile (retries--) {\n\t\treg = dwc3_readl(dwc->regs, DWC3_DSTS);\n\t\tif (DWC3_DSTS_USBLNKST(reg) == DWC3_LINK_STATE_U0)\n\t\t\treturn 0;\n\t}\n\n\tdev_err(dwc->dev, "failed to send transfer wakeup\\n");\n\treturn -EINVAL;\n}\n\n'''
+p=DST/'drivers/usb/dwc3/gadget.c'; s=p.read_text(); marker='''/**
+ * dwc3_send_gadget_ep_cmd - issue an endpoint command
+'''
+helper='''static int dwc3_gadget_wakeup_for_transfer(struct dwc3 *dwc)
+{
+	int retries = 20000;
+	int ret;
+	u32 reg;
+
+	ret = dwc3_gadget_set_link_state(dwc, DWC3_LINK_STATE_RECOV);
+	if (ret < 0) {
+		dev_err(dwc->dev, "failed to put link in Recovery\n");
+		return ret;
+	}
+
+	if (dwc->revision < DWC3_REVISION_194A) {
+		reg = dwc3_readl(dwc->regs, DWC3_DCTL);
+		reg &= ~DWC3_DCTL_ULSTCHNGREQ_MASK;
+		dwc3_writel(dwc->regs, DWC3_DCTL, reg);
+	}
+
+	while (retries--) {
+		reg = dwc3_readl(dwc->regs, DWC3_DSTS);
+		if (DWC3_DSTS_USBLNKST(reg) == DWC3_LINK_STATE_U0)
+			return 0;
+	}
+
+	dev_err(dwc->dev, "failed to send transfer wakeup\n");
+	return -EINVAL;
+}
+
+'''
 if marker not in s: raise RuntimeError('dwc3 send marker')
 s=s.replace(marker,helper+marker,1); p.write_text(s)
 resolve('drivers/usb/gadget/configfs.c',['theirs','theirs',lambda o,t: t])
