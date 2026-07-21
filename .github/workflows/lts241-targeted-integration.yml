@@ -22,7 +22,9 @@ jobs:
       - name: Prepare audited semantic resolver
         run: |
           python3 -m py_compile scripts/miru/lts241_prepare_resolver.py
+          python3 -m py_compile scripts/miru/lts241_prepare_selinux_clean_merge.py
           python3 scripts/miru/lts241_prepare_resolver.py
+          python3 scripts/miru/lts241_prepare_selinux_clean_merge.py
           python3 -m py_compile scripts/miru/lts241_semantic_resolve.py
           bash -n scripts/miru/lts241_targeted_integration.sh
 
