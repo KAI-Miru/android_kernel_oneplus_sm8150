@@ -328,3 +328,12 @@ the device owner tests the generated build and authorizes a later merge.
 - Index state: resolved in the scaffold; this commit provides the semantic resolution.
 - Targeted compilation: performed immediately after this commit.
 - Clean-reversal validation: performed immediately after this commit against the scaffold.
+
+### lts: resolve MMC and UFS conflicts for 4.14.241
+
+- Batch ID: `storage`
+- Paths: `drivers/mmc/core/core.c drivers/mmc/core/mmc.c drivers/scsi/ufs/ufshcd.c`
+- Decision: Power-cycle failed CMD11 with balanced clock gating, retain eMMC CMDQ/strobe support, and use translated UFS LUN with runtime-PM balancing.
+- Index state: resolved in the scaffold; this commit provides the semantic resolution.
+- Targeted compilation: performed immediately after this commit.
+- Clean-reversal validation: performed immediately after this commit against the scaffold.
