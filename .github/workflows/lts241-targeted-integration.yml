@@ -21,6 +21,8 @@ jobs:
 
       - name: Prepare audited semantic resolver
         run: |
+          mkdir -p resolution-diagnostics
+          exec > >(tee resolution-diagnostics/preparation.log) 2>&1
           python3 -m py_compile scripts/miru/lts241_prepare_resolver.py
           python3 -m py_compile scripts/miru/lts241_prepare_selinux_clean_merge.py
           python3 -m py_compile scripts/miru/lts241_prepare_final_whitespace.py
