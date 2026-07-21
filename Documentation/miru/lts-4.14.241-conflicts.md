@@ -433,3 +433,10 @@ the device owner tests the generated build and authorizes a later merge.
 | `selinux` | `ba427f46b9286f8bdd7223fc032472f26d519123` | lts: resolve SELinux AVC conflict for 4.14.241 | `security/selinux/avc.c security/selinux/include/security.h` | targeted compile PASS; clean reversal PASS |
 
 All 32 authentic conflicts now have an owning resolution commit. The full kernel and external-module build remains a separate gate and has not yet been claimed. Physical device validation and flashing have not been performed.
+
+## Full-build clean-merge audit: Qualcomm qmi_rmnet ICMPv6 helper
+
+- Source: `drivers/soc/qcom/qmi_rmnet.c`
+- Discovery: full validation run `29809621281` failed because `icmp6_hdr()` was no longer visible through the previous transitive include chain.
+- Decision: include the owning header `<linux/icmpv6.h>` explicitly; packet classification logic is unchanged.
+- Validation contract: clean reversal to semantic head `259c596bf59d5717aa72f313437317ba72adda14`, followed by the complete pinned kernel and 32-module build.
