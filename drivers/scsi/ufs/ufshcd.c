@@ -3895,7 +3895,7 @@ send_orig_cmd:
 
 	err = ufshcd_prepare_lrbp_crypto(hba, cmd, lrbp);
 	if (err) {
-		ufshcd_release(hba);
+		ufshcd_release(hba, false);
 		lrbp->cmd = NULL;
 		clear_bit_unlock(tag, &hba->lrb_in_use);
 		goto out;
@@ -3918,7 +3918,7 @@ send_orig_cmd:
 
 	err = ufshcd_map_sg(hba, lrbp);
 	if (err) {
-		ufshcd_release(hba);
+		ufshcd_release(hba, false);
 		lrbp->cmd = NULL;
 		clear_bit_unlock(tag, &hba->lrb_in_use);
 		ufshcd_release_all(hba);
@@ -6255,9 +6255,9 @@ static int ufshcd_change_queue_depth(struct scsi_device *sdev, int depth)
 static int ufshcd_slave_configure(struct scsi_device *sdev)
 {
 	struct ufs_hba *hba = shost_priv(sdev->host);
+	struct request_queue *q = sdev->request_queue;
 #if defined(VENDOR_EDIT) && defined(CONFIG_UFSFEATURE)
 	struct ufsf_feature *ufsf = &hba->ufsf;
-	struct request_queue *q = sdev->request_queue;
 
 	if (ufsf_is_valid_lun(sdev->lun)) {
 		ufsf->sdev_ufs_lu[sdev->lun] = sdev;
@@ -6618,7 +6618,6 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba,
                     }
                 }
             }
-#endif
 #if defined(VENDOR_EDIT) && defined(CONFIG_TRACEPOINTS)
             if (trace_ufshcd_command_enabled())
             {
@@ -6633,7 +6632,7 @@ static void __ufshcd_transfer_req_compl(struct ufs_hba *hba,
                             cmd->sdb.length);
                 }
             }
-
+#endif
 
 			/* Do not touch lrbp after scsi done */
 			cmd->scsi_done(cmd);
@@ -11272,7 +11271,7 @@ void ufshcd_remove(struct ufs_hba *hba)
 	ufsf_hpb_release(&hba->ufsf);
 	ufsf_tw_release(&hba->ufsf);
 #endif
-	ufs_sysfs_remove_nodes(hba->dev);
+	ufshcd_remove_sysfs_nodes(hba);
 	scsi_remove_host(hba->host);
 	/* disable interrupts */
 	ufshcd_disable_intr(hba, hba->intr_mask);
@@ -11312,7 +11311,7 @@ EXPORT_SYMBOL_GPL(ufshcd_dealloc_host);
 static int ufshcd_set_dma_mask(struct ufs_hba *hba)
 {
 	if (hba->capabilities & MASK_64_ADDRESSING_SUPPORT) {
-		if (!dma_set_mask_and_coherent(hba->dev, DMA_BIT_MASK(64)))
+		if (!dma_set_mask_and_coherent(hba->dev, ~0ULL))
 			return 0;
 	}
 	return dma_set_mask_and_coherent(hba->dev, DMA_BIT_MASK(32));

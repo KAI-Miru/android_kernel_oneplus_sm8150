@@ -1,0 +1,606 @@
+# Miru H.40 to Android 4.14.210 integration ledger
+
+This ledger tracks the staged integration of Android/Linux stable 4.14.191
+through 4.14.210 into the validated Miru H.40 OnePlus 7 Pro kernel.
+
+## Current status
+
+- Integration branch: `miru-h40-lts210-integration`
+- Phase 0 reference audit: **complete**
+- Phase 1 ledger initialization: **complete**
+- Merge scaffold: **created; conflicts deferred**
+- Initial merge conflicts: **19**
+- Resolved conflicts: **19**
+- Remaining conflicts: **0 — semantic resolution complete**
+- Build status: **not started**
+- Flash status: **not permitted**
+
+The existing 4.14.190 kernel, matching external modules, DT2W, smart-PA and AOD
+fixes are the accepted production baseline. A redundant 4.14.190 rebuild is not
+required for this milestone.
+
+## Pinned production inputs
+
+### Miru kernel
+
+- Repository: `KAI-Miru/android_kernel_oneplus_sm8150`
+- Production branch: `miru-h40`
+- Integration base: `40a2cb6fcf0411c100a7aaa609e128705a0bc2d8`
+- Existing 4.14.190 milestone merge: `a48222c3baa9c73943821da6b841d5a533a62fb1`
+
+The integration base includes the validated post-4.14.190 DT2W, smart-PA and AOD
+work. The 4.14.210 scaffold must use this commit as its first parent, not the
+older 4.14.190 milestone merge.
+
+### Android and Linux stable
+
+- Android stable 4.14.190: `d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac`
+- Android stable 4.14.210 merge source: `39a7f9a39c0bd6d0f67869df227f6fa23286edd2`
+- Android P 4.14.210 audit reference: `8920709dad5f2852db970d11dffb6bbba4ba6c74`
+- Upstream Linux 4.14.210 audit reference: `c196b3a9c83ae3491280b739d231d02b3cb9d041`
+
+`39a7f9a39c0bd6d0f67869df227f6fa23286edd2` is the required second parent of
+the future authentic merge scaffold. The upstream Linux commit is an audit
+source only and must not replace the Android stable merge source.
+
+### OnePlus vendor and external modules
+
+- Repository: `KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150`
+- Validated vendor/module commit: `125ff7d0153cbb3aaa8f9fd618c33b7f728d7798`
+- Expected external modules: `32`
+
+This vendor commit contains the H.40 smart-PA compatibility fix and includes the
+DT2W companion change in its ancestry. It remains pinned unless a later phase
+finds a documented source-level incompatibility that cannot be resolved in the
+kernel.
+
+### Reproducible toolchain
+
+The existing validated 4.14.190 build environment remains pinned for 4.14.210:
+
+- Clang repository commit: `252aba16f513a857bc923172f67b0e55e23de35f`
+- Clang package: `clang-r377782c`
+- AArch64 GCC/binutils commit: `606f80986096476912e04e5c2913685a8f2c3b65`
+- ARM32 GCC/binutils commit: `b0c6a654327ca8796bed1e61dffcf523d04dceaa`
+- Android build-tools commit: `7322db1e1e4715fe217a27f721613e6be8438676`
+
+Toolchain upgrades are outside the scope of the LTS merge and must not be mixed
+into the 4.14.210 source integration.
+
+## LineageOS reference audit
+
+### Exact downstream baseline available
+
+- LineageOS/Qualcomm 4.14.190 merge resolution:
+  `0190a01fb1cde1c2ba48e7836084bad818c14d94`
+- LineageOS `lineage-18.1` head:
+  `bd9fe823ffe6be682ba997b9cb593abb3b50252b`
+- `lineage-18.1` kernel sublevel: `190`
+
+### No exact OnePlus LineageOS 4.14.210 device branch was found
+
+The accessible historical OnePlus LineageOS branches do not provide a branch
+tip at 4.14.210:
+
+- `lineage-18.1` remains at 4.14.190.
+- `lineage-19.1` and `lineage-20` report 4.14.180.
+- maintained branches later jump to substantially newer LTS/OpenELA revisions.
+
+A dedicated LineageOS OnePlus/SM8150 4.14.210 downstream merge commit therefore
+must not be invented or implied.
+
+### Secondary modern LineageOS semantic reference
+
+- LineageOS `lineage-21` head:
+  `123e95de0025ef73ccddf5c0ad6b180fbb2a7afb`
+- Recorded sublevel at that head: `355-openela`
+
+This modern reference may be consulted only file-by-file for surviving Qualcomm
+or OnePlus integration patterns. Later LTS/OpenELA changes must not be imported
+into the 4.14.210 milestone merely because they are present in this tree.
+
+### Resolution policy resulting from the audit
+
+For every conflict or clean semantic collision:
+
+1. Android stable 4.14.210 defines the intended 4.14.191-210 fix.
+2. The LineageOS/Qualcomm 4.14.190 resolution defines the known-good downstream
+   SM8150 structure and conflict style.
+3. Current Miru H.40 defines the OnePlus/OPlus behavior that must survive.
+4. Modern LineageOS is a secondary check only when it still carries the same
+   relevant Qualcomm design.
+5. The final resolution should normally be the current Miru implementation plus
+   the minimal Android stable semantic fix, adapted using downstream Qualcomm
+   patterns where necessary.
+
+## Pre-merge scope audit
+
+### Android stable delta
+
+The Android stable comparison from 4.14.190 to 4.14.210 contains 1,533 commits.
+GitHub's compare API exposes only a capped changed-file window, so the complete
+path manifest and exact conflict count must be generated from the real merge
+scaffold in Phase 2. The pre-audit already confirms changes in these important
+areas:
+
+- `Makefile`, Kconfig and Android build configuration
+- arm64 page-table, CPU-feature, exception, linker and KVM code
+- Binder and Android memory-management paths
+- block core and device mapper
+- fscrypt, F2FS and IncFS-adjacent interfaces
+- MMC/SDHCI and UFS-adjacent code
+- USB core and gadget code
+- networking and sysctl code
+- ALSA and USB-audio code
+- common driver-core, clock, power and suspend paths
+
+No file from the capped API result is treated as the authoritative conflict
+list. Only the actual two-parent scaffold merge may establish that list.
+
+### Miru changes after the 4.14.190 milestone
+
+The current production head is six commits ahead of the 4.14.190 milestone.
+The directly changed kernel-repository paths are:
+
+```text
+Documentation/miru-lts-integration.md
+Documentation/miru/lts-4.14.190-conflicts.md
+README.md
+drivers/gpu/drm/msm/dsi-staging/dsi_panel.c
+scripts/miru/ci_build_4.14.190.sh
+scripts/miru/inject_vendor_compat_v3_into_ci_build.py
+```
+
+The `dsi_panel.c` AOD luminance fix is runtime-critical. The CI changes also pin
+and inject the currently validated vendor compatibility logic. These changes
+must remain present after the 4.14.210 merge even if Git reports no direct
+conflict.
+
+### Runtime-critical preservation checklist
+
+The following behavior is explicitly protected throughout the integration:
+
+- [ ] Current DT2W kernel/vendor companion implementation remains present.
+- [ ] H.40 smart-PA compatibility remains present.
+- [ ] Maximum-volume audio remains free of garbling.
+- [ ] H.40 AOD luminance programming remains authoritative.
+- [ ] Ordinary backlight writes remain blocked in AOD and AOD-HBM scenes.
+- [ ] Fingerprint HBM and panel brightness behavior remain intact.
+- [ ] Qualcomm WLAN and audio external-module interfaces remain compatible.
+- [ ] F2FS, fscrypt, IncFS, UFS, MMC and inline-encryption behavior remain intact.
+- [ ] QRTR, modem IPC and networking vendor extensions remain intact.
+- [ ] Charging, thermal, suspend/resume, camera and sensor paths remain intact.
+
+## Phase 2 merge scaffold record
+
+- Scaffold first parent: `33168a42f34f630ebeb87d90c250a53cac262b39`
+- Miru production integration base: `40a2cb6fcf0411c100a7aaa609e128705a0bc2d8`
+- Scaffold second parent: `39a7f9a39c0bd6d0f67869df227f6fa23286edd2`
+- Initial semantic conflict count: `19`
+- Index-level unmerged entries after deferral: `0`
+- Conflict policy: retain every clean three-way merge result; temporarily retain the Miru side only for the paths listed below.
+- Build/flash status: prohibited until all listed paths receive explicit subsystem-level resolution.
+
+### Exact deferred-conflict manifest
+
+```text
+arch/arm/configs/ranchu_defconfig
+arch/arm64/configs/ranchu64_defconfig
+arch/x86/configs/i386_ranchu_defconfig
+arch/x86/configs/x86_64_ranchu_defconfig
+drivers/clk/clk.c
+drivers/gpu/drm/msm/msm_drv.c
+drivers/hwtracing/coresight/coresight-tmc-etf.c
+drivers/mailbox/mailbox.c
+drivers/mmc/core/queue.c
+drivers/mmc/host/sdhci-msm.c
+drivers/scsi/ufs/ufs-qcom.c
+drivers/scsi/ufs/ufshcd.c
+drivers/usb/dwc3/core.c
+drivers/usb/dwc3/gadget.c
+fs/incfs/format.c
+fs/incfs/main.c
+fs/incfs/vfs.c
+mm/memory.c
+net/ipv4/inet_connection_sock.c
+```
+
+The paths above are staged only to make the merge commit representable. They are not considered semantically resolved. Each remains counted in `Remaining conflicts` until its owning subsystem commit records and validates the final resolution.
+
+## Phase 3: non-target architecture and documentation
+
+- Owning commit: `lts: resolve non-target architecture and documentation conflicts`
+- Conflicts resolved in this batch: `4`
+- Conflicts remaining after this batch: `15`
+- Documentation conflicts: `0`; all clean Android 4.14.191-210 documentation merges remain retained.
+- Resolution rule: accept Android stable deletion of obsolete Ranchu/Goldfish emulator defconfigs because none participates in the SM8150/guacamole build, external-module ABI, DTB/DTBO generation or OnePlus runtime behavior.
+- Validation performed: exact changed-path gate; all four files absent; `Makefile` remains at 4.14.210; no production branch change.
+- Build/flash status: not started and still prohibited while semantic conflicts remain.
+
+### `arch/arm/configs/ranchu_defconfig`
+
+- Subsystem batch: non-target architecture and documentation
+- Android 4.14.191-210 change: remove obsolete Ranchu emulator defconfig from the generic Android kernel tree.
+- Relevant Android commit: `cc34fcefe97688d21f83e3d544e155f55a847bed` (`ANDROID: Delete goldfish build configs and defconfigs`)
+- LineageOS/Qualcomm reference: not required; this file is an emulator-only configuration and is not selected by the OnePlus SM8150 build.
+- Miru/H.40 behavior retained: all guacamole and Qualcomm target configurations remain untouched.
+- Final resolution: delete the file, matching Android stable 4.14.210.
+- External-module ABI impact: none.
+- Runtime risk: none for OnePlus 7 Pro; the file cannot affect a guacamole kernel image.
+- Required validation: verify absence and verify no target defconfig, source, DT or module path changed in this commit.
+- Resolution commit: this commit.
+- Status: resolved
+
+### `arch/arm64/configs/ranchu64_defconfig`
+
+- Subsystem batch: non-target architecture and documentation
+- Android 4.14.191-210 change: remove obsolete Ranchu emulator defconfig from the generic Android kernel tree.
+- Relevant Android commit: `cc34fcefe97688d21f83e3d544e155f55a847bed` (`ANDROID: Delete goldfish build configs and defconfigs`)
+- LineageOS/Qualcomm reference: not required; this file is an emulator-only configuration and is not selected by the OnePlus SM8150 build.
+- Miru/H.40 behavior retained: all guacamole and Qualcomm target configurations remain untouched.
+- Final resolution: delete the file, matching Android stable 4.14.210.
+- External-module ABI impact: none.
+- Runtime risk: none for OnePlus 7 Pro; the file cannot affect a guacamole kernel image.
+- Required validation: verify absence and verify no target defconfig, source, DT or module path changed in this commit.
+- Resolution commit: this commit.
+- Status: resolved
+
+### `arch/x86/configs/i386_ranchu_defconfig`
+
+- Subsystem batch: non-target architecture and documentation
+- Android 4.14.191-210 change: remove obsolete Ranchu emulator defconfig from the generic Android kernel tree.
+- Relevant Android commit: `cc34fcefe97688d21f83e3d544e155f55a847bed` (`ANDROID: Delete goldfish build configs and defconfigs`)
+- LineageOS/Qualcomm reference: not required; this file is an emulator-only configuration and is not selected by the OnePlus SM8150 build.
+- Miru/H.40 behavior retained: all guacamole and Qualcomm target configurations remain untouched.
+- Final resolution: delete the file, matching Android stable 4.14.210.
+- External-module ABI impact: none.
+- Runtime risk: none for OnePlus 7 Pro; the file cannot affect a guacamole kernel image.
+- Required validation: verify absence and verify no target defconfig, source, DT or module path changed in this commit.
+- Resolution commit: this commit.
+- Status: resolved
+
+### `arch/x86/configs/x86_64_ranchu_defconfig`
+
+- Subsystem batch: non-target architecture and documentation
+- Android 4.14.191-210 change: remove obsolete Ranchu emulator defconfig from the generic Android kernel tree.
+- Relevant Android commit: `cc34fcefe97688d21f83e3d544e155f55a847bed` (`ANDROID: Delete goldfish build configs and defconfigs`)
+- LineageOS/Qualcomm reference: not required; this file is an emulator-only configuration and is not selected by the OnePlus SM8150 build.
+- Miru/H.40 behavior retained: all guacamole and Qualcomm target configurations remain untouched.
+- Final resolution: delete the file, matching Android stable 4.14.210.
+- External-module ABI impact: none.
+- Runtime risk: none for OnePlus 7 Pro; the file cannot affect a guacamole kernel image.
+- Required validation: verify absence and verify no target defconfig, source, DT or module path changed in this commit.
+- Resolution commit: this commit.
+- Status: resolved
+
+## Phase 4: build and module ABI
+
+- Owning commit: `lts: resolve build and module ABI conflicts`
+- Conflicts resolved in this batch: `3`
+- Conflicts remaining after this batch: `12`
+- Direct Makefile, Kconfig, modpost, symversion, exported-header and device-table conflicts: `0`; their clean Android 4.14.191-210 merges remain retained.
+- ABI policy: preserve all H.40 exported interfaces and Qualcomm/OPlus extensions; import only fixes that change internal implementation without changing exported function signatures or structure layouts.
+- Validation status: **PASS** — pinned Clang/GCC/AOSP tools and vendor tree; stock H.40 config completed `olddefconfig` and `modules_prepare`; `CONFIG_MODULES=y`, `CONFIG_MODVERSIONS=y`, generated `autoconf.h`/`utsrelease.h`, and `modpost` were verified.
+- Full kernel and external-module compilation: deferred until all semantic conflicts are resolved.
+
+### `drivers/clk/clk.c`
+
+- Android change: evict an unregistered clock from every cached parent array to prevent dangling `clk_core` pointers.
+- Relevant Android commit: `f114a36246812b5c06b0a6066412215e45b3ac8c` (`clk: Evict unregistered clks from parent caches`).
+- Miru/H.40 behavior retained: Qualcomm voltage voting, bus-vote callbacks, clock debugfs extensions, OPlus standby diagnostics and all existing exported clock APIs.
+- Final resolution: make the root/orphan list arrays available outside `CONFIG_DEBUG_FS`, add the stable recursive cache eviction helpers, and call eviction before unlinking the unregistered clock.
+- External-module ABI impact: none; no exported symbol, prototype, device ID or structure layout changes.
+- Runtime risk/validation: shared clock framework; require stock-config `olddefconfig` and `modules_prepare`, followed later by full build and device clock/display/storage validation.
+- Resolution commit: this commit.
+- Status: resolved
+
+### `drivers/hwtracing/coresight/coresight-tmc-etf.c`
+
+- Android change: read `TMC_MODE` only while the active SYSFS trace path guarantees the CoreSight hardware is powered.
+- Relevant Android commit: `93934e5d463b31e9d118c4b52aa8d1266c7f503e` (`coresight: tmc: Fix TMC mode read in tmc_read_unprepare_etb()`).
+- Miru/H.40 behavior retained: ETB/ETF buffer ownership, enable state, PERF exclusion and Qualcomm CoreSight integration.
+- Final resolution: move the circular-buffer mode check inside the `CS_MODE_SYSFS` re-enable block, matching the stable and later Qualcomm/LineageOS implementation.
+- External-module ABI impact: none.
+- Runtime risk/validation: prevents a powered-down register read and asynchronous SError; validate through `modules_prepare` now and boot/debug tracing later.
+- Resolution commit: this commit.
+- Status: resolved
+
+### `drivers/mailbox/mailbox.c`
+
+- Android change: prevent polling hrtimer re-enqueue from its own callback and keep polling while any request remains active.
+- Relevant Android commit: `e1d8263a59494079666d2ed7be058f54a127a693` (`mailbox: avoid timer start from callback`).
+- Miru/H.40 behavior retained: the Qualcomm/H.40 `-EAGAIN` submission retry loop and all mailbox client/controller interfaces.
+- Final resolution: start the polling timer only when inactive and set `resched` before checking completion for every active request.
+- External-module ABI impact: none; internal timer behavior only.
+- Runtime risk/validation: shared IPC infrastructure; require `modules_prepare`, then later QRTR/modem/audio/WLAN runtime testing.
+- Resolution commit: this commit.
+- Status: resolved
+
+## Phase 5: arm64 core
+
+- Owning commit: `lts: resolve arm64 core conflicts`
+- Original deferred conflicts under `arch/arm64`: `1` (`arch/arm64/configs/ranchu64_defconfig`), already resolved in Phase 3.
+- New conflicts resolved in this batch: `0`.
+- Global conflict ledger remains: `7` resolved, `12` remaining.
+- Android 4.14.191-210 scope: `41` history entries touching `28` arm64 paths; `19` paths match Android stable directly and `9` retain downstream Qualcomm/H.40 content.
+- Merge proof: **PASS** — reversing the complete net Android 4.14.191-210 arm64 delta on all 27 non-conflicted paths reproduces integration base `40a2cb6fcf0411c100a7aaa609e128705a0bc2d8` byte-for-byte.
+- Ranchu proof: **PASS** — the obsolete emulator defconfig remains absent and Phase 3 commit `362a43496c01099d9099cf35697d26f2d9254f8c` is in ancestry.
+- Source resolution: no additional arm64 source edit is required; retain the clean merge results and existing Qualcomm/H.40 variants.
+- Build validation: **PASS** — pinned vendor/toolchain setup completed `olddefconfig`, `modules_prepare`, and isolated compilation of every arm64 object enabled by the stock H.40 configuration among the audited CPU-feature, PSCI, setup, NUMA and KVM paths.
+- Full kernel and external-module compilation remains deferred until all semantic conflicts are resolved.
+
+### Downstream arm64 paths reviewed
+
+- `arch/arm64/Kconfig.platforms`
+- `arch/arm64/Makefile`
+- `arch/arm64/boot/dts/qcom/msm8916.dtsi`
+- `arch/arm64/configs/cuttlefish_defconfig`
+- `arch/arm64/include/asm/kvm_arm.h`
+- `arch/arm64/include/asm/pgtable.h`
+- `arch/arm64/kernel/cpufeature.c`
+- `arch/arm64/kernel/psci.c`
+- `arch/arm64/kernel/vmlinux.lds.S`
+
+The reversible net-patch proof confirms that every 4.14.191-210 stable hunk remains present on top of the retained downstream Qualcomm/H.40 content.
+
+## Phase 6: memory management and Binder
+
+- Owning commit: `lts: resolve memory management and Binder conflicts`
+- Deferred source conflicts resolved in this batch: `1` (`mm/memory.c`).
+- Conflicts remaining after this batch: `11`.
+- Binder merge conflicts: `0`; the clean Android stable Binder delta is retained.
+- Build validation: **PASS** — pinned vendor/toolchain setup completed stock-config `olddefconfig`, `modules_prepare`, isolated `mm/memory.o` compilation and isolated `drivers/android/binder.o` compilation.
+- Full kernel and external-module compilation remains deferred until all semantic conflicts are resolved.
+
+### `mm/memory.c`
+
+- Android change: make PFN-mapped COW copying safe when arm64 access flags are software-managed and when `MADV_DONTNEED` races the copy.
+- Relevant Android commits: `90fad04bd42104bf7a0a23b52c883d8f4e4174c0` (`mm: fix double page fault on arm64 if PTE_AF is cleared`) and `2cffad47fa5c7a41632ddeb749da09ac49f7f845` (`mm: avoid data corruption on CoW fault into PFN-mapped VMA`).
+- Qualcomm/LineageOS reference: `lineage-21` keeps the same boolean `cow_user_page()` implementation on top of the downstream speculative page-fault framework.
+- Miru/H.40 behavior retained: speculative page-fault locking, `vmf->vma_flags`/`vmf->vma_page_prot`, downstream anonymous-rmap/LRU helpers, `VM_FAULT_RETRY` cleanup and the existing `out_uncharge`/`out_free_new`/`out` labels.
+- Final resolution: add the generic `arch_faults_on_old_pte()` fallback, port the Qualcomm-integrated PTE revalidation and second-copy logic, and treat a concurrently solved COW fault as a retry instead of installing potentially corrupted data.
+- External-module ABI impact: none; no exported symbol or public structure layout changes.
+- Runtime risk: high-value correctness path affecting process forks, COW, PFN/DAX-style mappings and concurrent unmap behavior.
+- Required validation: exact helper comparison with the surviving Qualcomm implementation, stock-config `olddefconfig`/`modules_prepare`, and isolated `mm/memory.o` compilation.
+- Resolution commit: this commit.
+- Status: resolved
+
+### `drivers/android/binder.c`
+
+- Android net change: retain the Binder todo-list release UAF fix from `be84da1dd835245b4f3a1890fe83b07966f0937a`; the earlier context-manager refcount change was reverted within the same stable range and has no net source effect.
+- Final resolution: no additional source edit. Snapshot the work type while holding `inner_lock`, switch on the snapshot after dequeue, and tolerate `BINDER_WORK_NODE` exactly as the clean merge already does.
+- Miru/H.40 behavior retained: all OPlus scheduler-assist fields, transaction priority hooks and inherited-UX behavior.
+- Proof: **PASS** — reversing the complete Android 4.14.191-210 `drivers/android` delta reproduces the validated H.40 base exactly.
+- External-module ABI impact: none.
+- Required validation: Binder reversal proof and isolated `drivers/android/binder.o` compilation.
+- Status: resolved
+
+## Phase 7: block, fscrypt, F2FS and IncFS
+
+- Owning commit: `lts: resolve block, fscrypt, F2FS and IncFS conflicts`
+- Deferred source conflicts resolved in this batch: `3` (`fs/incfs/format.c`, `fs/incfs/main.c`, and `fs/incfs/vfs.c`).
+- Clean semantic collision reconciled: `fs/incfs/pseudo_files.c` now passes `mount_info` to the preserved credential-aware backing-context API.
+- Conflicts remaining after this batch: `8`.
+- Clean block, device-mapper, fscrypt and F2FS merges: retained after exact stable-delta reversal proof.
+- Build validation: **PASS** — pinned stock-config setup completed `olddefconfig`, `modules_prepare`, every IncFS object, block core/cgroup objects, and all enabled audited F2FS, fscrypt, ext4 and UBIFS objects.
+- Full kernel and external-module compilation remains deferred until all semantic conflicts are resolved.
+
+### IncFS resolution policy
+
+The deferred Miru files belonged to an older IncFS source layout while the cleanly merged headers, data-management code, pseudo files and UAPI had already advanced to Android 4.14.210. The final resolution uses the complete Android 4.14.210 implementation and reapplies the validated mount-owner credential feature across every backing-context allocation and backing-file I/O path.
+
+### `fs/incfs/format.c`
+
+- Android change: adopt the 4.14.210 metadata layout, mapped-file support, status records, report-UID support and current backing-file APIs.
+- Miru/H.40 behavior retained: `backing_file_context.bc_cred`, mount-aware `incfs_alloc_bfc()`, and credential overrides around every kernel backing-file read and write.
+- Final resolution: Android 4.14.210 source plus credential-aware `incfs_kread()`/`incfs_kwrite()` wrappers.
+- Compatibility result: no references remain to removed fields `h_record_crc`, `h_prev_md_offset`, or `fh_file_header_flags`.
+- External-module ABI impact: none.
+- Status: resolved
+
+### `fs/incfs/main.c`
+
+- Android change: retain the `report_uid` feature marker.
+- Miru/H.40 behavior retained: retain the `mounter_context_for_backing_rw` feature marker.
+- Final resolution: expose both feature markers under `/sys/fs/incremental-fs/features`.
+- External-module ABI impact: none.
+- Status: resolved
+
+### `fs/incfs/vfs.c`
+
+- Android change: adopt the 4.14.210 VFS layout compatible with the cleanly merged pseudo-file and data-management code.
+- Miru/H.40 behavior retained: wrap backing-file open in `override_creds(mi->mi_owner)` and restore caller credentials afterward.
+- Status: resolved
+
+### `fs/incfs/pseudo_files.c`
+
+- Merge status: clean source merge with a semantic API collision discovered by complete IncFS compilation.
+- Final resolution: pass `mi` to both `incfs_alloc_bfc()` calls used for regular and mapped file creation.
+- Runtime behavior retained: each new backing context inherits the mount owner's credentials.
+- External-module ABI impact: none.
+- Status: reconciled
+
+### Cleanly merged block and encrypted-filesystem paths
+
+- Block core, block cgroup and device-mapper/bcache/RAID stable fixes remain present.
+- F2FS checkpoint, node, superblock, sysfs and encrypted rename/link fixes remain present.
+- Fscrypt-incompatible rename and link operations retain stable `-EXDEV` behavior.
+- Proof: **PASS** — reversing the complete non-IncFS Android 4.14.191-210 delta reproduces the validated H.40 base exactly.
+
+## Phase 8: MMC, SDHCI and UFS
+
+- Owning commit: `lts: resolve MMC, SDHCI and UFS conflicts`
+- Deferred source conflicts resolved in this batch: `4`.
+- Conflicts remaining after this batch: `4`.
+- Source changes: MMC discard handling, Qualcomm SDHCI retry budget, and UFS-core clean-merge reconciliation discovered by isolated compilation.
+- Qualcomm UFS testbus conflict: resolved by verified retention of the existing implementation without source churn.
+- Build validation: **PASS** — pinned stock-config setup completed `olddefconfig`, `modules_prepare`, MMC queue/core/SDIO objects, Qualcomm SDHCI, Qualcomm UFS glue and UFS core objects.
+- Full kernel and external-module compilation remains deferred until all semantic conflicts are resolved.
+
+### `drivers/mmc/core/queue.c`
+
+- Android change: commit `387026b76afb69a349bc5aa7e18fa9ef4aa0bd23` prevents a discard-capable queue from advertising zero discard granularity.
+- Miru/H.40 behavior retained: Qualcomm CMDQ request dispatch, queue setup, scatter-gather allocation and suspend/resume handling.
+- Final resolution: change only the downstream discard fallback from `0` to `SECTOR_SIZE`.
+- Status: resolved
+
+### `drivers/mmc/host/sdhci-msm.c`
+
+- Android change: commit `c63027f79c173dfea880d0f265dd1f9513181b48` increases the tuning retry budget from three attempts to ten.
+- Miru/H.40 behavior retained: downstream status-command recovery, drive-strength sweep, saved phase, HS400 calibration and host locking.
+- Final resolution: set `tuning_seq_cnt` to `10` while retaining Qualcomm's stronger all-valid drive-strength retune path.
+- Status: resolved
+
+### `drivers/scsi/ufs/ufs-qcom.c`
+
+- Android change: commit `73eae769d588d97ce5f2e8b88fcfbf1052ae77e5` removes nested runtime-PM and hold calls from testbus configuration.
+- Final resolution: retain the current function unchanged; it already omits those calls and preserves downstream validation, dynamic offsets, locking and error returns.
+- Status: resolved
+
+### `drivers/scsi/ufs/ufshcd.c`
+
+- Android change: commit `8541087975223fa664c1e1fb263e8446509ef725` routes shutdown resume through runtime PM.
+- Miru/H.40 behavior retained: `pm_runtime_get_sync()` plus downstream hold-all, shutdown marking, clock-scaling shutdown, write locking, request blocking, doorbell drain and error-handler flush.
+- Clean semantic collisions found by compilation: two old one-argument clock-release calls, request-queue declaration hidden under `CONFIG_UFSFEATURE`, a misplaced completion-path `#endif`, a stale sysfs cleanup helper name, and a Clang-rejected `DMA_BIT_MASK(64)` expansion.
+- Final resolution: pass `false` to both release calls, keep `q` unconditionally scoped, correctly close the OPlus trace guard, call `ufshcd_remove_sysfs_nodes()`, and use `~0ULL` for the 64-bit DMA mask.
+- External-module ABI impact: none; no exported function signature or structure layout changes.
+- Status: resolved
+
+### Cleanly merged storage paths
+
+- MMC partition-size overflow, SDIO CIS bounds checking, VIA-SDMMC race handling and Micron UFS low-power quirks remain present.
+- UFS hold-loop, shared-interrupt and completed-request cleanup fixes remain present.
+- Proof: **PASS** — reversing the complete non-conflict Android 4.14.191-210 storage delta reproduces the validated H.40 base exactly.
+
+## Phase 9: USB core and gadget
+
+- Owning commit: `lts: resolve USB core and gadget conflicts`
+- Deferred source conflicts resolved in this batch: `2` (`drivers/usb/dwc3/core.c` and `drivers/usb/dwc3/gadget.c`).
+- Conflicts remaining after this batch: `2`.
+- Build validation: **PASS** — pinned stock-config setup completed `olddefconfig`, `modules_prepare`, DWC3 core/gadget/EP0, Qualcomm DWC3 glue when present, NCM/u_ether and selected USB-core objects.
+- Full kernel and external-module compilation remains deferred until all semantic conflicts are resolved.
+
+### `drivers/usb/dwc3/core.c`
+
+- Android changes: `00275153aa523d4ac28010155927e54c83661134` adds PHY cleanup to the upstream probe-error path; `d92f1821ad6de4ab754ab7bd30cde747fef07a4d` prevents runtime suspend from being triggered during driver removal.
+- Qualcomm/LineageOS reference: the downstream probe does not execute upstream `dwc3_core_init()` or possess the `err5`/`err4` teardown path, so applying the PHY cleanup would shut down PHYs that this function did not initialize. Modern LineageOS retains the downstream structure.
+- Miru/H.40 behavior retained: gadget-only initialization, Qualcomm IPC logging, shared IRQ ownership, external MSM core/PHY sequencing and `pm_runtime_allow()` before disable.
+- Final resolution: do not add the inapplicable upstream probe cleanup; after `pm_runtime_disable()`, add `pm_runtime_put_noidle()` and `pm_runtime_set_suspended()` so removal cannot invoke runtime suspend and double-disable clocks.
+- External-module ABI impact: none.
+- Status: resolved
+
+### `drivers/usb/dwc3/gadget.c`
+
+- Android change: `5a174aebcf54030c654c5fdd51a8294ecedd2f19` increases the DEPCMD active-bit timeout to tolerate controllers operating from a slow suspend clock.
+- Miru/H.40 behavior retained: Qualcomm wakeup handling, FIFO resizing, GSI hooks, endpoint logging and downstream request lifecycle.
+- Final resolution: increase the downstream timeout from `3000` to `5000` iterations.
+- External-module ABI impact: none.
+- Status: resolved
+
+### Clean USB paths and NCM reconciliation
+
+- DWC3 EP0 ZLP handling, USB core descriptor/bounds/race fixes, gadget leak fixes and NCM validation fixes remain present.
+- Clean reversal proof: **PASS** for all non-conflict USB paths except the separately proven duplicate `f_ncm.c` SSP fix.
+- `f_ncm.c` proof: H.40 already contained the correct SuperSpeed Plus descriptor mapping before this LTS range. Reverse-applying Android 4.14.191-210 changes therefore yields the older `NULL` mapping; replacing that one duplicate stable hunk reproduces H.40 exactly. The SSP mapping is retained and compiled explicitly.
+
+## Phase 10: MSM DRM shutdown
+
+- Owning commit: `lts: resolve MSM DRM shutdown conflict`
+- Deferred source conflicts resolved in this batch: `1` (`drivers/gpu/drm/msm/msm_drv.c`).
+- Conflicts remaining after this batch: `1`.
+- Source changes: none; the merge scaffold already retained the correct Qualcomm shutdown implementation.
+- Android change: `3d516e369e3a563e7da39c72b06d78c7f1b09b1e` adds generic atomic shutdown so CRTCs stop requesting transactions during reboot.
+- Qualcomm/LineageOS reference: `msm_pdev_shutdown()` matches exact reference `0190a01fb1cde1c2ba48e7836084bad818c14d94`.
+- Miru/H.40 behavior retained: null guards, `msm_lastclose()`, downstream all-mode disable, KMS last-close handling, vblank/workqueue cleanup, and the post-lastclose `shutdown_in_progress` transition.
+- Final resolution: retain the downstream callback unchanged. `msm_lastclose()` already calls `msm_disable_all_modes()` and the KMS last-close hook, fulfilling the stable shutdown intent without a duplicate generic atomic teardown.
+- Clean MSM DRM reversal proof: **PASS**.
+- Build validation: **PASS** — pinned stock config completed `olddefconfig`, `modules_prepare`, MSM DRM core and available SDE KMS/CRTC objects.
+- External-module ABI impact: none.
+- Status: resolved
+
+## Phase 11: Networking and QRTR
+
+- Owning commit: `lts: resolve networking and QRTR conflict`
+- Deferred source conflicts resolved in this batch: `1` (`net/ipv4/inet_connection_sock.c`).
+- Conflicts remaining after this batch: `0`.
+- Android change: `6de6d1ca5f3e8383cb175777f0e9aba7a3c397f5` extracts bind-bucket fast-reuse updates into `inet_csk_update_fastreuse()` for use by additional socket paths.
+- Source resolution: import the stable helper body exactly, remove the now-redundant local UID variable from `inet_csk_get_port()`, and call the helper once at the original success point.
+- Miru/H.40 behavior retained: the downstream `sysctl_reserved_port_bind` check remains between bucket locking and bucket lookup, preserving explicit reserved-port rejection and its override.
+- Clean networking/QRTR reversal proof: **PASS** — all non-conflict Android 4.14.191-210 changes reverse to the validated H.40 base exactly.
+- Build validation: **PASS** — pinned stock config completed IPv4 connection-socket, hash-table, TCP/IPv4 and QRTR core objects when present.
+- External-module ABI impact: the stable helper declaration was already cleanly merged; no downstream structure layout changes were introduced.
+- Status: resolved
+
+### Semantic-conflict completion
+
+- All `19` authentic merge conflicts now have an owning resolution commit and ledger record.
+- Index-level unmerged entries remain `0`.
+- Full kernel and external-module compilation has not yet been run.
+- Flashing remains prohibited until that final build and artifact audit pass.
+
+## Planned conflict-resolution batches
+
+Conflicts and semantic collisions will be assigned to exactly one primary batch:
+
+1. Non-target architecture and documentation
+2. Build and module ABI
+3. arm64 core
+4. Memory management and Binder
+5. Block, fscrypt, F2FS and IncFS
+6. MMC, SDHCI and UFS
+7. USB core and gadget
+8. Networking and QRTR
+9. ALSA and audio core
+10. OnePlus runtime-critical reconciliation
+
+A file may be cross-referenced by another batch, but its final source resolution
+must have one owning commit and one ledger entry.
+
+## Per-path resolution record
+
+Each actual conflict will use this format:
+
+```text
+Path:
+Subsystem batch:
+Android 4.14.191-210 change:
+Relevant Android/upstream commit:
+LineageOS/Qualcomm reference:
+Miru/H.40 behavior retained:
+Final resolution:
+External-module ABI impact:
+Runtime risk:
+Required validation:
+Resolution commit:
+Status: pending | resolved
+```
+
+## Merge-scaffold requirements for Phase 2
+
+The next phase must create one authentic two-parent merge commit with:
+
+- first parent: `33168a42f34f630ebeb87d90c250a53cac262b39` (the Phase 1 ledger commit; integration base `40a2cb6fcf0411c100a7aaa609e128705a0bc2d8` remains its parent)
+- second parent: `39a7f9a39c0bd6d0f67869df227f6fa23286edd2`
+
+During scaffold creation:
+
+- all clean three-way merge results are retained;
+- every real conflict temporarily keeps the Miru side;
+- the exact unresolved path list is copied into this ledger;
+- the measured initial, resolved and remaining conflict counts are recorded;
+- the scaffold is marked incomplete and must not be built or flashed.
+
+## Phase 0 and Phase 1 completion record
+
+- [x] Current production Miru head pinned.
+- [x] Android stable 4.14.190 and 4.14.210 commits pinned.
+- [x] Upstream Linux 4.14.210 audit commit pinned.
+- [x] Vendor/module source pinned.
+- [x] Reproducible toolchain commits pinned.
+- [x] LineageOS historical and modern reference limitations documented.
+- [x] Post-4.14.190 Miru source changes identified.
+- [x] Runtime-critical preservation checklist created.
+- [x] Conflict-record template created.
+- [x] Integration branch created from the validated production head.
+- [x] Authentic 4.14.210 merge scaffold created.
+- [x] Exact conflict list measured.
