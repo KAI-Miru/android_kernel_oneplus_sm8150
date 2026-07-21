@@ -27,7 +27,7 @@ old_loop = '''  for path in "${path_arr[@]}"; do
     fi
   done
 '''
-new_loop = '''  for path in "${path_arr[@]}"; do
+new_loop = r'''  for path in "${path_arr[@]}"; do
     if [[ "${path}" == fs/incfs/pseudo_files.c ]]; then
       rm -f "${KERNEL_WORKTREE}/${path}"
     elif [[ "${path}" == security/selinux/include/security.h ]]; then
