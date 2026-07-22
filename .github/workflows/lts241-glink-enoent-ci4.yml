@@ -1,0 +1,277 @@
+name: Temporary Miru H.40 4.14.241 GLINK ENOENT ci4 validation
+
+on:
+  pull_request:
+    branches:
+      - automation/lts241-glink-enoent-runner-20260722
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  kernel-and-external-modules:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      BASE_SOURCE_HEAD: 0ba2ae45391418c93ab9af4f7a24acbcfa678a11
+      PRODUCTION_HEAD: cc49ffcb5c5207746618a799b250c67decdc0d15
+      SCAFFOLD_HEAD: ff895111416c91c1aaf9acf518ca79ac3f66a80b
+      SCAFFOLD_FIRST_PARENT: eefd4f0b8b4cf303fedb1cac8048cf9b4cdd3106
+      ANDROID_COMMON_TARGET: a446f52a5d3fc71698a073d08ce1eeb923727b42
+      VENDOR_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
+      INTEGRATION_BRANCH: miru-h40-lts241-integration
+
+    steps:
+      - name: Checkout exact non-booting ci3 source head
+        uses: actions/checkout@v4
+        with:
+          ref: 0ba2ae45391418c93ab9af4f7a24acbcfa678a11
+          fetch-depth: 0
+
+      - name: Verify immutable inputs and GLINK ENOENT regression shape
+        run: |
+          set -Eeuo pipefail
+          mkdir -p full-validation-diagnostics
+          exec > >(tee full-validation-diagnostics/input-verification.log) 2>&1
+          test "$(git rev-parse HEAD)" = "${BASE_SOURCE_HEAD}"
+          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 241
+          git merge-base --is-ancestor "${PRODUCTION_HEAD}" HEAD
+          git merge-base --is-ancestor "${ANDROID_COMMON_TARGET}" HEAD
+          test -z "$(git ls-files -u)"
+          grep -Fq '#include <linux/icmpv6.h>' drivers/soc/qcom/qmi_rmnet.c
+          grep -Fq 'qcom_glink_rx_advance(glink, ALIGN(msglen, 8));' drivers/rpmsg/qcom_glink_native.c
+          grep -Fq 'ret = -ENOENT;' drivers/rpmsg/qcom_glink_native.c
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('drivers/rpmsg/qcom_glink_native.c').read_text()
+          old = '''\t\tcase RPM_CMD_TX_DATA:
+          \t\tcase RPM_CMD_TX_DATA_CONT:
+          \t\t\tret = qcom_glink_rx_data(glink, avail);
+          \t\t\tbreak;
+          '''
+          if text.count(old) != 1:
+              raise SystemExit('unexpected pre-fix TX_DATA IRQ layout')
+          if 'if (ret == -ENOENT)\n\t\t\t\tret = 0;' in text:
+              raise SystemExit('recoverable ENOENT handling already present')
+          PY
+          git cat-file -p "${SCAFFOLD_HEAD}" > full-validation-diagnostics/merge-scaffold.txt
+          test "$(grep -c '^parent ' full-validation-diagnostics/merge-scaffold.txt)" = 2
+          grep -Fq "parent ${SCAFFOLD_FIRST_PARENT}" full-validation-diagnostics/merge-scaffold.txt
+          grep -Fq "parent ${ANDROID_COMMON_TARGET}" full-validation-diagnostics/merge-scaffold.txt
+          {
+            echo "base_source_head=${BASE_SOURCE_HEAD}"
+            echo "production_head=${PRODUCTION_HEAD}"
+            echo 'kernel_version=4.14.241'
+            echo 'test=GLINK consumed missing-local-intent packet must not stop RX FIFO drain'
+          } | tee full-validation-diagnostics/input-manifest.txt
+
+      - name: Apply and reverse-audit GLINK recoverable ENOENT fix
+        run: |
+          set -Eeuo pipefail
+          exec > >(tee full-validation-diagnostics/glink-enoent-fix-audit.log) 2>&1
+          git config user.name 'Miru LTS Integration Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('drivers/rpmsg/qcom_glink_native.c')
+          text = path.read_text()
+          old = '''\t\tcase RPM_CMD_TX_DATA:
+          \t\tcase RPM_CMD_TX_DATA_CONT:
+          \t\t\tret = qcom_glink_rx_data(glink, avail);
+          \t\t\tbreak;
+          '''
+          new = '''\t\tcase RPM_CMD_TX_DATA:
+          \t\tcase RPM_CMD_TX_DATA_CONT:
+          \t\t\tret = qcom_glink_rx_data(glink, avail);
+          
+          \t\t\t/* Packet was consumed; continue draining the RX FIFO. */
+          \t\t\tif (ret == -ENOENT)
+          \t\t\t\tret = 0;
+          \t\t\tbreak;
+          '''
+          if text.count(old) != 1:
+              raise SystemExit('unexpected TX_DATA IRQ layout')
+          path.write_text(text.replace(old, new, 1))
+
+          ledger = Path('Documentation/miru/lts-4.14.241-conflicts.md')
+          with ledger.open('a') as out:
+              out.write('''
+
+## Device-boot audit: continue GLINK RX drain after missing local intent
+
+- Symptom: the ci3 missing-channel FIFO advance did not resolve the early Android boot loop; SLPI/FastRPC still failed to recover before Zygote.
+- Regression: 4.14.241 assigns `-ENOENT` after consuming an RX data packet whose local intent is missing, and the generic IRQ loop then stops draining the remaining FIFO.
+- Decision: retain the upstream `ret = -ENOENT` assignment inside `qcom_glink_rx_data()`, but treat that result as recoverable in the `RPM_CMD_TX_DATA*` IRQ path because the packet has already been consumed.
+- Compatibility: restores the effective 4.14.210 transport behavior while preserving the 4.14.241 diagnostic error and the prior missing-channel `RPM_CMD_INTENT` FIFO advance.
+- Validation contract: clean reversal to source head `0ba2ae45391418c93ab9af4f7a24acbcfa678a11`, full pinned kernel build, and exact 32-module ABI validation.
+''')
+          PY
+          git add drivers/rpmsg/qcom_glink_native.c Documentation/miru/lts-4.14.241-conflicts.md
+          git diff --cached --check
+          git commit -m 'rpmsg: glink: continue RX drain after missing local intent'
+          VALIDATED_HEAD="$(git rev-parse HEAD)"
+          echo "VALIDATED_HEAD=${VALIDATED_HEAD}" >> "${GITHUB_ENV}"
+          grep -Fq 'if (ret == -ENOENT)' drivers/rpmsg/qcom_glink_native.c
+          grep -Fq 'qcom_glink_rx_advance(glink, ALIGN(msglen, 8));' drivers/rpmsg/qcom_glink_native.c
+          grep -Fq 'ret = -ENOENT;' drivers/rpmsg/qcom_glink_native.c
+          REVERSE_WT="${RUNNER_TEMP}/lts241-glink-enoent-reversal"
+          git worktree add --detach "${REVERSE_WT}" "${VALIDATED_HEAD}"
+          git -C "${REVERSE_WT}" revert --no-commit "${VALIDATED_HEAD}"
+          git -C "${REVERSE_WT}" diff --exit-code "${BASE_SOURCE_HEAD}" -- \
+            drivers/rpmsg/qcom_glink_native.c Documentation/miru/lts-4.14.241-conflicts.md \
+            > full-validation-diagnostics/glink-enoent-reversal.diff
+          git -C "${REVERSE_WT}" revert --abort 2>/dev/null || true
+          git worktree remove --force "${REVERSE_WT}"
+          echo PASS > full-validation-diagnostics/glink-enoent-reversal.txt
+
+      - name: Prepare pinned 4.14.241 kernel build driver
+        run: |
+          set -Eeuo pipefail
+          exec > >(tee -a full-validation-diagnostics/preparation.log) 2>&1
+          python3 scripts/miru/prepare_vendor_v6_linewise.py
+          python3 scripts/miru/inject_vendor_compat_v3_into_ci_build.py
+          sed -i 's/apply_vendor_lts190_compat_v3.py/apply_vendor_lts190_compat_v6.py/' scripts/miru/ci_build_4.14.190.sh
+          python3 scripts/miru/insert_vendor_format_fixer.py
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/miru/ci_build_4.14.190.sh')
+          text = path.read_text()
+          replacements = {
+              'BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e': 'BASE_SHA=cc49ffcb5c5207746618a799b250c67decdc0d15',
+              'SCAFFOLD_SHA=5d8cba39fefb935c6feaf30ea1a57dfffa80273a': 'SCAFFOLD_SHA=ff895111416c91c1aaf9acf518ca79ac3f66a80b',
+              'STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac': 'STABLE_SHA=a446f52a5d3fc71698a073d08ce1eeb923727b42',
+              'echo "== Miru H.40 Android 4.14.190 CI build =="': 'echo "== Miru H.40 Android 4.14.241 CI build =="',
+              "':!Documentation/miru/lts-4.14.190-conflicts.md'": "':!Documentation/miru/lts-4.14.241-conflicts.md'",
+              'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "190"': 'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "241"',
+              "grep -Fq -- '- Resolved conflicts: 28' Documentation/miru/lts-4.14.190-conflicts.md": "grep -Fq -- '- Semantically resolved conflicts: **32**' Documentation/miru/lts-4.14.241-conflicts.md",
+              "grep -Fq -- '- Remaining conflicts: 0' Documentation/miru/lts-4.14.190-conflicts.md": "grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.241-conflicts.md",
+              'echo "kernel_version=4.14.190"': 'echo "kernel_version=4.14.241"',
+              'echo "conflicts=28/28 resolved"': 'echo "conflicts=32/32 resolved"',
+              'export KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'export KERNEL_LOCALVERSION=-miru-h40-lts241-ci4',
+              'grep -Fq \'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"\' "${OUT_DIR}/.config"': 'grep -Fq \'CONFIG_LOCALVERSION="-miru-h40-lts241-ci4"\' "${OUT_DIR}/.config"',
+              "grep -m1 '^Linux version 4\\.14\\.190-'": "grep -m1 '^Linux version 4\\.14\\.241-'",
+          }
+          for old, new in replacements.items():
+              if old not in text:
+                  raise SystemExit(f'missing expected legacy build-driver text: {old}')
+              text = text.replace(old, new, 1)
+          target = 'grep -Fq "parent ${STABLE_SHA}" "${DIAG_DIR}/merge-scaffold.txt"'
+          if text.count(target) != 1:
+              raise SystemExit('missing scaffold target-parent check')
+          text = text.replace(target, target + '\ngrep -Fq "parent eefd4f0b8b4cf303fedb1cac8048cf9b4cdd3106" "${DIAG_DIR}/merge-scaffold.txt"', 1)
+          path.write_text(text)
+          PY
+          bash -n scripts/miru/ci_build_4.14.190.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-lts241-ci4' scripts/miru/ci_build_4.14.190.sh
+
+      - name: Run clean pinned 4.14.241 kernel build
+        run: bash scripts/miru/ci_build_4.14.190.sh
+
+      - name: Rebuild and validate exact 32 external modules
+        run: |
+          set -Eeuo pipefail
+          python3 scripts/miru/prepare_external_modules_toolchain.py
+          python3 scripts/miru/prepare_external_pinctrl_headers.py
+          test "$(git hash-object scripts/Makefile.build)" = ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/miru/prepare_wlan_response_link.py')
+          text = path.read_text()
+          old = 'expected = "74ce588c69513197a354ef0032c2145e91ee0641"'
+          new = 'expected = "ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3"'
+          if text.count(old) != 1:
+              raise SystemExit('legacy WLAN Makefile.build guard missing')
+          path.write_text(text.replace(old, new, 1))
+
+          path = Path('scripts/miru/build_external_modules_4.14.190.sh')
+          text = path.read_text()
+          old_release = '4.14.190-miru-h40-lts190-ci1+'
+          new_release = '4.14.241-miru-h40-lts241-ci4+'
+          if old_release not in text:
+              raise SystemExit('missing external-module release gate')
+          text = text.replace(old_release, new_release)
+          text = text.replace('4.14.190', '4.14.241')
+          text = text.replace('lts190', 'lts241')
+          path.write_text(text)
+          PY
+          python3 scripts/miru/prepare_wlan_response_link.py
+          bash -n scripts/miru/build_external_modules_4.14.190.sh
+          bash scripts/miru/build_external_modules_4.14.190.sh
+
+      - name: Create final validation manifest
+        if: success()
+        run: |
+          set -Eeuo pipefail
+          OUT="${RUNNER_TEMP}/android-root/out/h40-kernel"
+          DROPIN="${RUNNER_TEMP}/miru-external-modules/dropin"
+          RELEASE='4.14.241-miru-h40-lts241-ci4+'
+          test "$(find "${DROPIN}" -maxdepth 1 -type f -name '*.ko' | wc -l)" = 32
+          test -s "${OUT}/arch/arm64/boot/Image"
+          test -s "${OUT}/arch/arm64/boot/Image.gz-dtb"
+          test "$(cat "${OUT}/include/config/kernel.release")" = "${RELEASE}"
+          grep -Fxq 'result=SUCCESS' build-diagnostics/build-summary.txt
+          grep -Fxq "kernel_release=${RELEASE}" external-module-diagnostics/kernel-release.txt
+          grep -Fxq 'result=SUCCESS' external-module-diagnostics/PACKAGE-SUMMARY.txt
+          grep -Fxq 'module_count=32' external-module-diagnostics/PACKAGE-SUMMARY.txt
+          grep -Fxq 'modules=32' external-module-diagnostics/MODULE-ABI-REPORT.txt
+          grep -Fxq 'errors=0' external-module-diagnostics/MODULE-ABI-REPORT.txt
+          test "$(git rev-parse HEAD)" = "${VALIDATED_HEAD}"
+          {
+            echo 'result=SUCCESS'
+            echo "base_source_head=${BASE_SOURCE_HEAD}"
+            echo "validated_head=${VALIDATED_HEAD}"
+            echo "kernel_release=${RELEASE}"
+            echo 'external_module_count=32'
+            echo 'module_abi_errors=0'
+            echo 'boot_fix=continue GLINK RX drain after consumed missing-local-intent packet'
+            echo
+            sha256sum "${OUT}/arch/arm64/boot/Image" "${OUT}/arch/arm64/boot/Image.gz" \
+              "${OUT}/arch/arm64/boot/Image.gz-dtb" "${OUT}/Module.symvers" "${OUT}/.config"
+          } | tee full-validation-diagnostics/final-validation-manifest.txt
+
+      - name: Atomically publish validated GLINK ENOENT fix
+        if: success()
+        run: |
+          set -Eeuo pipefail
+          live="$(git ls-remote origin "refs/heads/${INTEGRATION_BRANCH}" | awk '{print $1}')"
+          test "${live}" = "${BASE_SOURCE_HEAD}"
+          test "$(git rev-parse HEAD)" = "${VALIDATED_HEAD}"
+          git push origin "HEAD:refs/heads/${INTEGRATION_BRANCH}"
+          test "$(git ls-remote origin "refs/heads/${INTEGRATION_BRANCH}" | awk '{print $1}')" = "${VALIDATED_HEAD}"
+          test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_HEAD}"
+          echo "published_integration_head=${VALIDATED_HEAD}" | tee full-validation-diagnostics/publish-summary.txt
+
+      - name: Upload ci4 kernel build outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts-4.14.241-ci4-glink-enoent-build
+          path: ${{ runner.temp }}/android-root/out/h40-artifacts
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload ci4 external module packages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-v3-modules-dropin-4.14.241-ci4
+          path: |
+            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.241.7z
+            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.241-audit.zip
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload full ci4 validation diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts-4.14.241-ci4-glink-enoent-diagnostics
+          path: |
+            build-diagnostics
+            external-module-diagnostics
+            full-validation-diagnostics
+          if-no-files-found: error
+          retention-days: 30
