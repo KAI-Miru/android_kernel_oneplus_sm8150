@@ -1,0 +1,192 @@
+name: Miru H.40 4.14.241 GLINK ci6 kernel build
+
+on:
+  pull_request:
+    branches:
+      - miru-h40-lts241-integration
+    types:
+      - opened
+      - synchronize
+
+permissions:
+  contents: write
+
+env:
+  PRODUCTION_HEAD: cc49ffcb5c5207746618a799b250c67decdc0d15
+  EXPECTED_RELEASE: 4.14.241-miru-h40-lts241-qrtr-ci6+
+
+concurrency:
+  group: lts241-glink-ci6-kernel
+  cancel-in-progress: true
+
+jobs:
+  kernel-build:
+    if: github.event.pull_request.head.ref == 'automation/glink-ci6-trigger'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - name: Checkout live integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: miru-h40-lts241-integration
+          fetch-depth: 0
+
+      - name: Revert unsupported GLINK ENOENT normalization
+        run: |
+          set -euxo pipefail
+          test "$(git rev-parse --abbrev-ref HEAD)" = miru-h40-lts241-integration
+          git fetch --no-tags --depth=1 origin miru-h40
+          test "$(git rev-parse FETCH_HEAD)" = "${PRODUCTION_HEAD}"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('drivers/rpmsg/qcom_glink_native.c')
+          text = p.read_text()
+          block = "\n\n\t\t\t/* Packet was consumed; continue draining the RX FIFO. */\n\t\t\tif (ret == -ENOENT)\n\t\t\t\tret = 0;"
+          count = text.count(block)
+          if count != 1:
+              raise SystemExit(f'expected one GLINK ENOENT normalization block, found {count}')
+          p.write_text(text.replace(block, '', 1))
+          PY
+          git diff --check
+          git diff -- drivers/rpmsg/qcom_glink_native.c | tee glink-ci6.diff
+          ! grep -Fq 'Packet was consumed; continue draining the RX FIFO' drivers/rpmsg/qcom_glink_native.c
+          ! grep -Fq 'if (ret == -ENOENT)' drivers/rpmsg/qcom_glink_native.c
+          grep -Fq 'qcom_glink_rx_advance(glink, ALIGN(msglen, 8));' drivers/rpmsg/qcom_glink_native.c
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add drivers/rpmsg/qcom_glink_native.c
+          git commit -m 'rpmsg: restore GLINK RX error propagation'
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = drivers/rpmsg/qcom_glink_native.c
+          git push origin HEAD:miru-h40-lts241-integration
+          echo "SOURCE_SHA=$(git rev-parse HEAD)" >> "${GITHUB_ENV}"
+
+      - name: Verify source semantics
+        run: |
+          set -euxo pipefail
+          test "$(git rev-parse HEAD)" = "${SOURCE_SHA}"
+          test "$(git log -1 --format=%s)" = 'rpmsg: restore GLINK RX error propagation'
+          git diff --check HEAD^
+          git apply --check --reverse glink-ci6.diff
+          fn="$(sed -n '/int qrtr_endpoint_post(/,/EXPORT_SYMBOL_GPL(qrtr_endpoint_post);/p' net/qrtr/qrtr.c)"
+          test "$(printf '%s\n' "$fn" | grep -c 'alloc_skb_with_frags(')" = 1
+          test "$(printf '%s\n' "$fn" | grep -c 'qrtr_get_backup(len)')" = 1
+          ! printf '%s\n' "$fn" | grep -F '__netdev_alloc_skb(NULL, len'
+
+      - name: Prepare clean 4.14.241 build driver
+        run: |
+          set -euxo pipefail
+          python3 scripts/miru/prepare_vendor_v6_linewise.py
+          python3 scripts/miru/inject_vendor_compat_v3_into_ci_build.py
+          sed -i 's/apply_vendor_lts190_compat_v3.py/apply_vendor_lts190_compat_v6.py/' scripts/miru/ci_build_4.14.190.sh
+          python3 scripts/miru/insert_vendor_format_fixer.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/miru/ci_build_4.14.190.sh')
+          t = p.read_text()
+          replacements = [
+              ('BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e', 'BASE_SHA=cc49ffcb5c5207746618a799b250c67decdc0d15'),
+              ('STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac', 'STABLE_SHA=a446f52a5d3fc71698a073d08ce1eeb923727b42'),
+              ("':!Documentation/miru/lts-4.14.190-conflicts.md'", "':!Documentation/miru/lts-4.14.241-conflicts.md'"),
+              ('test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "190"', 'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "241"'),
+              ("grep -Fq -- '- Resolved conflicts: 28' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq -- '- Semantically resolved conflicts: **32**' Documentation/miru/lts-4.14.241-conflicts.md"),
+              ("grep -Fq -- '- Remaining conflicts: 0' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.241-conflicts.md"),
+              ('echo "== Miru H.40 Android 4.14.190 CI build =="', 'echo "== Miru H.40 Android 4.14.241 GLINK ci6 build =="'),
+              ('echo "kernel_version=4.14.190"', 'echo "kernel_version=4.14.241"'),
+              ('echo "conflicts=28/28 resolved"', 'echo "conflicts=32/32 resolved"'),
+              ('export KERNEL_LOCALVERSION=-miru-h40-lts190-ci1', 'export KERNEL_LOCALVERSION=-miru-h40-lts241-qrtr-ci6'),
+              ("grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts190-ci1\"' \"${OUT_DIR}/.config\"", "grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts241-qrtr-ci6\"' \"${OUT_DIR}/.config\""),
+              ("grep -m1 '^Linux version 4\\.14\\.190-'", "grep -m1 '^Linux version 4\\.14\\.241-'"),
+              ('git fetch --no-tags --depth=1 origin "${SCAFFOLD_SHA}"\n', ''),
+              ('rm -rf "${ANDROID_ROOT}" "${VENDOR_SOURCE}"', 'rm -rf "${ANDROID_ROOT}" "${VENDOR_SOURCE}"\ngit worktree prune'),
+          ]
+          for old, new in replacements:
+              if old not in t:
+                  raise SystemExit(f'missing build-driver text: {old}')
+              t = t.replace(old, new, 1)
+          old = '''git cat-file -p "${SCAFFOLD_SHA}" > "${DIAG_DIR}/merge-scaffold.txt"
+          test "$(grep -c '^parent ' "${DIAG_DIR}/merge-scaffold.txt")" = "2"
+          grep -Fq "parent ${STABLE_SHA}" "${DIAG_DIR}/merge-scaffold.txt"'''
+          new = '''git merge-base --is-ancestor "${BASE_SHA}" HEAD
+          git merge-base --is-ancestor "${STABLE_SHA}" HEAD
+          {
+            echo "integration_base=${BASE_SHA}"
+            echo "stable_parent=${STABLE_SHA}"
+            git log -1 --format='head=%H%nparents=%P%nsubject=%s' HEAD
+          } > "${DIAG_DIR}/merge-scaffold.txt"'''
+          if old not in t:
+              raise SystemExit('missing merge scaffold validation block')
+          p.write_text(t.replace(old, new, 1))
+          PY
+
+      - name: Clean full kernel build with ci6 vermagic
+        run: |
+          set -euxo pipefail
+          test "$(git rev-parse HEAD)" = "${SOURCE_SHA}"
+          bash scripts/miru/ci_build_4.14.190.sh
+          test "$(git -C "${RUNNER_TEMP}/android-root/kernel/msm-4.14" rev-parse HEAD)" = "${SOURCE_SHA}"
+          KERNEL_RELEASE="$(make -s -C "${RUNNER_TEMP}/android-root/kernel/msm-4.14" O="${RUNNER_TEMP}/android-root/out/h40-kernel" kernelrelease)"
+          test "${KERNEL_RELEASE}" = "${EXPECTED_RELEASE}"
+          mkdir -p final-report
+          {
+            echo "source_sha=${SOURCE_SHA}"
+            echo "production_ref=${PRODUCTION_HEAD}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "run_url=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "kernel_release=${KERNEL_RELEASE}"
+            echo "changed_files=drivers/rpmsg/qcom_glink_native.c"
+          } | tee final-report/summary.txt
+          cp glink-ci6.diff final-report/
+          find "${RUNNER_TEMP}/android-root/out/h40-artifacts" -type f -print0 | sort -z | xargs -0 sha256sum > final-report/kernel-files-sha256.txt
+
+      - name: Upload kernel outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts-4.14.241-qrtr-ci6-build
+          path: ${{ runner.temp }}/android-root/out/h40-artifacts
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload diagnostics
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts-4.14.241-qrtr-ci6-diagnostics
+          path: |
+            build-diagnostics
+            final-report
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload failure diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts-4.14.241-qrtr-ci6-failure-${{ github.run_id }}
+          path: |
+            build-diagnostics
+            glink-ci6.diff
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Remove temporary workflows and trigger branch
+        if: success()
+        run: |
+          set -euxo pipefail
+          git fetch origin miru-h40-lts241-integration
+          git checkout -B glink-ci6-cleanup origin/miru-h40-lts241-integration
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          rm -f .github/workflows/lts241-glink-ci6.yml \
+            .github/workflows/lts241-glink-ci6-v2.yml \
+            .github/workflows/lts241-qrtr-fix.yml \
+            .github/workflows/lts241-qrtr-fix-v2.yml \
+            .github/workflows/lts241-qrtr-fix-v3.yml \
+            .github/workflows/lts241-qrtr-fix-v4.yml \
+            .github/workflows/lts241-qrtr-pr.yml \
+            .github/workflows/lts241-qrtr-retry.yml \
+            .github/workflows/lts241-qrtr-retry-v2.yml
+          git add -A .github/workflows
+          if ! git diff --cached --quiet; then
+            git commit -m "ci: remove temporary lts241 workflows after run ${GITHUB_RUN_ID} [skip ci]"
+            git push origin HEAD:miru-h40-lts241-integration
+          fi
+          git push origin --delete automation/glink-ci6-trigger || true
