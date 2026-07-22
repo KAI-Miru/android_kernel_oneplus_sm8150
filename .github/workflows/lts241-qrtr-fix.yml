@@ -1,0 +1,312 @@
+name: Miru H.40 4.14.241 QRTR semantic fix
+
+on:
+  push:
+    branches:
+      - miru-h40-lts241-integration
+
+permissions:
+  contents: write
+
+env:
+  ORIGINAL_HEAD: bdd4cc49080e8a0a56c844600c4e243aa1ad7b97
+  PRODUCTION_HEAD: cc49ffcb5c5207746618a799b250c67decdc0d15
+  STABLE_241: a446f52a5d3fc71698a073d08ce1eeb923727b42
+  VENDOR_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
+  KERNEL_LOCALVERSION: -miru-h40-lts241-qrtr-ci5
+  EXPECTED_RELEASE: 4.14.241-miru-h40-lts241-qrtr-ci5+
+
+concurrency:
+  group: lts241-qrtr-semantic-fix
+  cancel-in-progress: false
+
+jobs:
+  preflight-and-commit:
+    if: github.event.head_commit.message == 'ci: stage QRTR endpoint validation'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout integration bootstrap
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify immutable refs and inspect current function
+        run: |
+          set -euxo pipefail
+          test "$(git rev-parse HEAD^)" = "${ORIGINAL_HEAD}"
+          git fetch --no-tags --depth=1 origin miru-h40
+          test "$(git rev-parse FETCH_HEAD)" = "${PRODUCTION_HEAD}"
+          test "$(git rev-parse --abbrev-ref HEAD)" = "miru-h40-lts241-integration"
+          sed -n '/int qrtr_endpoint_post(/,/EXPORT_SYMBOL_GPL(qrtr_endpoint_post);/p' net/qrtr/qrtr.c | tee qrtr-before.txt
+
+      - name: Apply minimal QRTR allocator removal and static validation
+        run: |
+          set -euxo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('net/qrtr/qrtr.c')
+          text = p.read_text()
+          start = text.index('int qrtr_endpoint_post(')
+          end = text.index('EXPORT_SYMBOL_GPL(qrtr_endpoint_post);', start)
+          fn = text[start:end]
+          block = '\tskb = __netdev_alloc_skb(NULL, len, GFP_ATOMIC | __GFP_NOWARN);\n\tif (!skb)\n\t\treturn -ENOMEM;\n'
+          if fn.count(block) != 1:
+              raise SystemExit(f'unwanted second allocator count={fn.count(block)}, expected 1')
+          if fn.count('alloc_skb_with_frags(') != 1:
+              raise SystemExit('expected exactly one downstream primary allocator')
+          if fn.count('qrtr_get_backup(len)') != 1:
+              raise SystemExit('downstream backup allocator missing or duplicated')
+          text = text[:start] + fn.replace(block, '', 1) + text[end:]
+          p.write_text(text)
+          PY
+          git diff --check
+          git diff -- net/qrtr/qrtr.c | tee qrtr-fix.diff
+          test "$(git diff --name-only | wc -l)" = 1
+          test "$(git diff --name-only)" = net/qrtr/qrtr.c
+          ! sed -n '/int qrtr_endpoint_post(/,/EXPORT_SYMBOL_GPL(qrtr_endpoint_post);/p' net/qrtr/qrtr.c | grep -F '__netdev_alloc_skb(NULL, len'
+          test "$(sed -n '/int qrtr_endpoint_post(/,/EXPORT_SYMBOL_GPL(qrtr_endpoint_post);/p' net/qrtr/qrtr.c | grep -c 'alloc_skb_with_frags(')" = 1
+          test "$(sed -n '/int qrtr_endpoint_post(/,/EXPORT_SYMBOL_GPL(qrtr_endpoint_post);/p' net/qrtr/qrtr.c | grep -c 'qrtr_get_backup(len)')" = 1
+          git diff > /tmp/qrtr-fix.patch
+          git apply --check --reverse /tmp/qrtr-fix.patch
+
+      - name: Prepare focused 4.14.241 QRTR compile driver
+        run: |
+          set -euxo pipefail
+          python3 scripts/miru/prepare_vendor_v6_linewise.py
+          python3 scripts/miru/inject_vendor_compat_v3_into_ci_build.py
+          sed -i 's/apply_vendor_lts190_compat_v3.py/apply_vendor_lts190_compat_v6.py/' scripts/miru/ci_build_4.14.190.sh
+          python3 scripts/miru/insert_vendor_format_fixer.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/miru/ci_build_4.14.190.sh')
+          t = p.read_text()
+          reps = {
+            'BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e': 'BASE_SHA=cc49ffcb5c5207746618a799b250c67decdc0d15',
+            'STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac': 'STABLE_SHA=a446f52a5d3fc71698a073d08ce1eeb923727b42',
+            '4.14.190': '4.14.241',
+            'lts-4.14.190-conflicts.md': 'lts-4.14.241-conflicts.md',
+            "'- Resolved conflicts: 28'": "'- Semantically resolved conflicts: **32**'",
+            "'- Remaining conflicts: 0'": "'- Remaining semantic conflicts: **0**'",
+            'conflicts=28/28 resolved': 'conflicts=32/32 resolved',
+            '-miru-h40-lts190-ci1': '-miru-h40-lts241-qrtr-ci5',
+          }
+          for old, new in reps.items():
+              if old not in t:
+                  raise SystemExit(f'missing expected driver text: {old}')
+              t = t.replace(old, new)
+          t = t.replace('git fetch --no-tags --depth=1 origin "${SCAFFOLD_SHA}"\n', '')
+          old = '''git worktree add --detach "${KERNEL_WORKTREE}" HEAD'''
+          new = '''mkdir -p "${KERNEL_WORKTREE}"
+          rsync -a --exclude=.git "${GITHUB_WORKSPACE}/" "${KERNEL_WORKTREE}/"'''
+          if old not in t:
+              raise SystemExit('missing worktree creation')
+          t = t.replace(old, new, 1)
+          old_scaffold = '''git cat-file -p "${SCAFFOLD_SHA}" > "${DIAG_DIR}/merge-scaffold.txt"
+          test "$(grep -c '^parent ' "${DIAG_DIR}/merge-scaffold.txt")" = "2"
+          grep -Fq "parent ${STABLE_SHA}" "${DIAG_DIR}/merge-scaffold.txt"'''
+          new_scaffold = '''git merge-base --is-ancestor "${BASE_SHA}" HEAD
+          git merge-base --is-ancestor "${STABLE_SHA}" HEAD
+          git log -1 --format='head=%H%nparents=%P%nsubject=%s' HEAD > "${DIAG_DIR}/merge-scaffold.txt"'''
+          if old_scaffold not in t:
+              raise SystemExit('missing scaffold validation')
+          t = t.replace(old_scaffold, new_scaffold, 1)
+          marker = '"${KERNEL_WORKTREE}/h40-repro/build-h40.sh" --clean 2>&1 | tee "${DIAG_DIR}/build-console.log"'
+          idx = t.index(marker)
+          t = t[:idx] + marker + '\n\ntest -s "${OUT_DIR}/net/qrtr/qrtr.o"\necho "focused_qrtr_compile=PASS" | tee "${DIAG_DIR}/focused-compile.txt"\n'
+          p.write_text(t)
+
+          b = Path('h40-repro/build-h40.sh')
+          s = b.read_text()
+          target = 'Image Image.gz Image.gz-dtb dtbs modules 2>&1 | tee -a "${BUILD_LOG}"'
+          if target not in s:
+              raise SystemExit('missing full build target line')
+          s = s.replace(target, 'net/qrtr/qrtr.o 2>&1 | tee -a "${BUILD_LOG}"', 1)
+          b.write_text(s)
+          PY
+
+      - name: Focused compile net/qrtr/qrtr.o
+        run: bash scripts/miru/ci_build_4.14.190.sh
+
+      - name: Create and push exact QRTR fix commit
+        run: |
+          set -euxo pipefail
+          cp /tmp/qrtr-fix.patch /tmp/qrtr-fix.saved.patch
+          git reset --hard HEAD
+          git clean -fd
+          git apply /tmp/qrtr-fix.saved.patch
+          git diff --check
+          test "$(git diff --name-only)" = net/qrtr/qrtr.c
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add net/qrtr/qrtr.c
+          test "$(git diff --cached --name-only)" = net/qrtr/qrtr.c
+          git commit -m 'qrtr: preserve downstream skb allocation in endpoint receive path'
+          FIX_SHA="$(git rev-parse HEAD)"
+          echo "fix_sha=${FIX_SHA}" | tee qrtr-fix-sha.txt
+          git push origin HEAD:miru-h40-lts241-integration
+
+      - name: Upload preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lts241-qrtr-preflight-${{ github.run_id }}
+          path: |
+            qrtr-before.txt
+            qrtr-fix.diff
+            qrtr-fix-sha.txt
+            build-diagnostics
+          if-no-files-found: warn
+
+  exact-commit-build:
+    if: github.event.head_commit.message == 'qrtr: preserve downstream skb allocation in endpoint receive path'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout exact QRTR fix commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact commit and QRTR semantics
+        run: |
+          set -euxo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git log -1 --format=%s)" = 'qrtr: preserve downstream skb allocation in endpoint receive path'
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = net/qrtr/qrtr.c
+          git fetch --no-tags --depth=1 origin miru-h40
+          test "$(git rev-parse FETCH_HEAD)" = "${PRODUCTION_HEAD}"
+          fn="$(sed -n '/int qrtr_endpoint_post(/,/EXPORT_SYMBOL_GPL(qrtr_endpoint_post);/p' net/qrtr/qrtr.c)"
+          test "$(printf '%s\n' "$fn" | grep -c 'alloc_skb_with_frags(')" = 1
+          test "$(printf '%s\n' "$fn" | grep -c 'qrtr_get_backup(len)')" = 1
+          ! printf '%s\n' "$fn" | grep -F '__netdev_alloc_skb(NULL, len'
+          git diff --check HEAD^
+          git diff HEAD^ HEAD -- net/qrtr/qrtr.c | tee qrtr-final.diff
+          git apply --check --reverse <(git diff HEAD^ HEAD -- net/qrtr/qrtr.c)
+
+      - name: Prepare exact 4.14.241 full build driver
+        run: |
+          set -euxo pipefail
+          python3 scripts/miru/prepare_vendor_v6_linewise.py
+          python3 scripts/miru/inject_vendor_compat_v3_into_ci_build.py
+          sed -i 's/apply_vendor_lts190_compat_v3.py/apply_vendor_lts190_compat_v6.py/' scripts/miru/ci_build_4.14.190.sh
+          python3 scripts/miru/insert_vendor_format_fixer.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/miru/ci_build_4.14.190.sh')
+          t = p.read_text()
+          reps = {
+            'BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e': 'BASE_SHA=cc49ffcb5c5207746618a799b250c67decdc0d15',
+            'STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac': 'STABLE_SHA=a446f52a5d3fc71698a073d08ce1eeb923727b42',
+            '4.14.190': '4.14.241',
+            'lts-4.14.190-conflicts.md': 'lts-4.14.241-conflicts.md',
+            "'- Resolved conflicts: 28'": "'- Semantically resolved conflicts: **32**'",
+            "'- Remaining conflicts: 0'": "'- Remaining semantic conflicts: **0**'",
+            'conflicts=28/28 resolved': 'conflicts=32/32 resolved',
+            '-miru-h40-lts190-ci1': '-miru-h40-lts241-qrtr-ci5',
+          }
+          for old, new in reps.items():
+              if old not in t:
+                  raise SystemExit(f'missing expected driver text: {old}')
+              t = t.replace(old, new)
+          t = t.replace('git fetch --no-tags --depth=1 origin "${SCAFFOLD_SHA}"\n', '')
+          old = '''git cat-file -p "${SCAFFOLD_SHA}" > "${DIAG_DIR}/merge-scaffold.txt"
+          test "$(grep -c '^parent ' "${DIAG_DIR}/merge-scaffold.txt")" = "2"
+          grep -Fq "parent ${STABLE_SHA}" "${DIAG_DIR}/merge-scaffold.txt"'''
+          new = '''git merge-base --is-ancestor "${BASE_SHA}" HEAD
+          git merge-base --is-ancestor "${STABLE_SHA}" HEAD
+          {
+            echo "integration_base=${BASE_SHA}"
+            echo "stable_parent=${STABLE_SHA}"
+            git log -1 --format='head=%H%nparents=%P%nsubject=%s' HEAD
+          } > "${DIAG_DIR}/merge-scaffold.txt"'''
+          if old not in t:
+              raise SystemExit('missing scaffold validation')
+          t = t.replace(old, new, 1)
+          p.write_text(t)
+          PY
+
+      - name: Clean full 4.14.241 kernel build
+        run: bash scripts/miru/ci_build_4.14.190.sh
+
+      - name: Build and validate exact 32 external modules
+        run: |
+          set -euxo pipefail
+          python3 scripts/miru/prepare_external_modules_toolchain.py
+          python3 scripts/miru/prepare_external_pinctrl_headers.py
+          python3 scripts/miru/prepare_wlan_response_link.py
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/miru/build_external_modules_4.14.190.sh')
+          t = p.read_text()
+          old = '4.14.190-miru-h40-lts190-ci1+'
+          new = '4.14.241-miru-h40-lts241-qrtr-ci5+'
+          if old not in t:
+              raise SystemExit('missing old external-module release gate')
+          t = t.replace(old, new)
+          t = t.replace('4.14.190', '4.14.241').replace('lts190', 'lts241-qrtr-ci5')
+          p.write_text(t)
+          PY
+          bash scripts/miru/build_external_modules_4.14.190.sh
+          test "$(find "${RUNNER_TEMP}/miru-external-modules/dropin" -maxdepth 1 -type f -name '*.ko' | wc -l)" = 32
+
+      - name: Create final build report
+        run: |
+          set -euxo pipefail
+          mkdir -p final-report
+          cp qrtr-final.diff final-report/
+          cp build-diagnostics/build-summary.txt final-report/ 2>/dev/null || true
+          cp external-module-diagnostics/kernel-release.txt final-report/
+          cp external-module-diagnostics/module-validation.txt final-report/ 2>/dev/null || true
+          {
+            echo "fix_sha=${GITHUB_SHA}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "run_url=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo "kernel_release=$(make -s -C "${RUNNER_TEMP}/android-root/kernel/msm-4.14" O="${RUNNER_TEMP}/android-root/out/h40-kernel" kernelrelease)"
+            echo "module_count=$(find "${RUNNER_TEMP}/miru-external-modules/dropin" -maxdepth 1 -type f -name '*.ko' | wc -l)"
+            echo "vendor_commit=${VENDOR_SHA}"
+          } | tee final-report/summary.txt
+          find "${RUNNER_TEMP}/android-root/out/h40-artifacts" -type f -print0 | sort -z | xargs -0 sha256sum > final-report/kernel-artifact-sha256.txt
+          find "${RUNNER_TEMP}/miru-external-modules/dropin" -type f -print0 | sort -z | xargs -0 sha256sum > final-report/module-sha256.txt
+
+      - name: Upload kernel build outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts-4.14.241-qrtr-ci5-build
+          path: ${{ runner.temp }}/android-root/out/h40-artifacts
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload external module packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-v3-modules-dropin-4.14.241-qrtr-ci5
+          path: |
+            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.241.7z
+            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.241-audit.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload validation diagnostics and report
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts-4.14.241-qrtr-ci5-diagnostics
+          path: |
+            build-diagnostics
+            external-module-diagnostics
+            final-report
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove temporary workflow after successful build
+        run: |
+          set -euxo pipefail
+          git reset --hard HEAD
+          git clean -fd
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/lts241-qrtr-fix.yml
+          git commit -m "ci: remove temporary QRTR validation workflow [skip ci] (run ${GITHUB_RUN_ID})"
+          git push origin HEAD:miru-h40-lts241-integration
