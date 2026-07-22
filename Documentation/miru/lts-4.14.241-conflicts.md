@@ -448,3 +448,12 @@ All 32 authentic conflicts now have an owning resolution commit. The full kernel
 - Ownership fix: free `dmabuf->name` only when it differs from `dmabuf->buf_name`, both when renaming and during final destruction.
 - Lifecycle fix: restore `db_list` removal to `dma_buf_file_release()` and wire it through `dma_buf_fops.release`, matching the device-tested 4.14.210 tree.
 - Validation contract: clean reversal to source head `65c63badd41cb56d98984ed664d6108ac7e36702`, full pinned kernel build, and exact 32-module ABI validation.
+
+
+## Device-boot audit: GLINK missing-channel intent FIFO advance
+
+- Symptom: SLPI/FastRPC repeatedly disconnected during early Android boot and userspace stopped before Zygote without a kernel panic.
+- Root cause candidate: `qcom_glink_handle_intent()` returned for a missing channel without consuming the current `RPM_CMD_INTENT` packet, allowing the RX worker to process the same FIFO entry indefinitely.
+- Decision: advance the RX FIFO by `ALIGN(msglen, 8)` before returning, while retaining the separate 4.14.241 `ret = -ENOENT` correction for missing local intents.
+- Scope: one downstream-compatible line matching the later upstream/LineageOS fix; no whole-file rollback and no suspend-path changes.
+- Validation contract: clean reversal to source head `eeccfbe1247e82b1071fe606785f97d97cdcc586`, full pinned kernel build, and exact 32-module ABI validation.
