@@ -1228,6 +1228,10 @@ static irqreturn_t qcom_glink_native_intr(int irq, void *data)
 		case RPM_CMD_TX_DATA:
 		case RPM_CMD_TX_DATA_CONT:
 			ret = qcom_glink_rx_data(glink, avail);
+
+			/* Packet was consumed; continue draining the RX FIFO. */
+			if (ret == -ENOENT)
+				ret = 0;
 			break;
 		case RPM_CMD_READ_NOTIF:
 			qcom_glink_rx_advance(glink, ALIGN(sizeof(msg), 8));

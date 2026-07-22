@@ -457,3 +457,12 @@ All 32 authentic conflicts now have an owning resolution commit. The full kernel
 - Decision: advance the RX FIFO by `ALIGN(msglen, 8)` before returning, while retaining the separate 4.14.241 `ret = -ENOENT` correction for missing local intents.
 - Scope: one downstream-compatible line matching the later upstream/LineageOS fix; no whole-file rollback and no suspend-path changes.
 - Validation contract: clean reversal to source head `eeccfbe1247e82b1071fe606785f97d97cdcc586`, full pinned kernel build, and exact 32-module ABI validation.
+
+
+## Device-boot audit: continue GLINK RX drain after missing local intent
+
+- Symptom: the ci3 missing-channel FIFO advance did not resolve the early Android boot loop; SLPI/FastRPC still failed to recover before Zygote.
+- Regression: 4.14.241 assigns `-ENOENT` after consuming an RX data packet whose local intent is missing, and the generic IRQ loop then stops draining the remaining FIFO.
+- Decision: retain the upstream `ret = -ENOENT` assignment inside `qcom_glink_rx_data()`, but treat that result as recoverable in the `RPM_CMD_TX_DATA*` IRQ path because the packet has already been consumed.
+- Compatibility: restores the effective 4.14.210 transport behavior while preserving the 4.14.241 diagnostic error and the prior missing-channel `RPM_CMD_INTENT` FIFO advance.
+- Validation contract: clean reversal to source head `0ba2ae45391418c93ab9af4f7a24acbcfa678a11`, full pinned kernel build, and exact 32-module ABI validation.
