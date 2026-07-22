@@ -1,0 +1,580 @@
+name: Miru H.40 4.14.241 semantic conflict audit
+
+on:
+  pull_request:
+    branches:
+      - miru-h40-lts241-integration
+    types:
+      - synchronize
+
+permissions:
+  contents: read
+
+jobs:
+  semantic-audit:
+    if: github.event.pull_request.head.ref == 'automation/qrtr-lts241-trigger'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      PROD: cc49ffcb5c5207746618a799b250c67decdc0d15
+      COMMON: a446f52a5d3fc71698a073d08ce1eeb923727b42
+      SCAFFOLD: ff895111416c91c1aaf9acf518ca79ac3f66a80b
+    steps:
+      - name: Checkout live integration branch
+        uses: actions/checkout@v4
+        with:
+          ref: miru-h40-lts241-integration
+          fetch-depth: 0
+
+      - name: Verify audit scope and fetch LineageOS references
+        run: |
+          set -euxo pipefail
+          test "$(git rev-parse --abbrev-ref HEAD)" = miru-h40-lts241-integration
+          git merge-base --is-ancestor "${PROD}" HEAD
+          git merge-base --is-ancestor "${COMMON}" HEAD
+          git merge-base --is-ancestor "${SCAFFOLD}" HEAD
+          git diff --check "${PROD}" HEAD
+          mkdir -p audit-output
+          {
+            echo "integration_head=$(git rev-parse HEAD)"
+            echo "production_head=${PROD}"
+            echo "android_common_target=${COMMON}"
+            echo "merge_scaffold=${SCAFFOLD}"
+          } > audit-output/HEADS.txt
+
+          LINEAGE="${RUNNER_TEMP}/lineage-oneplus-sm8150"
+          git init -q "${LINEAGE}"
+          git -C "${LINEAGE}" remote add origin \
+            https://github.com/LineageOS/android_kernel_oneplus_sm8150.git
+          git -C "${LINEAGE}" fetch -q --no-tags --depth=1 --filter=blob:none origin \
+            refs/heads/lineage-20:refs/remotes/origin/lineage-20 \
+            refs/heads/lineage-21:refs/remotes/origin/lineage-21
+          echo "LINEAGE=${LINEAGE}" >> "${GITHUB_ENV}"
+          git -C "${LINEAGE}" rev-parse refs/remotes/origin/lineage-20 \
+            > audit-output/lineage-20-head.txt
+          git -C "${LINEAGE}" rev-parse refs/remotes/origin/lineage-21 \
+            > audit-output/lineage-21-head.txt
+
+      - name: Run complete conflict and high-risk clean-merge scan
+        run: |
+          cat > "${RUNNER_TEMP}/semantic_audit.py" <<'PY'
+          from __future__ import annotations
+
+          import difflib
+          import hashlib
+          import os
+          from pathlib import Path
+          import re
+          import subprocess
+          from collections import defaultdict
+
+          ROOT = Path.cwd()
+          OUT = ROOT / "audit-output"
+          OUT.mkdir(exist_ok=True)
+          LINEAGE = Path(os.environ["LINEAGE"])
+          PROD = os.environ["PROD"]
+          COMMON = os.environ["COMMON"]
+          SCAFFOLD = os.environ["SCAFFOLD"]
+          HEAD = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          L20 = "refs/remotes/origin/lineage-20"
+          L21 = "refs/remotes/origin/lineage-21"
+
+          conflict_paths = [
+              "arch/x86/Makefile",
+              "drivers/block/zram/zram_drv.c",
+              "drivers/dma-buf/dma-buf.c",
+              "drivers/gpu/drm/msm/msm_drv.c",
+              "drivers/mmc/core/core.c",
+              "drivers/mmc/core/mmc.c",
+              "drivers/scsi/ufs/ufshcd.c",
+              "drivers/soc/qcom/smp2p.c",
+              "drivers/tty/tty_jobctrl.c",
+              "drivers/usb/core/hub.c",
+              "drivers/usb/dwc3/core.c",
+              "drivers/usb/dwc3/gadget.c",
+              "drivers/usb/gadget/configfs.c",
+              "drivers/usb/gadget/function/f_accessory.c",
+              "drivers/usb/gadget/function/f_fs.c",
+              "drivers/usb/gadget/function/f_uac1.c",
+              "drivers/usb/gadget/function/f_uac2.c",
+              "fs/incfs/data_mgmt.c",
+              "fs/incfs/format.c",
+              "fs/incfs/main.c",
+              "fs/incfs/pseudo_files.c",
+              "fs/incfs/vfs.c",
+              "include/linux/usb/usbnet.h",
+              "kernel/bpf/helpers.c",
+              "kernel/cgroup/cgroup.c",
+              "kernel/cpu.c",
+              "kernel/futex.c",
+              "kernel/sched/fair.c",
+              "net/core/skbuff.c",
+              "net/qrtr/qrtr.c",
+              "net/sctp/sm_make_chunk.c",
+              "security/selinux/avc.c",
+          ]
+          extra_resolution_paths = ["security/selinux/include/security.h"]
+
+          resolution_commits = {
+              "0818d274ec0f97a3fef70194b629821c3294e191": ["arch/x86/Makefile"],
+              "648f5dd2045b4c016cc7c3c411f7946ee48ec914": [
+                  "drivers/block/zram/zram_drv.c", "drivers/dma-buf/dma-buf.c"],
+              "33956504e5210f733b042f005b09de4d8c9fba3b": [
+                  "drivers/gpu/drm/msm/msm_drv.c"],
+              "4febfdd243664284e5c245b1664633ec3f8b816b": [
+                  "drivers/mmc/core/core.c", "drivers/mmc/core/mmc.c",
+                  "drivers/scsi/ufs/ufshcd.c"],
+              "72fd5a8910a28d4a7aa2498a58794b6c3282eb44": [
+                  "drivers/soc/qcom/smp2p.c", "net/qrtr/qrtr.c"],
+              "49d6e32da6048bbef578be52367256effeafb709": [
+                  "drivers/tty/tty_jobctrl.c"],
+              "5fe5c247754d0b958f389fbde25541ff6c23526b": [
+                  "drivers/usb/core/hub.c", "drivers/usb/dwc3/core.c",
+                  "drivers/usb/dwc3/gadget.c", "drivers/usb/gadget/configfs.c",
+                  "drivers/usb/gadget/function/f_accessory.c",
+                  "drivers/usb/gadget/function/f_fs.c",
+                  "drivers/usb/gadget/function/f_uac1.c",
+                  "drivers/usb/gadget/function/f_uac2.c",
+                  "include/linux/usb/usbnet.h"],
+              "92bfc038c04c279027c0ddfb4cd88b9bbfa31273": [
+                  "fs/incfs/data_mgmt.c", "fs/incfs/format.c", "fs/incfs/main.c",
+                  "fs/incfs/pseudo_files.c", "fs/incfs/vfs.c"],
+              "928cf84b7c73c03c14136efada744825a12d9d00": [
+                  "kernel/bpf/helpers.c", "kernel/cgroup/cgroup.c", "kernel/cpu.c",
+                  "kernel/futex.c", "kernel/sched/fair.c"],
+              "768a262b43ee51ce8aeb02863e0cf3729e67462a": [
+                  "net/core/skbuff.c", "net/sctp/sm_make_chunk.c"],
+              "ba427f46b9286f8bdd7223fc032472f26d519123": [
+                  "security/selinux/avc.c", "security/selinux/include/security.h"],
+          }
+
+          high_risk_prefixes = (
+              "drivers/android/", "drivers/block/zram/", "drivers/char/adsprpc",
+              "drivers/dma-buf/", "drivers/gpu/drm/msm/", "drivers/input/touchscreen/",
+              "drivers/mmc/", "drivers/power/", "drivers/rpmsg/", "drivers/scsi/ufs/",
+              "drivers/soc/qcom/", "drivers/thermal/", "drivers/usb/", "fs/incfs/",
+              "include/linux/usb/", "kernel/bpf/", "kernel/cgroup/", "kernel/sched/",
+              "mm/", "net/core/", "net/qrtr/", "security/selinux/", "sound/",
+          )
+
+          def run(args, cwd=ROOT, check=True):
+              p = subprocess.run(args, cwd=cwd, text=True, stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE)
+              if check and p.returncode:
+                  raise RuntimeError(f"command failed {args}: {p.stderr}")
+              return p
+
+          def git_text(ref, path, cwd=ROOT):
+              p = run(["git", "show", f"{ref}:{path}"], cwd=cwd, check=False)
+              return p.stdout if p.returncode == 0 else None
+
+          def blob_hash(text):
+              if text is None:
+                  return "missing"
+              return hashlib.sha256(text.encode(errors="replace")).hexdigest()
+
+          def normalized_lines(text):
+              if text is None:
+                  return []
+              return [re.sub(r"\s+", " ", x.strip()) for x in text.splitlines()
+                      if x.strip() and not x.lstrip().startswith(("//", "/*", "*"))]
+
+          def diff_counts(a, b):
+              if a is None or b is None:
+                  return (None, None)
+              add = delete = 0
+              for line in difflib.ndiff(a.splitlines(), b.splitlines()):
+                  if line.startswith("+ "):
+                      add += 1
+                  elif line.startswith("- "):
+                      delete += 1
+              return add, delete
+
+          function_head = re.compile(
+              r"(?m)^[\w\s\*\(\),\[\]__]+?\b([A-Za-z_]\w*)\s*\([^;{}]*\)\s*\{")
+
+          def functions(text):
+              if not text:
+                  return {}
+              out = {}
+              for m in function_head.finditer(text):
+                  name = m.group(1)
+                  if name in {"if", "for", "while", "switch"}:
+                      continue
+                  brace = text.find("{", m.start())
+                  depth = 0
+                  i = brace
+                  state = "code"
+                  while i < len(text):
+                      ch = text[i]
+                      nxt = text[i:i+2]
+                      if state == "code":
+                          if nxt == "/*": state = "block"; i += 2; continue
+                          if nxt == "//": state = "line"; i += 2; continue
+                          if ch == '"': state = "string"; i += 1; continue
+                          if ch == "'": state = "char"; i += 1; continue
+                          if ch == "{": depth += 1
+                          elif ch == "}":
+                              depth -= 1
+                              if depth == 0:
+                                  out[name] = text[m.start():i+1]
+                                  break
+                      elif state == "block":
+                          if nxt == "*/": state = "code"; i += 2; continue
+                      elif state == "line":
+                          if ch == "\n": state = "code"
+                      elif state in {"string", "char"}:
+                          if ch == "\\": i += 2; continue
+                          if (state == "string" and ch == '"') or (state == "char" and ch == "'"):
+                              state = "code"
+                      i += 1
+              return out
+
+          alloc_re = re.compile(
+              r"\b([A-Za-z_]\w*)\s*=\s*[^;\n]*(?:alloc|kzalloc|kmalloc|vmalloc|"
+              r"devm_[A-Za-z_]*alloc|create|new|clone|dup|skb_copy|skb_clone|"
+              r"get_backup|get_buf|get_buffer)\w*\s*\(")
+          free_re = re.compile(
+              r"\b(?:kfree|kvfree|vfree|free|consume_skb|kfree_skb|dev_kfree_skb|"
+              r"dma_buf_put|fput|put_device|of_node_put)\s*\(\s*([^,)]+)")
+          lock_pairs = [
+              ("mutex_lock", "mutex_unlock"), ("spin_lock", "spin_unlock"),
+              ("spin_lock_irqsave", "spin_unlock_irqrestore"),
+              ("read_lock", "read_unlock"), ("write_lock", "write_unlock"),
+              ("down_read", "up_read"), ("down_write", "up_write"),
+          ]
+
+          def semantic_findings(text, path):
+              findings = []
+              if not text:
+                  return findings
+              if re.search(r"(?m)^(<<<<<<<|=======|>>>>>>>)", text):
+                  findings.append(("critical", "unresolved conflict marker"))
+
+              for name, body in functions(text).items():
+                  lines = body.splitlines()
+                  allocs = defaultdict(list)
+                  for i, line in enumerate(lines):
+                      for m in alloc_re.finditer(line):
+                          allocs[m.group(1)].append(i)
+                  for var, idxs in allocs.items():
+                      for first, second in zip(idxs, idxs[1:]):
+                          middle = "\n".join(lines[first+1:second])
+                          freed = re.search(
+                              rf"\b(?:kfree|kvfree|vfree|consume_skb|kfree_skb|"
+                              rf"dev_kfree_skb|dma_buf_put|fput)\s*\(\s*{re.escape(var)}\b",
+                              middle)
+                          if freed:
+                              continue
+                          after = "\n".join(lines[second+1:])
+                          alias_names = []
+                          for am in re.finditer(
+                              rf"\b([A-Za-z_]\w*)\s*=\s*[^;\n]*\b{re.escape(var)}\b[^;\n]*;",
+                              middle):
+                              if am.group(1) != var:
+                                  alias_names.append(am.group(1))
+                          used_alias = [a for a in alias_names
+                                        if re.search(rf"\b{re.escape(a)}\b", after)]
+                          if used_alias:
+                              findings.append((
+                                  "critical",
+                                  f"{name}: {var} allocated again without release after aliases "
+                                  f"{','.join(sorted(set(used_alias)))} were derived and later used"))
+                          else:
+                              findings.append((
+                                  "high",
+                                  f"{name}: {var} allocated again without an obvious release"))
+
+                  frees = defaultdict(list)
+                  for i, line in enumerate(lines):
+                      for m in free_re.finditer(line):
+                          arg = re.sub(r"\s+", "", m.group(1))
+                          frees[arg].append(i)
+                  for arg, idxs in frees.items():
+                      if len(idxs) > 1:
+                          findings.append((
+                              "medium", f"{name}: repeated release calls for {arg} at local lines {idxs}"))
+
+                  for lock, unlock in lock_pairs:
+                      lc = len(re.findall(rf"\b{lock}\s*\(", body))
+                      uc = len(re.findall(rf"\b{unlock}\s*\(", body))
+                      if lc != uc and max(lc, uc) > 0:
+                          findings.append((
+                              "review", f"{name}: textual {lock}/{unlock} count is {lc}/{uc}"))
+
+                  seen_blocks = defaultdict(list)
+                  clean = [re.sub(r"\s+", " ", x.strip()) for x in lines]
+                  for i in range(max(0, len(clean)-2)):
+                      block = tuple(clean[i:i+3])
+                      if all(len(x) >= 8 for x in block) and not any(
+                              x.startswith(("if ", "else", "case ", "#")) for x in block):
+                          seen_blocks[block].append(i)
+                  for block, idxs in seen_blocks.items():
+                      if len(idxs) > 1:
+                          findings.append((
+                              "review", f"{name}: repeated three-line block at local lines {idxs}"))
+
+              # Duplicate fields within a single struct/union body.
+              for sm in re.finditer(r"\b(?:struct|union)\s+[A-Za-z_]\w*\s*\{(.*?)\};", text, re.S):
+                  fields = defaultdict(int)
+                  for line in sm.group(1).splitlines():
+                      line = re.sub(r"/\*.*?\*/", "", line)
+                      fm = re.search(r"\b([A-Za-z_]\w*)\s*(?:\[[^\]]*\])?\s*;\s*$", line)
+                      if fm:
+                          fields[fm.group(1)] += 1
+                  for field, count in fields.items():
+                      if count > 1:
+                          findings.append(("critical", f"duplicate struct field {field} ({count} copies)"))
+              return findings
+
+          def sig(item):
+              return re.sub(r"local lines \[[^\]]*\]", "local lines", item[1])
+
+          report = []
+          report.append("# Miru H.40 4.14.241 resolved-conflict semantic audit")
+          report.append("")
+          report.append(f"- Integration head: `{HEAD}`")
+          report.append(f"- Production baseline: `{PROD}`")
+          report.append(f"- Android Common target: `{COMMON}`")
+          report.append(f"- Merge scaffold: `{SCAFFOLD}`")
+          report.append(f"- Lineage 20 head: `{run(['git','rev-parse',L20], cwd=LINEAGE).stdout.strip()}`")
+          report.append(f"- Lineage 21 head: `{run(['git','rev-parse',L21], cwd=LINEAGE).stdout.strip()}`")
+          report.append("")
+
+          # Resolution commit ownership and later modification audit.
+          report.append("## Resolution commit ownership")
+          report.append("")
+          ownership_errors = []
+          for commit, expected in resolution_commits.items():
+              changed = run(["git", "diff-tree", "--no-commit-id", "--name-only", "-r", commit]).stdout.splitlines()
+              allowed = set(expected) | {"Documentation/miru/lts-4.14.241-conflicts.md"}
+              unexpected = sorted(set(changed) - allowed)
+              missing = sorted(set(expected) - set(changed))
+              if unexpected or missing:
+                  ownership_errors.append((commit, unexpected, missing))
+              later = []
+              for path in expected:
+                  now = git_text(HEAD, path)
+                  then = git_text(commit, path)
+                  if now != then:
+                      later.append(path)
+              report.append(
+                  f"- `{commit}`: changed={len(changed)}, unexpected={unexpected or 'none'}, "
+                  f"missing={missing or 'none'}, modified_later={later or 'none'}")
+          report.append("")
+
+          # Per-conflict reference matrix.
+          report.append("## Conflict-file cross-reference matrix")
+          report.append("")
+          report.append("| Path | Matches production | Matches common | Matches Lineage 20 | Matches Lineage 21 | Diff vs L20 (+/-) | Diff vs L21 (+/-) |")
+          report.append("|---|---:|---:|---:|---:|---:|---:|")
+          conflict_findings = []
+          novel_functions = []
+          for path in conflict_paths + extra_resolution_paths:
+              final = git_text(HEAD, path)
+              prod = git_text(PROD, path)
+              common = git_text(COMMON, path)
+              l20 = git_text(L20, path, cwd=LINEAGE)
+              l21 = git_text(L21, path, cwd=LINEAGE)
+              h = blob_hash(final)
+              d20 = diff_counts(l20, final)
+              d21 = diff_counts(l21, final)
+              report.append(
+                  f"| `{path}` | {h == blob_hash(prod)} | {h == blob_hash(common)} | "
+                  f"{h == blob_hash(l20)} | {h == blob_hash(l21)} | {d20} | {d21} |")
+
+              final_f = semantic_findings(final, path)
+              ref_sigs = set()
+              for txt in (prod, common, l20, l21):
+                  ref_sigs.update(sig(x) for x in semantic_findings(txt, path))
+              for finding in final_f:
+                  if sig(finding) not in ref_sigs:
+                      conflict_findings.append((path, *finding))
+
+              pf = functions(prod)
+              ff = functions(final)
+              cf = functions(common)
+              l20f = functions(l20)
+              l21f = functions(l21)
+              diff = run(["git", "diff", "--unified=0", PROD, HEAD, "--", path], check=False).stdout
+              touched = set(re.findall(r"@@[^@]*@@\s*(?:[\w\s\*]+\s+)?([A-Za-z_]\w*)", diff))
+              for name in sorted(touched & set(ff)):
+                  body = normalized_lines(ff[name])
+                  if not body:
+                      continue
+                  matches = []
+                  for label, funcs in (("prod", pf), ("common", cf), ("lineage20", l20f), ("lineage21", l21f)):
+                      if name in funcs and body == normalized_lines(funcs[name]):
+                          matches.append(label)
+                  if not matches:
+                      novel_functions.append((path, name, len(body)))
+          report.append("")
+
+          report.append("## New heuristic findings in conflict files")
+          report.append("")
+          if conflict_findings:
+              for path, severity, message in conflict_findings:
+                  report.append(f"- **{severity.upper()}** `{path}` — {message}")
+          else:
+              report.append("No heuristic finding was unique to the integration tree relative to production, Android Common, and both Lineage references.")
+          report.append("")
+
+          report.append("## Novel touched functions requiring human review")
+          report.append("")
+          report.append("These functions differ textually from production, Android Common, Lineage 20 and Lineage 21; novelty alone is not a bug.")
+          report.append("")
+          for path, name, lines in novel_functions:
+              report.append(f"- `{path}`: `{name}()` ({lines} normalized lines)")
+          if not novel_functions:
+              report.append("None.")
+          report.append("")
+
+          # High-risk clean-merge audit. Exclude explicit conflicts and workflow/docs.
+          changed = run(["git", "diff", "--name-only", PROD, HEAD]).stdout.splitlines()
+          conflict_set = set(conflict_paths + extra_resolution_paths)
+          high_risk = [p for p in changed if p not in conflict_set and p.endswith((".c", ".h"))
+                       and p.startswith(high_risk_prefixes)]
+          post_scaffold = set(run(["git", "diff", "--name-only", SCAFFOLD, HEAD]).stdout.splitlines())
+          clean_findings = []
+          clean_matrix = []
+          for path in high_risk:
+              final = git_text(HEAD, path)
+              prod = git_text(PROD, path)
+              common = git_text(COMMON, path)
+              final_findings = semantic_findings(final, path)
+              prod_sigs = {sig(x) for x in semantic_findings(prod, path)}
+              new = [x for x in final_findings if sig(x) not in prod_sigs]
+              if new:
+                  l20 = git_text(L20, path, cwd=LINEAGE)
+                  l21 = git_text(L21, path, cwd=LINEAGE)
+                  lineage_sigs = {sig(x) for txt in (l20, l21) for x in semantic_findings(txt, path)}
+                  for severity, message in new:
+                      clean_findings.append((path, severity, message, sig((severity, message)) in lineage_sigs))
+              fh = blob_hash(final)
+              side = "production" if fh == blob_hash(prod) else "common" if fh == blob_hash(common) else "mixed"
+              clean_matrix.append((path, side, path in post_scaffold))
+
+          report.append("## High-risk clean-merge scan")
+          report.append("")
+          report.append(f"- High-risk changed C/header files outside the 32 conflict paths: **{len(high_risk)}**")
+          report.append(f"- Files changed again after the merge scaffold: **{sum(1 for p in high_risk if p in post_scaffold)}**")
+          report.append(f"- New heuristic findings relative to production: **{len(clean_findings)}**")
+          report.append("")
+          for path, severity, message, in_lineage in clean_findings:
+              report.append(
+                  f"- **{severity.upper()}** `{path}` — {message}; also present in a Lineage reference: `{in_lineage}`")
+          if not clean_findings:
+              report.append("No new allocation/alias, duplicate-free/field, lock-count, or repeated-block heuristic was found.")
+          report.append("")
+
+          report.append("### Clean-merge provenance table")
+          report.append("")
+          report.append("| Path | Final side classification | Modified after scaffold |")
+          report.append("|---|---|---:|")
+          for path, side, later in clean_matrix:
+              report.append(f"| `{path}` | {side} | {later} |")
+          report.append("")
+
+          # Explicit IPC/boot-path comparison, even when not in the authentic conflict list.
+          ipc_paths = [
+              "drivers/rpmsg/qcom_glink_native.c",
+              "net/qrtr/qrtr.c",
+              "drivers/soc/qcom/smp2p.c",
+              "drivers/char/adsprpc.c",
+              "drivers/char/adsprpc_shared.h",
+              "drivers/soc/qcom/qmi_interface.c",
+              "drivers/soc/qcom/qmi_rmnet.c",
+          ]
+          report.append("## Explicit Qualcomm IPC / FastRPC cross-reference")
+          report.append("")
+          report.append("| Path | Present final | Diff vs Lineage 20 (+/-) | Diff vs Lineage 21 (+/-) | Post-scaffold edits |")
+          report.append("|---|---:|---:|---:|---:|")
+          for path in ipc_paths:
+              final = git_text(HEAD, path)
+              l20 = git_text(L20, path, cwd=LINEAGE)
+              l21 = git_text(L21, path, cwd=LINEAGE)
+              report.append(
+                  f"| `{path}` | {final is not None} | {diff_counts(l20, final)} | "
+                  f"{diff_counts(l21, final)} | {path in post_scaffold} |")
+              if final is not None:
+                  (OUT / "lineage-diffs").mkdir(exist_ok=True)
+                  for label, other in (("lineage20", l20), ("lineage21", l21)):
+                      if other is None:
+                          continue
+                      diff_text = "\n".join(difflib.unified_diff(
+                          other.splitlines(), final.splitlines(),
+                          fromfile=f"{label}/{path}", tofile=f"integration/{path}", lineterm="")) + "\n"
+                      safe = path.replace("/", "__")
+                      (OUT / "lineage-diffs" / f"{safe}.{label}.diff").write_text(diff_text)
+          report.append("")
+
+          # Save full per-conflict diffs for human inspection.
+          diff_dir = OUT / "conflict-diffs"
+          diff_dir.mkdir(exist_ok=True)
+          for path in conflict_paths + extra_resolution_paths:
+              safe = path.replace("/", "__")
+              for label, ref in (("production", PROD), ("common", COMMON)):
+                  diff = run(["git", "diff", ref, HEAD, "--", path], check=False).stdout
+                  (diff_dir / f"{safe}.{label}.diff").write_text(diff)
+              for label, ref in (("lineage20", L20), ("lineage21", L21)):
+                  a = git_text(ref, path, cwd=LINEAGE)
+                  b = git_text(HEAD, path)
+                  if a is None or b is None:
+                      continue
+                  diff = "\n".join(difflib.unified_diff(
+                      a.splitlines(), b.splitlines(), fromfile=f"{label}/{path}",
+                      tofile=f"integration/{path}", lineterm="")) + "\n"
+                  (diff_dir / f"{safe}.{label}.diff").write_text(diff)
+
+          report.append("## Automated verdict")
+          report.append("")
+          critical = [x for x in conflict_findings if x[1] == "critical"] + [
+              x for x in clean_findings if x[1] == "critical"]
+          high = [x for x in conflict_findings if x[1] == "high"] + [
+              x for x in clean_findings if x[1] == "high"]
+          report.append(f"- Ownership errors: **{len(ownership_errors)}**")
+          report.append(f"- Unique critical findings: **{len(critical)}**")
+          report.append(f"- Unique high findings: **{len(high)}**")
+          report.append(f"- Novel touched functions queued for human review: **{len(novel_functions)}**")
+          report.append("")
+          report.append("The automated result is a triage aid, not proof of semantic correctness. Every critical/high item and every novel Qualcomm IPC function must be inspected manually.")
+
+          (OUT / "SEMANTIC-AUDIT.md").write_text("\n".join(report) + "\n")
+          (OUT / "conflict-paths.txt").write_text("\n".join(conflict_paths) + "\n")
+          (OUT / "high-risk-clean-merge-paths.txt").write_text("\n".join(high_risk) + "\n")
+          print((OUT / "SEMANTIC-AUDIT.md").read_text())
+          PY
+
+          python3 "${RUNNER_TEMP}/semantic_audit.py"
+
+      - name: Save resolution patches and history evidence
+        run: |
+          set -euxo pipefail
+          mkdir -p audit-output/resolution-patches
+          for commit in \
+            0818d274ec0f97a3fef70194b629821c3294e191 \
+            648f5dd2045b4c016cc7c3c411f7946ee48ec914 \
+            33956504e5210f733b042f005b09de4d8c9fba3b \
+            4febfdd243664284e5c245b1664633ec3f8b816b \
+            72fd5a8910a28d4a7aa2498a58794b6c3282eb44 \
+            49d6e32da6048bbef578be52367256effeafb709 \
+            5fe5c247754d0b958f389fbde25541ff6c23526b \
+            92bfc038c04c279027c0ddfb4cd88b9bbfa31273 \
+            928cf84b7c73c03c14136efada744825a12d9d00 \
+            768a262b43ee51ce8aeb02863e0cf3729e67462a \
+            ba427f46b9286f8bdd7223fc032472f26d519123; do
+            git show --stat --summary --format=fuller "${commit}" \
+              > "audit-output/resolution-patches/${commit}.txt"
+            git diff "${commit}^" "${commit}" \
+              >> "audit-output/resolution-patches/${commit}.txt"
+          done
+          git log --oneline --decorate "${SCAFFOLD}"..HEAD > audit-output/post-scaffold-history.txt
+          git diff --stat "${PROD}" HEAD > audit-output/production-to-integration-stat.txt
+
+      - name: Upload complete semantic audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts241-semantic-audit-${{ github.run_id }}
+          path: audit-output
+          if-no-files-found: error
+          retention-days: 14
