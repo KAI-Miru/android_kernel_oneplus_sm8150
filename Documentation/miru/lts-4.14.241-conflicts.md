@@ -23,16 +23,17 @@ downstream semantic review.
 - Exact-source kernel build: **PASS** — run `29967983528` built
   `935b66cf9ef5bcbd40063e830935744b35a3d5cf` as
   `4.14.241-miru-h40-lts241-qrtr-ci6+`.
-- Matching external-module rebuild: **pending the permanent production
-  workflow**. The existing `ci4` package was device-tested successfully under
+- Matching external modules: the permanent 4.14.241 workflow rebuilds a
+  matching `ci7` drop-in package and ABI report for this PR and again for the
+  merge commit. The existing `ci4` package was device-tested successfully under
   the `ci6` kernel and is ABI-compatible through `CONFIG_MODVERSIONS`.
 - Device-test status: **PASS** — the exact `ci6` kernel booted on a real
   OnePlus 7 Pro after the QRTR correction and GLINK revert.
 - Flash status: performed by the device owner; the boot result is recorded in
   the validation report.
 - Release decision: the source is approved for the normal merge-commit
-  promotion once the permanent workflow creates the matching `ci7` kernel and
-  32-module package with a zero-error ABI report.
+  promotion after the PR workflow and post-merge workflow each create a
+  matching `ci7` kernel and 32-module package with a zero-error ABI report.
 
 ## Immutable production baseline
 
