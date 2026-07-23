@@ -176,7 +176,7 @@ jobs:
           KERNEL_DIR="${RUNNER_TEMP}/android-root/kernel/msm-4.14"
           OUT_DIR="${RUNNER_TEMP}/android-root/out/h40-kernel"
           MODULE_DIR="${RUNNER_TEMP}/miru-external-modules/dropin"
-          KERNEL_RELEASE="$(make -s -C "${KERNEL_DIR}" O="${OUT_DIR}" kernelrelease)"
+          KERNEL_RELEASE="$(tr -d '\n' < \"${OUT_DIR}/include/config/kernel.release\")"
           test "${KERNEL_RELEASE}" = "${EXPECTED_RELEASE}"
           MODULE_COUNT="$(find "${MODULE_DIR}" -maxdepth 1 -type f -name '*.ko' | wc -l)"
           test "${MODULE_COUNT}" = 32
