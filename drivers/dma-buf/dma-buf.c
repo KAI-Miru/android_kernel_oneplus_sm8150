@@ -124,8 +124,11 @@ static void dma_buf_release(struct dentry *dentry)
 		reservation_object_fini(dmabuf->resv);
 
 	module_put(dmabuf->owner);
-    kfree(dmabuf->buf_name);
-    kfree(dmabuf);
+
+	if (dmabuf->name != dmabuf->buf_name)
+		kfree(dmabuf->name);
+	kfree(dmabuf->buf_name);
+	kfree(dmabuf);
 }
 
 static int dma_buf_file_release(struct inode *inode, struct file *file)
@@ -395,7 +398,8 @@ static long dma_buf_set_name(struct dma_buf *dmabuf, const char __user *buf)
 		goto out_unlock;
 	}
 	spin_lock(&dmabuf->name_lock);
-	kfree(dmabuf->name);
+	if (dmabuf->name != dmabuf->buf_name)
+		kfree(dmabuf->name);
 	dmabuf->name = name;
 	spin_unlock(&dmabuf->name_lock);
 
@@ -451,7 +455,8 @@ static long dma_buf_ioctl(struct file *file,
 
 		return ret;
 
-	case DMA_BUF_SET_NAME:
+	case DMA_BUF_SET_NAME_A:
+	case DMA_BUF_SET_NAME_B:
 		return dma_buf_set_name(dmabuf, (const char __user *)arg);
 
 	default:
