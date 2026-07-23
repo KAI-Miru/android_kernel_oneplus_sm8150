@@ -20,10 +20,19 @@ downstream semantic review.
 - Remaining semantic conflicts: **0**
 - Merge scaffold: `ff895111416c91c1aaf9acf518ca79ac3f66a80b` — authentic two-parent merge
 - Targeted compilation: **PASS for every resolution batch**
-- Full kernel build: **not started; semantic gate is now open**
-- External-module build: **not started**
-- Device-test status: **not performed; physical testing is reserved for the device owner**
-- Flash status: **not performed and not permitted in this integration task**
+- Exact-source kernel build: **PASS** — run `29967983528` built
+  `935b66cf9ef5bcbd40063e830935744b35a3d5cf` as
+  `4.14.241-miru-h40-lts241-qrtr-ci6+`.
+- Matching external-module rebuild: **pending the permanent production
+  workflow**. The existing `ci4` package was device-tested successfully under
+  the `ci6` kernel and is ABI-compatible through `CONFIG_MODVERSIONS`.
+- Device-test status: **PASS** — the exact `ci6` kernel booted on a real
+  OnePlus 7 Pro after the QRTR correction and GLINK revert.
+- Flash status: performed by the device owner; the boot result is recorded in
+  the validation report.
+- Release decision: the source is approved for the normal merge-commit
+  promotion once the permanent workflow creates the matching `ci7` kernel and
+  32-module package with a zero-error ABI report.
 
 ## Immutable production baseline
 
@@ -178,7 +187,7 @@ The list below is complete and is not inferred from a compare API.
 | 22 | `fs/incfs/vfs.c` | Incremental FS VFS and mount behavior | index-resolved in scaffold | resolved | `92bfc038c04c279027c0ddfb4cd88b9bbfa31273` | targeted compile PASS; clean reversal PASS |
 | 23 | `include/linux/usb/usbnet.h` | USB networking private interface | index-resolved in scaffold | resolved | `5fe5c247754d0b958f389fbde25541ff6c23526b` | targeted compile PASS; clean reversal PASS |
 | 24 | `kernel/bpf/helpers.c` | BPF helper ABI | index-resolved in scaffold | resolved | `928cf84b7c73c03c14136efada744825a12d9d00` | targeted compile PASS; clean reversal PASS |
-| 25 | `kernel/cgroup/cgroup.c` | cgroup core | index-resolved in scaffold | resolved | `928cf84b7c73c03c14136efada744825a12d9d00` | targeted compile PASS; clean reversal PASS |
+| 25 | `kernel/cgroup/cgroup.c` | cgroup core; downstream implementation retained | index-resolved in scaffold | resolved with no source delta | `928cf84b7c73c03c14136efada744825a12d9d00` (ledger resolution) | targeted compile PASS; clean reversal PASS |
 | 26 | `kernel/cpu.c` | CPU hotplug / core lifecycle | index-resolved in scaffold | resolved | `928cf84b7c73c03c14136efada744825a12d9d00` | targeted compile PASS; clean reversal PASS |
 | 27 | `kernel/futex.c` | futex core | index-resolved in scaffold | resolved | `928cf84b7c73c03c14136efada744825a12d9d00` | targeted compile PASS; clean reversal PASS |
 | 28 | `kernel/sched/fair.c` | CFS scheduler | index-resolved in scaffold | resolved | `928cf84b7c73c03c14136efada744825a12d9d00` | targeted compile PASS; clean reversal PASS |
@@ -279,28 +288,25 @@ reduce commit count.
 | Batch | Semantic paths | Index resolved | Semantic resolved | Targeted compilation | Clean reversal | Owning commit |
 |---|---:|---|---|---|---|---|
 | merge scaffold | 32 | yes | no | prohibited | not applicable | `ff895111416c91c1aaf9acf518ca79ac3f66a80b` |
-| non-target x86 build | 1 | pending | pending | pending | pending | pending |
-| zram and dma-buf | 2 | pending | pending | pending | pending | pending |
-| MSM DRM display | 1 | pending | pending | pending | pending | pending |
-| MMC and UFS storage | 3 | pending | pending | pending | pending | pending |
-| Qualcomm IPC | 2 | pending | pending | pending | pending | pending |
-| TTY job control | 1 | pending | pending | pending | pending | pending |
-| USB core and gadget | 8 | pending | pending | pending | pending | pending |
-| Incremental FS | 5 | pending | pending | pending | pending | pending |
-| kernel core and scheduler | 5 | pending | pending | pending | pending | pending |
-| networking | 2 | pending | pending | pending | pending | pending |
-| SELinux AVC | 1 | pending | pending | pending | pending | pending |
+| non-target x86 build | 1 | yes | yes | PASS | PASS | `0818d274ec0f97a3fef70194b629821c3294e191` |
+| zram and dma-buf | 2 | yes | yes | PASS | PASS | `648f5dd2045b4c016cc7c3c411f7946ee48ec914` |
+| MSM DRM display | 1 | yes | yes | PASS | PASS | `33956504e5210f733b042f005b09de4d8c9fba3b` |
+| MMC and UFS storage | 3 | yes | yes | PASS | PASS | `4febfdd243664284e5c245b1664633ec3f8b816b` |
+| Qualcomm IPC | 2 | yes | yes | PASS | PASS | `72fd5a8910a28d4a7aa2498a58794b6c3282eb44` |
+| TTY job control | 1 | yes | yes | PASS | PASS | `49d6e32da6048bbef578be52367256effeafb709` |
+| USB core and gadget | 8 | yes | yes | PASS | PASS | `5fe5c247754d0b958f389fbde25541ff6c23526b` |
+| Incremental FS | 5 | yes | yes | PASS | PASS | `92bfc038c04c279027c0ddfb4cd88b9bbfa31273` |
+| kernel core and scheduler | 5 | yes | yes | PASS; `cgroup.c` retained downstream | PASS | `928cf84b7c73c03c14136efada744825a12d9d00` |
+| networking | 2 | yes | yes | PASS | PASS | `768a262b43ee51ce8aeb02863e0cf3729e67462a` |
+| SELinux AVC | 1 | yes | yes | PASS | PASS | `ba427f46b9286f8bdd7223fc032472f26d519123` |
 
 ## Build and test policy
 
-The final kernel and external-module build must not start until all 32 authentic
-conflicts are semantically resolved, every owning commit passes clean-reversal
-validation, targeted compilation passes, high-risk clean merges are audited, and
-the remaining semantic conflict count reaches zero.
-
-Physical device validation and flashing have not been performed and will not be
-performed by automation. Production promotion is explicitly out of scope until
-the device owner tests the generated build and authorizes a later merge.
+The semantic gate was satisfied before the exact-source build: all 32 authentic
+conflicts were semantically resolved, each owning batch passed targeted
+compilation and clean reversal, high-risk clean merges were audited, and no
+semantic conflict remained. The later real-device boot test provides the
+runtime gate. Automation itself does not flash a phone.
 
 ### lts: resolve x86 build conflict for 4.14.241
 
@@ -378,7 +384,7 @@ the device owner tests the generated build and authorizes a later merge.
 
 - Batch ID: `kcore`
 - Paths: `kernel/bpf/helpers.c kernel/cgroup/cgroup.c kernel/cpu.c kernel/futex.c kernel/sched/fair.c`
-- Decision: Import BPF boot time, CPU/cpuset, futex and scheduler fixes while retaining downstream cgroup feature controls and isolated-CPU policy.
+- Decision: Import BPF boot time, CPU/cpuset, futex and scheduler fixes while retaining downstream cgroup feature controls and isolated-CPU policy. `kernel/cgroup/cgroup.c` was intentionally retained from downstream; its ledger resolution required no source change.
 - Index state: resolved in the scaffold; this commit provides the semantic resolution.
 - Targeted compilation: performed immediately after this commit.
 - Clean-reversal validation: performed immediately after this commit against the scaffold.
@@ -432,7 +438,10 @@ the device owner tests the generated build and authorizes a later merge.
 | `net` | `768a262b43ee51ce8aeb02863e0cf3729e67462a` | lts: resolve networking conflicts for 4.14.241 | `net/core/skbuff.c net/sctp/sm_make_chunk.c` | targeted compile PASS; clean reversal PASS |
 | `selinux` | `ba427f46b9286f8bdd7223fc032472f26d519123` | lts: resolve SELinux AVC conflict for 4.14.241 | `security/selinux/avc.c security/selinux/include/security.h` | targeted compile PASS; clean reversal PASS |
 
-All 32 authentic conflicts now have an owning resolution commit. The full kernel and external-module build remains a separate gate and has not yet been claimed. Physical device validation and flashing have not been performed.
+All 32 authentic conflicts have an owning resolution record. The exact-source
+kernel build and real-device boot test subsequently passed; the permanent
+workflow is responsible for producing the fresh matching module package used
+for production publication.
 
 ## Full-build clean-merge audit: Qualcomm qmi_rmnet ICMPv6 helper
 
@@ -459,10 +468,72 @@ All 32 authentic conflicts now have an owning resolution commit. The full kernel
 - Validation contract: clean reversal to source head `eeccfbe1247e82b1071fe606785f97d97cdcc586`, full pinned kernel build, and exact 32-module ABI validation.
 
 
-## Device-boot audit: continue GLINK RX drain after missing local intent
+## Superseded experimental GLINK RX workaround (reverted)
 
-- Symptom: the ci3 missing-channel FIFO advance did not resolve the early Android boot loop; SLPI/FastRPC still failed to recover before Zygote.
-- Regression: 4.14.241 assigns `-ENOENT` after consuming an RX data packet whose local intent is missing, and the generic IRQ loop then stops draining the remaining FIFO.
-- Decision: retain the upstream `ret = -ENOENT` assignment inside `qcom_glink_rx_data()`, but treat that result as recoverable in the `RPM_CMD_TX_DATA*` IRQ path because the packet has already been consumed.
-- Compatibility: restores the effective 4.14.210 transport behavior while preserving the 4.14.241 diagnostic error and the prior missing-channel `RPM_CMD_INTENT` FIFO advance.
-- Validation contract: clean reversal to source head `0ba2ae45391418c93ab9af4f7a24acbcfa678a11`, full pinned kernel build, and exact 32-module ABI validation.
+- The earlier experiment converted `qcom_glink_rx_data()` returning `-ENOENT`
+  into success in the `RPM_CMD_TX_DATA*` IRQ path so the RX loop would keep
+  draining. It was an experiment, not a LineageOS-backed source resolution.
+- Review found no supporting LineageOS reference for suppressing that error.
+  The workaround was therefore removed in
+  `935b66cf9ef5bcbd40063e830935744b35a3d5cf`
+  (`rpmsg: restore GLINK RX error propagation`).
+- The revert changes only `drivers/rpmsg/qcom_glink_native.c` and restores
+  normal GLINK RX error propagation. It does **not** remove the independently
+  justified missing-channel FIFO advance in `qcom_glink_handle_intent()`.
+
+## Final device-tested fixes and evidence
+
+### QRTR allocation/lifetime correction
+
+- The splash-screen boot loop was traced to `net/qrtr/qrtr.c`.
+  After `alloc_skb_with_frags()` had produced the downstream SKB and its backup
+  / fragment state had been derived, an upstream
+  `__netdev_alloc_skb()` allocation overwrote that pointer.
+- `47f4767bd9040d574664d5b93abe3a54b97aa4e2`
+  removes only that second allocation. The downstream
+  `alloc_skb_with_frags()` and `qrtr_get_backup()` lifetime model remains
+  intact.
+
+### Exact-source build and phone boot
+
+- GitHub Actions run: `29967983528`
+- Source built: `935b66cf9ef5bcbd40063e830935744b35a3d5cf`
+- Tested release: `4.14.241-miru-h40-lts241-qrtr-ci6+`
+- Kernel artifact: `miru-h40-lts-4.14.241-qrtr-ci6-build`, ID `8548812175`,
+  digest `sha256:c1a7b97368547b3fcb4a7b1abbd8de1cdc9e0549b5d7a7c13c6cf18d665d8e82`
+- Diagnostics artifact: `miru-h40-lts-4.14.241-qrtr-ci6-diagnostics`, ID
+  `8548812492`, digest
+  `sha256:dad5dbce73723bcb7dfbee5ac2d0256b7a834572ecb09b71cf0625d05996c0d9`
+- The overall Actions result is red only because the final temporary-workflow
+  cleanup step failed. Checkout, exact-source verification, the clean kernel
+  compilation, and both artifact uploads succeeded.
+- The resulting kernel booted successfully on a real OnePlus 7 Pro. Earlier
+  candidates boot-looped at the splash screen and fell back to TWRP.
+
+### External module compatibility observed on the phone
+
+- The phone used the existing 32-module `ci4` package. Its vermagic was
+  `4.14.241-miru-h40-lts241-ci4+ SMP preempt mod_unload modversions aarch64`;
+  the running kernel was
+  `4.14.241-miru-h40-lts241-qrtr-ci6+`.
+- This is valid with `CONFIG_MODVERSIONS=y`: `same_magic()` in
+  `kernel/module.c` ignores the leading release-string field when version CRCs
+  are present, while the individual exported-symbol CRCs are still checked.
+- WLAN and the complete applicable audio stack loaded normally. No
+  `version magic`, `Unknown symbol`, `disagrees about version`, invalid-module,
+  or exec-format errors were observed in `dmesg`.
+- This proves `ci4` is ABI-compatible with the booting `ci6` kernel. It does
+  **not** claim that a newly rebuilt matching `ci6` module package was tested
+  on the phone; the permanent workflow will publish a matching release package.
+
+## Change classification
+
+- **Authentic source integration:** the Android Common 4.14.211–4.14.241
+  merge scaffold and clean upstream stable changes.
+- **Semantic conflict resolutions:** the 32 focused resolution records listed
+  above; `kernel/cgroup/cgroup.c` is explicitly a no-source-delta retention.
+- **Later device-tested source fixes:** qmi-rmnet include correction, dma-buf
+  lifetime/list correction, the LineageOS-backed GLINK missing-channel FIFO
+  advance, the QRTR correction, and the GLINK workaround revert.
+- **CI/documentation cleanup only:** temporary trigger workflows/branches and
+  release records. These commits do not alter the runtime kernel source.
