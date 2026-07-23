@@ -1,0 +1,80 @@
+name: Remove obsolete Miru 4.14.241 temporary refs
+
+on:
+  push:
+    branches:
+      - miru-h40-lts241-integration
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout integration cleanup commit
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Delete verified obsolete automation branches
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          refs=(
+            automation/glink-ci6-trigger
+            automation/glink-ci6-final-trigger
+            automation/qrtr-lts241-trigger
+            automation/lts241-dmabuf-fix-runner-20260721
+            automation/lts241-dmabuf-fix-runner-20260722
+            automation/lts241-dmabuf-fix-trigger-20260722
+            automation/lts241-final-build-runner-20260721
+            automation/lts241-final-build-trigger-20260721
+            automation/lts241-full-build-runner-20260721
+            automation/lts241-full-build-trigger-20260721
+            automation/lts241-full-build-trigger-v2-20260721
+            automation/lts241-full-build-trigger-v3-20260721
+            automation/lts241-glink-enoent-runner-20260722
+            automation/lts241-glink-enoent-trigger-20260722
+            automation/lts241-glink-fix-runner-20260722
+            automation/lts241-glink-fix-trigger-20260722
+            automation/lts241-recon-20260721-a
+            automation/lts241-recon-runner-20260721
+            automation/lts241-recon-runner-v2-20260721
+            automation/lts241-recon-trigger-20260721
+            automation/lts241-recon-trigger-v2-20260721
+            automation/lts241-resolve-runner-20260721
+            automation/lts241-resolve-trigger-20260721
+            automation/lts241-resolve-trigger-v2-20260721
+            automation/lts241-resolve-trigger-v3-20260721
+            automation/lts241-resolve-trigger-v4-20260721
+            automation/lts241-resolve-trigger-v5-20260721
+            automation/lts241-resolve-trigger-v6-20260721
+            automation/lts241-resolve-trigger-v7-20260721
+            automation/lts241-resolve-trigger-v8-20260721
+            automation/lts241-resolve-trigger-v9-20260721
+            automation/lts241-resolve-trigger-v10-20260721
+            automation/lts241-resolve-trigger-v11-20260721
+            automation/lts241-resolve-trigger-v12-20260721
+            automation/lts241-scaffold-runner-20260721
+            automation/lts241-scaffold-trigger-20260721
+            automation/lts241-scaffold-trigger-v2-20260721
+            automation/lts241-scaffold-trigger-v3-20260721
+            automation/lts241-scaffold-trigger-v4-20260721
+          )
+          for ref in "${refs[@]}"; do
+            if git ls-remote --exit-code --heads origin "refs/heads/${ref}" >/dev/null; then
+              git push origin --delete "${ref}"
+            fi
+          done
+
+      - name: Remove this one-time cleanup workflow
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git rm .github/workflows/lts241-temporary-ref-cleanup.yml
+          git commit -m "ci: remove temporary 4.14.241 ref cleanup workflow [skip ci]"
+          git push origin HEAD:miru-h40-lts241-integration
