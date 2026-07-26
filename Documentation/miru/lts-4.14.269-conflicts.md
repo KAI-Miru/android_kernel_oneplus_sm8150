@@ -378,3 +378,16 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Targeted compilation: **PASS** — `drivers/gpu/drm/msm/msm_gem.o`.
 - Clean reversal: **PASS** — reverting the owning commit restores both assigned paths to integration head `3a01e9e0434b633f034186e6df5115e60054733b`.
 - Full-build validation: pending.
+
+## Clean-merge semantic correction — Qualcomm event timer cached-rbtree initializer
+
+- Path: `drivers/soc/qcom/event_timer.c`
+- Classification: non-conflicting upstream timerqueue API change requiring downstream driver adaptation.
+- Trigger: the exact H.40 build failed because `struct timerqueue_head` no longer contains legacy `head` and `next` fields.
+- Upstream compatibility fix: `04a7b0c73544b667407ccee19baab02fd083bccf` (`driver: soc: qcom: event_timer.c: fix the compile error for LTS 4.14.254`).
+- Upstream intent: initialize the timerqueue's cached rbtree with `RB_ROOT_CACHED`; all existing add/delete/get-next behavior continues through the timerqueue API.
+- Downstream adaptation: replace only the per-CPU initializer with `.rb_root = RB_ROOT_CACHED`; Qualcomm event ordering, affinity migration and hrtimer behavior remain unchanged.
+- Owning correction commit: `PENDING_EVENT_TIMER_COMMIT`
+- Targeted compilation: pending.
+- Clean reversal: pending.
+- Full-build validation: pending.
