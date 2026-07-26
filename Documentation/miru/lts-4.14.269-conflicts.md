@@ -7,11 +7,13 @@ merged changes that require downstream review.
 
 ## Current status
 
-- Integration branch: `miru-h40-lts269-integration`
+- Integration branch retained as audit history: `miru-h40-lts269-integration`
 - Production branch: `miru-h40`
 - Immutable production baseline: `4394ccbfa3805ce392b65b3ea148ff1eb084a974`
-- Production baseline version: `4.14.241`
-- Ledger preparation date: `2026-07-26`
+- 4.14.269 production merge: `eb1cc39f93fb080c9903ffdba48f432ab0ac2b7b` (PR #68)
+- KCAL production merge: `c8107343ced9e589447aa29f8c025425bd148b0a` (PR #69)
+- Production baseline version: `4.14.241`; current production source version: `4.14.269`
+- Ledger preparation date: `2026-07-26`; final release record updated: `2026-07-27`
 - Reconnaissance: **complete**
 - Target object verification: **complete**
 - Authentic merge preview: **complete**
@@ -21,12 +23,14 @@ merged changes that require downstream review.
 - Semantically resolved conflicts: **22**
 - Remaining semantic conflicts: **0**
 - Targeted compilation: **PASS for all eight conflict batches plus two clean-merge corrections**
-- Exact validated source head: `14d41d8a57b1e08aa15ff786973b855c78f58fd7`
+- Exact validated LTS source head: `14d41d8a57b1e08aa15ff786973b855c78f58fd7`
 - Validated kernel release: `4.14.269-miru-h40-lts269-14d41d8-ci3+`
-- Full kernel build: **PASS** — GitHub Actions run `30197447946`
-- External-module build: **PASS** — exact 32-module set, matching vermagic, ABI errors `0`
-- Device-test status: **PASS** — the maintainer flashed ci3 on a OnePlus 7 Pro and confirmed normal operation on 2026-07-26
-- Flash status: **PASS** — `4.14.269-miru-h40-lts269-14d41d8-ci3+` was flashed successfully
+- Full LTS kernel build: **PASS** — GitHub Actions run `30197447946`
+- LTS external-module build: **PASS** — exact 32-module set, matching vermagic, ABI errors `0`
+- KCAL kernel and external-module build: **PASS** — GitHub Actions run `30204348781`; 32 modules; ABI errors `0`
+- Device-test status: **PASS** — ci3 was flashed, booted, and worked on a OnePlus 7 Pro on 2026-07-26; the maintainer reconfirmed normal operation on 2026-07-27
+- KCAL device status: **PASS** — maintainer confirmed the KCAL kernel working before PR #69 was merged
+- Release identity note: the ci3 release suffix is pinned by the build configuration. Use the source commit and artifact ID to distinguish the LTS validation source from the later KCAL source.
 
 ## Immutable production baseline
 
@@ -41,9 +45,7 @@ The top-level `Makefile` at this commit reports Linux `4.14.241`. The commit is
 the two-parent production merge titled `Merge Miru H.40 Linux 4.14.241 into
 production`, with first parent
 `cc49ffcb5c5207746618a799b250c67decdc0d15` and second parent
-`0f419ca269b112a1fbf6cac188b6349cbc1a38ce`. The new integration branch was
-created directly from this exact production SHA. Production must remain
-unchanged throughout this milestone.
+`0f419ca269b112a1fbf6cac188b6349cbc1a38ce`. The new integration branch was created directly from this exact production SHA. Production remained unchanged throughout integration and was advanced only by the normal 4.14.269 merge commit in PR #68.
 
 ## Authoritative Android Common target
 
@@ -90,8 +92,7 @@ before any retry.
 
 ## Pinned build environment
 
-The current workflow and repository documentation still retain the deliberately
-approved 4.14.241 production environment. It remains pinned:
+The 4.14.269 production workflow uses the approved reproducible build environment. It remains pinned:
 
 - Vendor/modules repository: `KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150`
 - Vendor/modules commit: `125ff7d0153cbb3aaa8f9fd618c33b7f728d7798`
@@ -117,14 +118,16 @@ upgrade is part of this LTS integration.
 ## Repository reconnaissance summary
 
 - Default branch: `miru-h40`
-- Live production head: `4394ccbfa3805ce392b65b3ea148ff1eb084a974`
-- Production kernel version: `4.14.241`
+- Production start point: `4394ccbfa3805ce392b65b3ea148ff1eb084a974`
+- Production kernel version at start: `4.14.241`
+- 4.14.269 production merge: `eb1cc39f93fb080c9903ffdba48f432ab0ac2b7b`
+- KCAL follow-on production merge: `c8107343ced9e589447aa29f8c025425bd148b0a`
 - Current permanent workflow: `.github/workflows/miru-h40-build.yml`
 - Existing completed ledgers: 4.14.190, 4.14.210 and 4.14.241
 - Existing 4.14.241 validation record: `Documentation/miru/lts-4.14.241-validation.md`
 - Previous Android Common target in production ancestry:
   `a446f52a5d3fc71698a073d08ce1eeb923727b42`
-- Android Common 4.14.269 target in production ancestry: **absent**
+- Android Common 4.14.269 target in production ancestry: **present after the normal PR #68 merge**
 - Full `rev-list` count in the previous-target to new-target graph: `1630`
 - Patch-candidate entries reported by `git cherry`: `1602`
 - Patch-equivalent entries already present in production: `3`
@@ -460,9 +463,16 @@ or vendor interface changed after the tested source head.
 - Device: OnePlus 7 Pro.
 - Release flashed: `4.14.269-miru-h40-lts269-14d41d8-ci3+`.
 - Source tested: `14d41d8a57b1e08aa15ff786973b855c78f58fd7`.
-- Result: on 2026-07-26, the maintainer confirmed that ci3 flashed successfully and everything worked as expected.
+- Result: on 2026-07-26, the maintainer confirmed that ci3 flashed successfully and everything worked as expected; normal operation was reconfirmed on 2026-07-27.
 - Scope note: this is a real-device confirmation supplied by the maintainer; the CI artifact set remains the authoritative record for the reproducible build, module, vermagic and ABI checks.
 
-### Pending release action
+## Production promotion and KCAL follow-on
 
-- Production merge has been authorized after the successful ci3 device validation. The integration tip differs from the tested source only by documentation-only commits.
+- PR #68 was merged normally into `miru-h40` as `eb1cc39f93fb080c9903ffdba48f432ab0ac2b7b`; Android stable integration history was not squashed or rebased.
+- The exact device-tested LTS source is `14d41d8a57b1e08aa15ff786973b855c78f58fd7`, with release `4.14.269-miru-h40-lts269-14d41d8-ci3+`.
+- PR #69 then merged KCAL RGB display calibration normally as `c8107343ced9e589447aa29f8c025425bd148b0a`. Its exact validated PR source is `5c21d9d15ac7228837f9cb63de3061bb6b383a5d`.
+- KCAL adds `kcal`, `kcal_enable`, and `kcal_min` controls through the SDE PCC pipeline. It scales only the intended diagonal coefficients, retains userspace PCC data, has DRM lifecycle/teardown handling, and triggers an immediate atomic refresh.
+- KCAL's dedicated run `30204348781` succeeded with Android Clang 10.0.5/r377782c, a full kernel build, exactly 32 external modules, and zero ABI-report errors. The maintainer confirmed it working on device before the production merge.
+- The production workflow is now the sole workflow definition in the production tree and validates 4.14.269 source/ancestry, QRTR and GLINK safety gates, the pinned `scripts/Makefile.build` hash, 32 external modules, vermagic, symbol CRCs, diagnostics, and checksums.
+- No post-merge recompilation was started for the documentation/merge commits: their validated source had already passed dedicated CI, and those commits use `[skip ci]` to prevent duplicate compilation.
+- Temporary workflow definitions have no place in the production source tree. The retained 4.14.269 integration branch is audit history, not a production trigger.
