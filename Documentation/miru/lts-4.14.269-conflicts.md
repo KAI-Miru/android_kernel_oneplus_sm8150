@@ -20,9 +20,11 @@ merged changes that require downstream review.
 - Index-resolved conflicts: **22**
 - Semantically resolved conflicts: **22**
 - Remaining semantic conflicts: **0**
-- Targeted compilation: **PASS for all eight conflict batches**
-- Full kernel build: **not started**
-- External-module build: **not started**
+- Targeted compilation: **PASS for all eight conflict batches plus two clean-merge corrections**
+- Exact validated source head: `14d41d8a57b1e08aa15ff786973b855c78f58fd7`
+- Validated kernel release: `4.14.269-miru-h40-lts269-14d41d8-ci3+`
+- Full kernel build: **PASS** — GitHub Actions run `30197447946`
+- External-module build: **PASS** — exact 32-module set, matching vermagic, ABI errors `0`
 - Device-test status: **not performed for this milestone**
 - Flash status: **not performed for this milestone**
 
@@ -260,11 +262,11 @@ merge preview produced no textual conflict in most of them:
 - [ ] Qualcomm reserved networking-port policy
 - [ ] USB gadget, ADB, accessory and charging behavior
 - [ ] UFS initialization, power management and shutdown behavior
-- [ ] Qualcomm IPC, GLINK and QRTR behavior
+- [x] Qualcomm IPC, GLINK and QRTR behavior — protected QRTR/GLINK source gates PASS and full build PASS
 - [ ] Binder compatibility with the ColorOS 14 port
 - [ ] OPlus touchscreen and display interfaces
-- [ ] exported kernel symbols, `CONFIG_MODVERSIONS` and symbol CRCs
-- [ ] private headers and interfaces consumed by external vendor modules
+- [x] exported kernel symbols, `CONFIG_MODVERSIONS` and symbol CRCs — 32-module binary CRC audit errors `0`
+- [x] private headers and interfaces consumed by external vendor modules — all expected 32 modules rebuilt successfully
 - [ ] all Miru changes applied after the 4.14.241 integration scaffold
 
 ## Planned resolution batches
@@ -285,12 +287,12 @@ Unrelated groups will not be combined merely to reduce commit count.
 
 ## Validation summary
 
-- Remaining authentic conflict count: **22**
-- Remaining semantic conflict count: **22**
+- Remaining authentic conflict count: **0** — all original 22 conflict paths are resolved
+- Remaining semantic conflict count: **0**
 - Clean-reversal results: **PASS for all eight owning commits**
 - Incremental compilation: **PASS for all eight conflict batches**
-- Final semantic audit: **not started**
-- Full kernel and external-module build: **not started**
+- Final semantic audit: **PASS for source, ancestry, protected-path and build gates; physical behavior remains untested**
+- Full kernel and external-module build: **PASS** — exact run `30197447946`
 - Physical device validation: **not performed**
 
 ## Semantic resolution records
@@ -377,7 +379,7 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Owning correction commit: `96029c92c2019065e5be870109f74721f7489be6`
 - Targeted compilation: **PASS** — `drivers/gpu/drm/msm/msm_gem.o`.
 - Clean reversal: **PASS** — reverting the owning commit restores both assigned paths to integration head `3a01e9e0434b633f034186e6df5115e60054733b`.
-- Full-build validation: pending.
+- Full-build validation: **PASS** — exact source head `14d41d8a57b1e08aa15ff786973b855c78f58fd7`, run `30197447946`.
 
 ## Clean-merge semantic correction — Qualcomm event timer cached-rbtree initializer
 
@@ -390,4 +392,73 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Owning correction commit: `733320a6cd9f74ec378ae6cf0a4956323b859128`
 - Targeted compilation: **PASS** — `drivers/soc/qcom/event_timer.o`.
 - Clean reversal: **PASS** — reverting the owning commit restores both assigned paths to integration head `e4a7100fc896ae9d35c0dc212fb1647fa79bf225`.
-- Full-build validation: pending.
+- Full-build validation: **PASS** — exact source head `14d41d8a57b1e08aa15ff786973b855c78f58fd7`, run `30197447946`.
+
+
+## Exact full-build and external-module validation
+
+The final source build was performed from exact integration head
+`14d41d8a57b1e08aa15ff786973b855c78f58fd7`. This ledger-finalization
+commit changes documentation only; no kernel source, configuration, build script,
+or vendor interface changed after the tested source head.
+
+### Source and ancestry audit
+
+- Workflow run: `30197447946`
+- Result: **PASS**
+- Production baseline: `4394ccbfa3805ce392b65b3ea148ff1eb084a974`
+- Android Common target: `0eec6f6001d15bb1108835a642ec4637d75eef19`
+- Authentic merge scaffold: `4f081ec063c9818adbe394b89f2ff035b27c30df`
+- Commits after production: `1648`
+- Changed files: `1387`
+- Insertions: `12665`
+- Deletions: `6013`
+- Authentic conflicts: `22/22` resolved
+- Remaining semantic conflicts: `0`
+- QRTR protected-path gate: **PASS**
+- GLINK protected-path gate: **PASS**
+- Production unchanged: **YES**
+
+### Kernel result
+
+- Release: `4.14.269-miru-h40-lts269-14d41d8-ci3+`
+- Compiler: Android Clang `r377782c`, Clang `10.0.5`
+- Kernel build result: **SUCCESS**
+- `Image`: `40136720` bytes; SHA-256 `30a6f4fb53e668e4909dd5c08af4fb9439fdc12e61e3295db7cc952a2686e7ca`
+- `Image.gz`: `16112246` bytes; SHA-256 `885a0cce45d9c6d34a55f26aef0856ac162278355f77cb2041cc0cabd53292f0`
+- `Image.gz-dtb`: `19075695` bytes; SHA-256 `6c9ae94b5cddd73929f7b894d276302783a8bfa56e03f3115be0153cf6e52bed`
+- `.config` SHA-256: `cfcc829d0cf4241d5956dc805cabdb01ef45d81a9d22938603b75c259863a646`
+- `System.map` SHA-256: `f3ff1e66b42188269e69b0e756c7e059d00311e2a75737dae4d89a2a9edb7909`
+- `Module.symvers` SHA-256: `425a0158a7b2f465f187e9b70ce065ea0e0182b9ea09a84884d41cdb4932f23e`
+- DTBs built: `5`
+- In-tree `.ko` files produced by the kernel build: `13`
+
+### External-module result
+
+- Expected module set: `32`
+- Built module set: `32`
+- Module-set diff: empty
+- Architecture checks: `32/32` AArch64
+- Expected vermagic: `4.14.269-miru-h40-lts269-14d41d8-ci3+ SMP preempt mod_unload modversions aarch64`
+- Vermagic checks: `32/32` PASS
+- Binary symbol-CRC audit: **PASS**, errors `0`
+- Runtime archive: `3048826` bytes; SHA-256 `0512d48f23ef3899f6cd90136eaec825c739726d4671a5f087f313be51bdfe4c`
+- Audit archive: `5442052` bytes; SHA-256 `1cf59d89ff5e304ef8c17d08937417a11f0f12f878f3211f1d9c6912e3547789`
+
+### GitHub Actions artifacts
+
+- Kernel build artifact ID: `8630770373`; size `438046876` bytes; artifact digest
+  `sha256:0166e18df8158045f51ae168f8a5ebc8d339a70875cdfb5570588cedf5154152`
+- External-module artifact ID: `8630770614`; size `8491234` bytes; artifact digest
+  `sha256:2fabd3ed8de1388b58dd5d3cf292cb3392f1dbe76a5d9f0bdf34f285c4f4fde4`
+- Diagnostics artifact ID: `8630770804`; size `496699` bytes; artifact digest
+  `sha256:958b35219b6dcf1257032ead6f23caeea50ca231e2535a07aa781557a973c5c2`
+- Artifact expiry: `2026-08-25`
+
+### Explicitly outside this validation
+
+- Physical device validation: **not performed**
+- Boot, suspend/resume, telephony, camera, audio playback, display, touch,
+  charging and USB runtime behavior: **not performed on hardware**
+- Flashing: **not performed**
+- Production merge: **not performed**
