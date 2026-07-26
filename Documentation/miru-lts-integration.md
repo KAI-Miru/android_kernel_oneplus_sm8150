@@ -26,7 +26,7 @@ This milestone advances the tested Miru H.40 line from Android stable 4.14.241 t
 
 ### Completed validation and release decision
 
-- The normal two-parent Android stable merge is preserved in production; the 4.14.269 integration branch remains as audit history.
+- The normal two-parent Android stable merge is preserved in production. The completed 4.14.269 integration and helper branches were deleted after promotion; their audit record remains in the merge history and permanent documentation.
 - All 22 authentic semantic conflicts were resolved and recorded in `Documentation/miru/lts-4.14.269-conflicts.md`.
 - The final LTS build from `14d41d8a57b1e08aa15ff786973b855c78f58fd7` succeeded, with 32 matching external modules and zero ABI-report errors.
 - The real device booted and operated normally using `4.14.269-miru-h40-lts269-14d41d8-ci3+`.
