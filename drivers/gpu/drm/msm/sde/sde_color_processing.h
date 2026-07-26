@@ -121,6 +121,16 @@ void sde_cp_crtc_resume(struct drm_crtc *crtc);
  */
 void sde_cp_crtc_clear(struct drm_crtc *crtc);
 
+#ifdef CONFIG_DRM_MSM_KCAL_CTRL
+/**
+ * sde_cp_crtc_kcal_update: Mark a CRTC's PCC feature for reprogramming.
+ * @crtc: Pointer to crtc.
+ *
+ * Return: true when a PCC update was queued, otherwise false.
+ */
+bool sde_cp_crtc_kcal_update(struct drm_crtc *crtc);
+#endif
+
 /**
  * sde_cp_ad_interrupt: Api to enable/disable ad interrupt
  * @crtc: Pointer to crtc.

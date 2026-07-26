@@ -24,6 +24,7 @@
 #include "sde_ad4.h"
 #include "sde_hw_interrupts.h"
 #include "sde_core_irq.h"
+#include "sde_kcal_ctrl.h"
 #include "dsi_panel.h"
 #ifdef OPLUS_BUG_STABILITY
 #include "oplus_display_private_api.h"
@@ -46,6 +47,9 @@ struct sde_cp_node {
 	bool is_dspp_feature;
 	u32 prop_blob_sz;
 	struct sde_irq_callback *irq;
+#ifdef CONFIG_DRM_MSM_KCAL_CTRL
+	u32 kcal_generation;
+#endif
 };
 
 struct sde_cp_prop_attach {
@@ -644,6 +648,59 @@ static void _sde_cp_crtc_enable_hist_irq(struct sde_crtc *sde_crtc)
 	spin_unlock_irqrestore(&node->state_lock, flags);
 }
 
+#ifdef CONFIG_DRM_MSM_KCAL_CTRL
+static bool
+sde_cp_crtc_kcal_update_locked(struct sde_crtc *sde_crtc)
+{
+	struct sde_cp_node *prop_node;
+	u32 generation = sde_kcal_get_generation();
+
+	list_for_each_entry(prop_node, &sde_crtc->feature_list, feature_list) {
+		if (prop_node->feature != SDE_CP_CRTC_DSPP_PCC)
+			continue;
+
+		if (prop_node->kcal_generation == generation)
+			return false;
+
+		list_del_init(&prop_node->active_list);
+		list_del_init(&prop_node->dirty_list);
+		sde_cp_update_list(prop_node, sde_crtc, true);
+		return true;
+	}
+
+	return false;
+}
+
+static void
+sde_cp_crtc_kcal_invalidate_locked(struct sde_crtc *sde_crtc)
+{
+	struct sde_cp_node *prop_node;
+
+	list_for_each_entry(prop_node, &sde_crtc->feature_list, feature_list) {
+		if (prop_node->feature == SDE_CP_CRTC_DSPP_PCC) {
+			prop_node->kcal_generation = 0;
+			break;
+		}
+	}
+}
+
+bool sde_cp_crtc_kcal_update(struct drm_crtc *crtc)
+{
+	struct sde_crtc *sde_crtc;
+	bool update;
+
+	if (!crtc)
+		return false;
+
+	sde_crtc = to_sde_crtc(crtc);
+	mutex_lock(&sde_crtc->crtc_cp_lock);
+	update = sde_cp_crtc_kcal_update_locked(sde_crtc);
+	mutex_unlock(&sde_crtc->crtc_cp_lock);
+
+	return update;
+}
+#endif
+
 static void sde_cp_crtc_setfeature(struct sde_cp_node *prop_node,
 				   struct sde_crtc *sde_crtc)
 {
@@ -655,6 +712,12 @@ static void sde_cp_crtc_setfeature(struct sde_cp_node *prop_node,
 	bool feature_enabled = false;
 	int ret = 0;
 	struct sde_ad_hw_cfg ad_cfg;
+#ifdef CONFIG_DRM_MSM_KCAL_CTRL
+	u32 kcal_generation = 0;
+
+	if (prop_node->feature == SDE_CP_CRTC_DSPP_PCC)
+		kcal_generation = sde_kcal_get_generation();
+#endif
 
 	sde_cp_get_hw_payload(prop_node, &hw_cfg, &feature_enabled);
 
@@ -883,6 +946,11 @@ static void sde_cp_crtc_setfeature(struct sde_cp_node *prop_node,
 		return;
 	}
 
+#ifdef CONFIG_DRM_MSM_KCAL_CTRL
+	if (prop_node->feature == SDE_CP_CRTC_DSPP_PCC)
+		prop_node->kcal_generation = kcal_generation;
+#endif
+
 	if (feature_enabled) {
 		DRM_DEBUG_DRIVER("Add feature to active list %d\n",
 				 prop_node->property_id);
@@ -926,6 +994,10 @@ void sde_cp_crtc_apply_properties(struct drm_crtc *crtc)
 	}
 
 	mutex_lock(&sde_crtc->crtc_cp_lock);
+
+#ifdef CONFIG_DRM_MSM_KCAL_CTRL
+	sde_cp_crtc_kcal_update_locked(sde_crtc);
+#endif
 
 	#ifdef OPLUS_BUG_STABILITY
 	dirty_pcc = sde_cp_crtc_update_pcc(crtc);
@@ -1272,7 +1344,17 @@ void sde_cp_crtc_suspend(struct drm_crtc *crtc)
 
 void sde_cp_crtc_resume(struct drm_crtc *crtc)
 {
-	/* placeholder for operations needed during resume */
+#ifdef CONFIG_DRM_MSM_KCAL_CTRL
+	struct sde_crtc *sde_crtc;
+
+	if (!crtc)
+		return;
+
+	sde_crtc = to_sde_crtc(crtc);
+	mutex_lock(&sde_crtc->crtc_cp_lock);
+	sde_cp_crtc_kcal_invalidate_locked(sde_crtc);
+	mutex_unlock(&sde_crtc->crtc_cp_lock);
+#endif
 }
 
 void sde_cp_crtc_clear(struct drm_crtc *crtc)
@@ -1291,6 +1373,9 @@ void sde_cp_crtc_clear(struct drm_crtc *crtc)
 	}
 
 	mutex_lock(&sde_crtc->crtc_cp_lock);
+#ifdef CONFIG_DRM_MSM_KCAL_CTRL
+	sde_cp_crtc_kcal_invalidate_locked(sde_crtc);
+#endif
 	list_del_init(&sde_crtc->active_list);
 	list_del_init(&sde_crtc->dirty_list);
 	list_del_init(&sde_crtc->ad_active);

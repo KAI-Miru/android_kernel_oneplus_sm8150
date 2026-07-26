@@ -179,6 +179,16 @@ config DRM_MSM_DSI_14NM_PHY
 	help
 	  Choose this option if DSI PHY on 8996 is used on the platform.
 
+config DRM_MSM_KCAL_CTRL
+	bool "Enable kernel-level RGB display calibration"
+	depends on DRM_MSM
+	help
+	  Enable RGB calibration through the SDE DSPP PCC color pipeline.
+	  The calibration controls are exposed through the kcal_ctrl
+	  platform device without replacing userspace color properties.
+	  Neutral calibration values preserve the userspace PCC payload,
+	  while non-neutral values scale only its diagonal coefficients.
+
 config DRM_SDE_EVTLOG_DEBUG
 	bool "Enable event logging in MSM DRM"
 	depends on DRM_MSM
@@ -197,4 +207,3 @@ config DRM_SDE_RSC
 	  can vote their active state. Any active request from any client
 	  avoids the display core power collapse. A client can also register
 	  for display core power collapse events on rsc.
-

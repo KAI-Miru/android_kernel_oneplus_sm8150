@@ -49,6 +49,7 @@
 #include "msm_kms.h"
 #include "sde_wb.h"
 #include "sde_dbg.h"
+#include "sde/sde_kcal_ctrl.h"
 
 /*
  * MSM driver version:
@@ -288,6 +289,8 @@ static int msm_drm_uninit(struct device *dev)
 	struct msm_kms *kms = priv->kms;
 	struct msm_gpu *gpu = priv->gpu;
 	int i;
+
+	sde_kcal_drm_unregister(ddev);
 
 	/* clean up display commit/event worker threads */
 	for (i = 0; i < priv->num_crtcs; i++) {
@@ -769,6 +772,7 @@ static int msm_drm_init(struct device *dev, struct drm_driver *drv)
 	}
 
 	drm_kms_helper_poll_init(ddev);
+	sde_kcal_drm_register(ddev);
 	place_marker("M - DISPLAY Driver Ready");
 
 	return 0;
@@ -2175,16 +2179,26 @@ void __exit adreno_unregister(void)
 
 static int __init msm_drm_register(void)
 {
+	int ret;
+
 	if (!modeset)
 		return -EINVAL;
 
 	DBG("init");
+	ret = sde_kcal_ctrl_init();
+	if (ret)
+		return ret;
+
 	msm_smmu_driver_init();
 	msm_dsi_register();
 	msm_edp_register();
 	msm_hdmi_register();
 	adreno_register();
-	return platform_driver_register(&msm_platform_driver);
+	ret = platform_driver_register(&msm_platform_driver);
+	if (ret)
+		sde_kcal_ctrl_exit();
+
+	return ret;
 }
 
 static void __exit msm_drm_unregister(void)
@@ -2196,6 +2210,7 @@ static void __exit msm_drm_unregister(void)
 	msm_edp_unregister();
 	msm_dsi_unregister();
 	msm_smmu_driver_cleanup();
+	sde_kcal_ctrl_exit();
 }
 
 module_init(msm_drm_register);
