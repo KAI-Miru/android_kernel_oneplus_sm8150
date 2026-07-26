@@ -1,0 +1,28 @@
+# Authentic no-commit merge preview
+# Production baseline: 4394ccbfa3805ce392b65b3ea148ff1eb084a974
+# Android Common target: 0eec6f6001d15bb1108835a642ec4637d75eef19
+# Preview source head: 48b12319641fc290d3b5dfe6232e0d5e12cdf6a6
+# GitHub Actions run: 30180408281
+# Conflict count: 22
+arch/arm/Makefile
+arch/arm64/mm/proc.S
+drivers/clk/clk.c
+drivers/dma-buf/dma-buf.c
+drivers/hid/hid-chicony.c
+drivers/hid/hid-holtek-kbd.c
+drivers/hid/hid-holtek-mouse.c
+drivers/hid/wacom_sys.c
+drivers/media/dvb-core/dmxdev.c
+drivers/staging/android/ion/ion.c
+drivers/usb/dwc3/gadget.c
+drivers/usb/gadget/composite.c
+drivers/usb/gadget/function/f_fs.c
+drivers/usb/gadget/function/rndis.c
+drivers/usb/gadget/function/rndis.h
+drivers/usb/gadget/legacy/dbgp.c
+drivers/usb/gadget/legacy/inode.c
+fs/file_table.c
+fs/fuse/file.c
+kernel/sched/cpufreq_schedutil.c
+net/ipv4/ip_gre.c
+net/packet/af_packet.c
