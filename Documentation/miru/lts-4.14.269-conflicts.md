@@ -25,8 +25,8 @@ merged changes that require downstream review.
 - Validated kernel release: `4.14.269-miru-h40-lts269-14d41d8-ci3+`
 - Full kernel build: **PASS** — GitHub Actions run `30197447946`
 - External-module build: **PASS** — exact 32-module set, matching vermagic, ABI errors `0`
-- Device-test status: **not performed for this milestone**
-- Flash status: **not performed for this milestone**
+- Device-test status: **PASS** — the maintainer flashed ci3 on a OnePlus 7 Pro and confirmed normal operation on 2026-07-26
+- Flash status: **PASS** — `4.14.269-miru-h40-lts269-14d41d8-ci3+` was flashed successfully
 
 ## Immutable production baseline
 
@@ -291,9 +291,9 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Remaining semantic conflict count: **0**
 - Clean-reversal results: **PASS for all eight owning commits**
 - Incremental compilation: **PASS for all eight conflict batches**
-- Final semantic audit: **PASS for source, ancestry, protected-path and build gates; physical behavior remains untested**
+- Final semantic audit: **PASS for source, ancestry, protected-path and build gates**
 - Full kernel and external-module build: **PASS** — exact run `30197447946`
-- Physical device validation: **not performed**
+- Physical device validation: **PASS** — maintainer-flashed ci3 confirmed working on a OnePlus 7 Pro on 2026-07-26
 
 ## Semantic resolution records
 
@@ -455,10 +455,14 @@ or vendor interface changed after the tested source head.
   `sha256:958b35219b6dcf1257032ead6f23caeea50ca231e2535a07aa781557a973c5c2`
 - Artifact expiry: `2026-08-25`
 
-### Explicitly outside this validation
+### Physical device validation
 
-- Physical device validation: **not performed**
-- Boot, suspend/resume, telephony, camera, audio playback, display, touch,
-  charging and USB runtime behavior: **not performed on hardware**
-- Flashing: **not performed**
-- Production merge: **not performed**
+- Device: OnePlus 7 Pro.
+- Release flashed: `4.14.269-miru-h40-lts269-14d41d8-ci3+`.
+- Source tested: `14d41d8a57b1e08aa15ff786973b855c78f58fd7`.
+- Result: on 2026-07-26, the maintainer confirmed that ci3 flashed successfully and everything worked as expected.
+- Scope note: this is a real-device confirmation supplied by the maintainer; the CI artifact set remains the authoritative record for the reproducible build, module, vermagic and ABI checks.
+
+### Pending release action
+
+- Production merge has been authorized after the successful ci3 device validation. The integration tip differs from the tested source only by documentation-only commits.
