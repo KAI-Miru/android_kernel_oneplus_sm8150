@@ -18,8 +18,8 @@ merged changes that require downstream review.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **22**
 - Index-resolved conflicts: **22**
-- Semantically resolved conflicts: **5**
-- Remaining semantic conflicts: **17**
+- Semantically resolved conflicts: **9**
+- Remaining semantic conflicts: **13**
 - Targeted compilation: **not started**
 - Full kernel build: **not started**
 - External-module build: **not started**
@@ -187,10 +187,10 @@ Required scaffold parents:
 | 2 | `arch/arm64/mm/proc.S` | ARM64 MMU / processor setup | index-resolved in scaffold | resolved | __B1__ | targeted compile PASS; clean reversal pending |
 | 3 | `drivers/clk/clk.c` | common clock framework | index-resolved in scaffold | resolved | __B2__ | targeted compile PASS; clean reversal pending |
 | 4 | `drivers/dma-buf/dma-buf.c` | dma-buf ownership and lifetime | index-resolved in scaffold | resolved with no source delta | __B2__ | targeted compile PASS; clean reversal pending |
-| 5 | `drivers/hid/hid-chicony.c` | HID keyboard quirks | index-resolved in scaffold | unresolved | pending | pending |
-| 6 | `drivers/hid/hid-holtek-kbd.c` | HID keyboard quirks | index-resolved in scaffold | unresolved | pending | pending |
-| 7 | `drivers/hid/hid-holtek-mouse.c` | HID mouse quirks | index-resolved in scaffold | unresolved | pending | pending |
-| 8 | `drivers/hid/wacom_sys.c` | Wacom HID lifecycle | index-resolved in scaffold | unresolved | pending | pending |
+| 5 | `drivers/hid/hid-chicony.c` | HID keyboard quirks | index-resolved in scaffold | resolved with no source delta | __B3__ | targeted compile PASS; clean reversal pending |
+| 6 | `drivers/hid/hid-holtek-kbd.c` | HID keyboard quirks | index-resolved in scaffold | resolved | __B3__ | targeted compile PASS; clean reversal pending |
+| 7 | `drivers/hid/hid-holtek-mouse.c` | HID mouse quirks | index-resolved in scaffold | resolved | __B3__ | targeted compile PASS; clean reversal pending |
+| 8 | `drivers/hid/wacom_sys.c` | Wacom HID lifecycle | index-resolved in scaffold | resolved with no source delta | __B3__ | targeted compile PASS; clean reversal pending |
 | 9 | `drivers/media/dvb-core/dmxdev.c` | DVB demux core | index-resolved in scaffold | unresolved | pending | pending |
 | 10 | `drivers/staging/android/ion/ion.c` | Android ION memory allocator | index-resolved in scaffold | resolved with no source delta | __B2__ | targeted compile PASS; clean reversal pending |
 | 11 | `drivers/usb/dwc3/gadget.c` | DWC3 gadget | index-resolved in scaffold | unresolved | pending | pending |
@@ -311,4 +311,13 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Targeted compilation: `drivers/clk/clk.o`, `drivers/dma-buf/dma-buf.o`, `drivers/staging/android/ion/ion.o`.
 
 - Owning commit token: `__B2__`
+- Clean reversal: pending post-commit check.
+
+### HID input resolution
+- Paths: `drivers/hid/hid-chicony.c`, `drivers/hid/hid-holtek-kbd.c`, `drivers/hid/hid-holtek-mouse.c`, `drivers/hid/wacom_sys.c`.
+- Upstream commits: `43cc4686b15d7d3a2b65b125393ea3f3d477e7d1`, `37a6a8d76b01e2669941719eba0bab842a55a8e6`, `641784eb0b4538b958893d5d9ab5cd9461eabdac`, `cad5c7582322e158ec6a064de56a539fa091d130`.
+- Decision: retain the existing Chicony USB guard and Wacom lifecycle fixes. Correct the Holtek keyboard's uninitialized parse result and make the Holtek mouse probe parse and start hardware with proper error propagation.
+- Targeted compilation: the four conflicted HID objects.
+
+- Owning commit token: `__B3__`
 - Clean reversal: pending post-commit check.
