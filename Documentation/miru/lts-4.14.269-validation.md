@@ -67,4 +67,4 @@ The ci3 release string is deliberately pinned in the reproducible workflow. The 
 - Production was unchanged during 4.14.269 integration, then advanced by PR #68; KCAL followed through PR #69.
 - The current production tree contains only `.github/workflows/miru-h40-build.yml`. It is the permanent 4.14.269 kernel-and-modules workflow.
 - The merge and documentation commits use `[skip ci]` because their exact runtime source had already passed dedicated compilation and artifact validation. No duplicate compilation is represented as a post-merge validation result.
-- The 4.14.269 integration branch is retained as audit history.
+- The completed 4.14.269 integration and helper branches were deleted after promotion; the normal merge history, permanent conflict ledger, validation record, and artifact references remain as the audit record.
