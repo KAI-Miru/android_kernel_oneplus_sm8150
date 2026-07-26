@@ -345,7 +345,7 @@ static int dbgp_setup(struct usb_gadget *gadget,
 	u16 len = 0;
 
 	if (length > DBGP_REQ_LEN) {
-		if (ctrl->bRequestType == USB_DIR_OUT) {
+		if (!(ctrl->bRequestType & USB_DIR_IN)) {
 			return err;
 		} else {
 			/* Cast away the const, we are going to overwrite on purpose. */
