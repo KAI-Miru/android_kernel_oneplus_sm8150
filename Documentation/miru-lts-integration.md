@@ -2,6 +2,53 @@
 
 This document records production LTS milestones for the OnePlus 7 Pro Miru H.40 kernel. The permanent production branch is `miru-h40`; milestone integration branches are temporary and may be deleted after merge and tagging.
 
+## Milestone 3: Linux 4.14.241
+
+Status: **completed, merged into production, CI-validated, and device-confirmed on 2026-07-26**.
+
+This milestone advances the tested Miru H.40 line from Android stable 4.14.210 to
+4.14.241 while preserving the Qualcomm/Oplus hardware architecture, ColorOS ABI,
+and established device compatibility work.
+
+| Item | Revision |
+|---|---|
+| Miru production integration base | `cc49ffcb5c5207746618a799b250c67decdc0d15` |
+| Android stable parent / target | `39a7f9a39c0bd6d0f67869df227f6fa23286edd2` → `a446f52a5d3fc71698a073d08ce1eeb923727b42` |
+| QRTR correction | `47f4767bd9040d574664d5b93abe3a54b97aa4e2` |
+| GLINK error-propagation restoration | `935b66cf9ef5bcbd40063e830935744b35a3d5cf` |
+| Final integration head | `0f419ca269b112a1fbf6cac188b6349cbc1a38ce` |
+| Production merge | `4394ccbfa3805ce392b65b3ea148ff1eb084a974` |
+| Kernel release | `4.14.241-miru-h40-lts241-ci7+` |
+| Initial semantic conflicts | `32` |
+| Resolved semantic conflicts | `32` |
+| Remaining semantic conflicts | `0` |
+| Pull-request workflow | PASS — run `30026823981` |
+| Production workflow | PASS — run `30029365944` |
+| Device validation | PASS — `ci6` booted; final `ci7` subsequently confirmed fully working on the OnePlus 7 Pro |
+
+### Completed validation
+
+- All 32 authentic semantic conflicts were resolved and retained in
+  `Documentation/miru/lts-4.14.241-conflicts.md`.
+- The dma-buf ownership/list lifetime correction was retained.
+- The QRTR correction removed the erroneous second allocation while preserving
+  the downstream fragment and backup-SKB lifetime model.
+- The unsupported GLINK `-ENOENT → 0` workaround was removed; normal RX error
+  propagation and the LineageOS-backed missing-channel FIFO advance remain.
+- The permanent production workflow built the kernel and exactly 32 matching
+  external modules from the pinned vendor source, with zero ABI-report errors.
+- The production artifact release/vermagic is
+  `4.14.241-miru-h40-lts241-ci7+ SMP preempt mod_unload modversions aarch64`.
+- The earlier `ci6` source booted successfully on the OnePlus 7 Pro, and the
+  maintainer subsequently confirmed the final `ci7` kernel fully working on
+  the device.
+- The merged 4.14.241 integration branch was retired after promotion; permanent
+  ledgers, validation records, changelog, CI artifacts, and merge history remain.
+
+See the 4.14.241 [validation summary](miru/lts-4.14.241-validation.md),
+[conflict ledger](miru/lts-4.14.241-conflicts.md), and
+[user-facing changelog](miru/lts-4.14.241-changelog.md) for the full record.
+
 ## Milestone 2: Linux 4.14.210
 
 Status: **completed, device-validated and merged into production on 2026-07-21**.
