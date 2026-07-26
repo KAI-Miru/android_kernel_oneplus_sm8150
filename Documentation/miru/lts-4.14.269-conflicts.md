@@ -18,8 +18,8 @@ merged changes that require downstream review.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **22**
 - Index-resolved conflicts: **22**
-- Semantically resolved conflicts: **19**
-- Remaining semantic conflicts: **3**
+- Semantically resolved conflicts: **20**
+- Remaining semantic conflicts: **2**
 - Targeted compilation: **not started**
 - Full kernel build: **not started**
 - External-module build: **not started**
@@ -202,7 +202,7 @@ Required scaffold parents:
 | 17 | `drivers/usb/gadget/legacy/inode.c` | legacy gadget filesystem | index-resolved in scaffold | resolved | __B5__ | targeted compile PASS; clean reversal pending |
 | 18 | `fs/file_table.c` | VFS file lifetime | index-resolved in scaffold | resolved | __B6__ | targeted compile PASS; clean reversal pending |
 | 19 | `fs/fuse/file.c` | FUSE I/O and lifetime | index-resolved in scaffold | resolved | __B6__ | targeted compile PASS; clean reversal pending |
-| 20 | `kernel/sched/cpufreq_schedutil.c` | schedutil frequency governor | index-resolved in scaffold | unresolved | pending | pending |
+| 20 | `kernel/sched/cpufreq_schedutil.c` | schedutil frequency governor | index-resolved in scaffold | resolved | __B7__ | targeted compile PASS; clean reversal pending |
 | 21 | `net/ipv4/ip_gre.c` | IPv4 GRE networking | index-resolved in scaffold | unresolved | pending | pending |
 | 22 | `net/packet/af_packet.c` | packet socket networking | index-resolved in scaffold | unresolved | pending | pending |
 
@@ -347,4 +347,13 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Targeted compilation: `fs/file_table.o`, `fs/fuse/file.o`.
 
 - Owning commit token: `__B6__`
+- Clean reversal: pending post-commit check.
+
+### Schedutil resolution
+- Path: `kernel/sched/cpufreq_schedutil.c`.
+- Upstream commit: `463c46705f321201090b69c4ad5da0cd2ce614c9`.
+- Decision: provide the governor kobject release callback and preserve cached tunables before the final kobject put can free the tunables object, preventing a use-after-free while retaining downstream schedutil policy behavior.
+- Targeted compilation: `kernel/sched/cpufreq_schedutil.o`.
+
+- Owning commit token: `__B7__`
 - Clean reversal: pending post-commit check.
