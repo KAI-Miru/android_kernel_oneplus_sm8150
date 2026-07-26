@@ -18,8 +18,8 @@ merged changes that require downstream review.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **22**
 - Index-resolved conflicts: **22**
-- Semantically resolved conflicts: **17**
-- Remaining semantic conflicts: **5**
+- Semantically resolved conflicts: **19**
+- Remaining semantic conflicts: **3**
 - Targeted compilation: **not started**
 - Full kernel build: **not started**
 - External-module build: **not started**
@@ -200,8 +200,8 @@ Required scaffold parents:
 | 15 | `drivers/usb/gadget/function/rndis.h` | RNDIS private interface | index-resolved in scaffold | resolved with no source delta | __B5__ | targeted compile PASS; clean reversal pending |
 | 16 | `drivers/usb/gadget/legacy/dbgp.c` | USB debug gadget | index-resolved in scaffold | resolved | __B5__ | targeted compile PASS; clean reversal pending |
 | 17 | `drivers/usb/gadget/legacy/inode.c` | legacy gadget filesystem | index-resolved in scaffold | resolved | __B5__ | targeted compile PASS; clean reversal pending |
-| 18 | `fs/file_table.c` | VFS file lifetime | index-resolved in scaffold | unresolved | pending | pending |
-| 19 | `fs/fuse/file.c` | FUSE I/O and lifetime | index-resolved in scaffold | unresolved | pending | pending |
+| 18 | `fs/file_table.c` | VFS file lifetime | index-resolved in scaffold | resolved | __B6__ | targeted compile PASS; clean reversal pending |
+| 19 | `fs/fuse/file.c` | FUSE I/O and lifetime | index-resolved in scaffold | resolved | __B6__ | targeted compile PASS; clean reversal pending |
 | 20 | `kernel/sched/cpufreq_schedutil.c` | schedutil frequency governor | index-resolved in scaffold | unresolved | pending | pending |
 | 21 | `net/ipv4/ip_gre.c` | IPv4 GRE networking | index-resolved in scaffold | unresolved | pending | pending |
 | 22 | `net/packet/af_packet.c` | packet socket networking | index-resolved in scaffold | unresolved | pending | pending |
@@ -338,4 +338,13 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Targeted compilation: DWC3 gadget, composite, FunctionFS, RNDIS and legacy gadget objects represented by their Makefiles.
 
 - Owning commit token: `__B5__`
+- Clean reversal: pending post-commit check.
+
+### VFS and FUSE resolution
+- Paths: `fs/file_table.c`, `fs/fuse/file.c`.
+- Upstream commits: `1d8e40836044aeff3192f072425ea19f5c5807eb`, `2cd45139c0f28ebfa7604866faee00c99231a62b`.
+- Decision: add the `fput_many()` implementation matching the cleanly merged declaration and callers, and consistently gate FUSE I/O/lifetime paths with `fuse_is_bad()` so aborted connections do not continue unsafe operations.
+- Targeted compilation: `fs/file_table.o`, `fs/fuse/file.o`.
+
+- Owning commit token: `__B6__`
 - Clean reversal: pending post-commit check.
