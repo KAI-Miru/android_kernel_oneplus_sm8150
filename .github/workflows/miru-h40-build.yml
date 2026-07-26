@@ -49,7 +49,7 @@ jobs:
           git merge-base --is-ancestor "${ANDROID_STABLE_TARGET}" HEAD
           git diff --check "${PRODUCTION_BASE}" HEAD
           test -z "$(git ls-files -u)"
-          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = "241"
+          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = "269"
           grep -Fq -- '- Semantically resolved conflicts: **22**' Documentation/miru/lts-4.14.269-conflicts.md
           grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.269-conflicts.md
           if git grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . \
@@ -102,7 +102,7 @@ jobs:
           one('BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e', 'BASE_SHA=4394ccbfa3805ce392b65b3ea148ff1eb084a974')
           one('STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac', 'STABLE_SHA=0eec6f6001d15bb1108835a642ec4637d75eef19')
           one("':!Documentation/miru/lts-4.14.190-conflicts.md'", "':!Documentation/miru/lts-4.14.269-conflicts.md'")
-          one('test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "190"', 'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "241"')
+          one('test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "190"', 'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "269"')
           one("grep -Fq -- '- Resolved conflicts: 28' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq -- '- Semantically resolved conflicts: **22**' Documentation/miru/lts-4.14.269-conflicts.md")
           one("grep -Fq -- '- Remaining conflicts: 0' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.269-conflicts.md")
           one('echo "== Miru H.40 Android 4.14.190 CI build =="', 'echo "== Miru H.40 Android 4.14.269 production candidate build =="')
@@ -110,7 +110,7 @@ jobs:
           one('echo "conflicts=28/28 resolved"', 'echo "conflicts=22/22 resolved"')
           one('export KERNEL_LOCALVERSION=-miru-h40-lts190-ci1', 'export KERNEL_LOCALVERSION=-miru-h40-lts269-14d41d8-ci3')
           one("grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts190-ci1\"' \"${OUT_DIR}/.config\"", "grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts269-14d41d8-ci3\"' \"${OUT_DIR}/.config\"")
-          one("grep -m1 '^Linux version 4\\.14\\.190-'", "grep -m1 '^Linux version 4\\.14\\.241-'")
+          one("grep -m1 '^Linux version 4\\.14\\.190-'", "grep -m1 '^Linux version 4\\.14\\.269-'")
           one('git fetch --no-tags --depth=1 origin "${SCAFFOLD_SHA}"\n', '')
           one('rm -rf "${ANDROID_ROOT}" "${VENDOR_SOURCE}"', 'rm -rf "${ANDROID_ROOT}" "${VENDOR_SOURCE}"\ngit worktree prune')
           old = '''git cat-file -p "${SCAFFOLD_SHA}" > "${DIAG_DIR}/merge-scaffold.txt"
