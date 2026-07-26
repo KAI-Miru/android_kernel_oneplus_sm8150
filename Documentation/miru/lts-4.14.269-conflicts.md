@@ -18,8 +18,8 @@ merged changes that require downstream review.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **22**
 - Index-resolved conflicts: **22**
-- Semantically resolved conflicts: **2**
-- Remaining semantic conflicts: **20**
+- Semantically resolved conflicts: **5**
+- Remaining semantic conflicts: **17**
 - Targeted compilation: **not started**
 - Full kernel build: **not started**
 - External-module build: **not started**
@@ -185,14 +185,14 @@ Required scaffold parents:
 |---:|---|---|---|---|---|---|
 | 1 | `arch/arm/Makefile` | ARM build system | index-resolved in scaffold | resolved | __B1__ | targeted compile PASS; clean reversal pending |
 | 2 | `arch/arm64/mm/proc.S` | ARM64 MMU / processor setup | index-resolved in scaffold | resolved | __B1__ | targeted compile PASS; clean reversal pending |
-| 3 | `drivers/clk/clk.c` | common clock framework | index-resolved in scaffold | unresolved | pending | pending |
-| 4 | `drivers/dma-buf/dma-buf.c` | dma-buf ownership and lifetime | index-resolved in scaffold | unresolved | pending | pending |
+| 3 | `drivers/clk/clk.c` | common clock framework | index-resolved in scaffold | resolved | __B2__ | targeted compile PASS; clean reversal pending |
+| 4 | `drivers/dma-buf/dma-buf.c` | dma-buf ownership and lifetime | index-resolved in scaffold | resolved with no source delta | __B2__ | targeted compile PASS; clean reversal pending |
 | 5 | `drivers/hid/hid-chicony.c` | HID keyboard quirks | index-resolved in scaffold | unresolved | pending | pending |
 | 6 | `drivers/hid/hid-holtek-kbd.c` | HID keyboard quirks | index-resolved in scaffold | unresolved | pending | pending |
 | 7 | `drivers/hid/hid-holtek-mouse.c` | HID mouse quirks | index-resolved in scaffold | unresolved | pending | pending |
 | 8 | `drivers/hid/wacom_sys.c` | Wacom HID lifecycle | index-resolved in scaffold | unresolved | pending | pending |
 | 9 | `drivers/media/dvb-core/dmxdev.c` | DVB demux core | index-resolved in scaffold | unresolved | pending | pending |
-| 10 | `drivers/staging/android/ion/ion.c` | Android ION memory allocator | index-resolved in scaffold | unresolved | pending | pending |
+| 10 | `drivers/staging/android/ion/ion.c` | Android ION memory allocator | index-resolved in scaffold | resolved with no source delta | __B2__ | targeted compile PASS; clean reversal pending |
 | 11 | `drivers/usb/dwc3/gadget.c` | DWC3 gadget | index-resolved in scaffold | unresolved | pending | pending |
 | 12 | `drivers/usb/gadget/composite.c` | USB composite gadget core | index-resolved in scaffold | unresolved | pending | pending |
 | 13 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | unresolved | pending | pending |
@@ -302,4 +302,13 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Targeted compilation: ARM32 `arch/arm/kernel/entry-common.o`; ARM64 `arch/arm64/kernel/cpufeature.o` and `arch/arm64/mm/proc.o`.
 
 - Owning commit token: `__B1__`
+- Clean reversal: pending post-commit check.
+
+### Clock, dma-buf and ION resolution
+- Paths: `drivers/clk/clk.c`, `drivers/dma-buf/dma-buf.c`, `drivers/staging/android/ion/ion.c`.
+- Upstream commits: `bd0970398a7a50d5f4e09bfca73cb6249e7d5edc`, `6e6c15288df8c4c6264f394ece251ef9f64b0e3f`, `6c5bc69f722cb5e2fe47196ee8f1aabe6498f8a7`.
+- Decision: remove the orphan clock list from the generic debugfs list array while preserving the downstream dedicated orphan debugfs views. The existing Miru dma-buf release/list lifecycle and ION mapping lifetime already contain the target fixes, so those two paths are semantic no-source-change resolutions.
+- Targeted compilation: `drivers/clk/clk.o`, `drivers/dma-buf/dma-buf.o`, `drivers/staging/android/ion/ion.o`.
+
+- Owning commit token: `__B2__`
 - Clean reversal: pending post-commit check.

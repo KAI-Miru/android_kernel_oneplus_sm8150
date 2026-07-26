@@ -47,7 +47,6 @@ static LIST_HEAD(clk_notifier_list);
 
 static struct hlist_head *all_lists[] = {
 	&clk_root_list,
-	&clk_orphan_list,
 	NULL,
 };
 
