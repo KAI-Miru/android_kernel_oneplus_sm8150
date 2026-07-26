@@ -1,0 +1,190 @@
+name: Miru H.40 4.14.269 reconnaissance
+
+on:
+  pull_request:
+    branches:
+      - miru-h40
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+
+jobs:
+  reconnaissance:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PROD_BRANCH: miru-h40
+      EXPECTED_PROD: 4394ccbfa3805ce392b65b3ea148ff1eb084a974
+      BASE_241: a446f52a5d3fc71698a073d08ce1eeb923727b42
+      TARGET_TAG: ASB-2022-03-05_4.14-stable
+      TARGET_TAG_OBJECT: 7ec0138c8a212a717efbf37824b83eebd0b2b7f2
+      TARGET_COMMIT: 0eec6f6001d15bb1108835a642ec4637d75eef19
+      TARGET_TREE: 8b5c01bc580aef81a77ce2dcf3f7a3a56e09b8b8
+    steps:
+      - name: Checkout helper branch with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify production, target objects, lineage, and merge conflicts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          DIAG="${RUNNER_TEMP}/lts269-recon"
+          mkdir -p "${DIAG}"
+
+          git config user.name "Miru LTS Integration Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git fetch --prune origin '+refs/heads/*:refs/remotes/origin/*'
+
+          LIVE_PROD="$(git ls-remote origin "refs/heads/${PROD_BRANCH}" | awk '{print $1}')"
+          test "${LIVE_PROD}" = "${EXPECTED_PROD}"
+          PROD="${LIVE_PROD}"
+
+          {
+            echo "default_branch=${PROD_BRANCH}"
+            echo "production_head=${PROD}"
+            echo "production_version=$(git show "${PROD}:Makefile" | awk '/^VERSION =/{v=$3}/^PATCHLEVEL =/{p=$3}/^SUBLEVEL =/{s=$3; print v "." p "." s; exit}')"
+            echo "helper_head=$(git rev-parse HEAD)"
+            echo "recon_date=$(date -u +%F)"
+          } | tee "${DIAG}/identity.txt"
+          test "$(grep '^production_version=' "${DIAG}/identity.txt" | cut -d= -f2)" = "4.14.241"
+
+          git log --first-parent --date=iso-strict --format='%H%x09%P%x09%ad%x09%s' -30 "${PROD}" \
+            > "${DIAG}/production-first-parent-history.tsv"
+          git log --merges --date=iso-strict --format='%H%x09%P%x09%ad%x09%s' -30 "${PROD}" \
+            > "${DIAG}/production-recent-merges.tsv"
+          git for-each-ref --sort=refname --format='%(refname:short)%09%(objectname)%09%(committerdate:iso-strict)%09%(subject)' \
+            refs/remotes/origin > "${DIAG}/remote-branches.tsv"
+
+          find Documentation/miru -maxdepth 1 -type f -printf '%P\n' 2>/dev/null | sort \
+            > "${DIAG}/miru-documentation.txt"
+          find .github/workflows -maxdepth 1 -type f -printf '%P\n' 2>/dev/null | sort \
+            > "${DIAG}/workflows.txt"
+          find arch/arm64/configs -maxdepth 2 -type f -printf '%P\n' 2>/dev/null | sort \
+            > "${DIAG}/arm64-defconfigs.txt"
+          {
+            echo '## build entry points'
+            find h40-repro scripts/miru -maxdepth 2 -type f \
+              \( -name '*.sh' -o -name '*.py' -o -name '*.config' \) -print 2>/dev/null | sort
+            echo '## pinned environment references'
+            grep -RInE '125ff7d0153cbb3aaa8f9fd618c33b7f728d7798|252aba16f513a857bc923172f67b0e55e23de35f|clang-r377782c|606f80986096476912e04e5c2913685a8f2c3b65|b0c6a654327ca8796bed1e61dffcf523d04dceaa|7322db1e1e4715fe217a27f721613e6be8438676|32.*\.ko|\.ko.*32' \
+              .github Documentation/miru h40-repro scripts/miru 2>/dev/null || true
+            echo '## external module integration references'
+            grep -RInE 'external.modules|modules_and_devicetree|Module.symvers|modversions|vermagic|build_external_modules' \
+              .github Documentation/miru h40-repro scripts/miru 2>/dev/null || true
+          } > "${DIAG}/build-environment.txt"
+
+          git fetch --force --no-tags https://android.googlesource.com/kernel/common \
+            "refs/tags/${TARGET_TAG}:refs/tags/${TARGET_TAG}"
+          test "$(git rev-parse "refs/tags/${TARGET_TAG}")" = "${TARGET_TAG_OBJECT}"
+          test "$(git rev-parse "refs/tags/${TARGET_TAG}^{}")" = "${TARGET_COMMIT}"
+          test "$(git cat-file -t "${TARGET_TAG_OBJECT}")" = tag
+          test "$(git cat-file -t "${TARGET_COMMIT}")" = commit
+          test "$(git cat-file tag "${TARGET_TAG_OBJECT}" | git hash-object -t tag --stdin)" = "${TARGET_TAG_OBJECT}"
+          test "$(git cat-file commit "${TARGET_COMMIT}" | git hash-object -t commit --stdin)" = "${TARGET_COMMIT}"
+          test "$(git show -s --format=%T "${TARGET_COMMIT}")" = "${TARGET_TREE}"
+          test "$(git show "${TARGET_COMMIT}:Makefile" | awk '/^VERSION =/{v=$3}/^PATCHLEVEL =/{p=$3}/^SUBLEVEL =/{s=$3; print v "." p "." s; exit}')" = "4.14.269"
+          if git cat-file tag "${TARGET_TAG_OBJECT}" | grep -q 'BEGIN PGP SIGNATURE'; then
+            echo 'tag_embedded_gpg_signature=yes' > "${DIAG}/tag-signature.txt"
+          else
+            echo 'tag_embedded_gpg_signature=no' > "${DIAG}/tag-signature.txt"
+          fi
+          git cat-file tag "${TARGET_TAG_OBJECT}" > "${DIAG}/target-tag-object.txt"
+          git cat-file commit "${TARGET_COMMIT}" > "${DIAG}/target-commit-object.txt"
+
+          git merge-base --is-ancestor "${BASE_241}" "${PROD}"
+          git merge-base --is-ancestor "${BASE_241}" "${TARGET_COMMIT}"
+          test "$(git merge-base "${PROD}" "${TARGET_COMMIT}")" = "${BASE_241}"
+          if git merge-base --is-ancestor "${TARGET_COMMIT}" "${PROD}"; then
+            echo 'ERROR: target is already an ancestor of production' >&2
+            exit 1
+          fi
+
+          {
+            echo "base_241=${BASE_241}"
+            echo "target_tag=${TARGET_TAG}"
+            echo "target_tag_object=${TARGET_TAG_OBJECT}"
+            echo "target_commit=${TARGET_COMMIT}"
+            echo "target_tree=${TARGET_TREE}"
+            echo "merge_base=$(git merge-base "${PROD}" "${TARGET_COMMIT}")"
+            echo "range_commit_count=$(git rev-list --count "${BASE_241}..${TARGET_COMMIT}")"
+            echo "target_ancestor_of_production=no"
+            echo "base_241_ancestor_of_production=yes"
+          } | tee "${DIAG}/target-verification.txt"
+
+          git diff --name-status "${BASE_241}..${TARGET_COMMIT}" > "${DIAG}/upstream-changed-paths.tsv"
+          git diff --stat "${BASE_241}..${TARGET_COMMIT}" > "${DIAG}/upstream-diff-stat.txt"
+          git log --reverse --date=iso-strict --format='%H%x09%ad%x09%s' "${BASE_241}..${TARGET_COMMIT}" \
+            > "${DIAG}/upstream-commits.tsv"
+          git cherry "${PROD}" "${TARGET_COMMIT}" "${BASE_241}" > "${DIAG}/upstream-git-cherry.txt"
+          {
+            echo "patch_equivalent_present=$(grep -c '^-' "${DIAG}/upstream-git-cherry.txt" || true)"
+            echo "not_patch_equivalent=$(grep -c '^+' "${DIAG}/upstream-git-cherry.txt" || true)"
+          } > "${DIAG}/patch-equivalence-summary.txt"
+          git log --all --date=iso-strict --format='%H%x09%ad%x09%s' \
+            --grep='4\.14\.24[2-9]\|4\.14\.25[0-9]\|4\.14\.26[0-9]' "${PROD}" \
+            > "${DIAG}/production-lts242-269-message-matches.tsv" || true
+
+          WT="${RUNNER_TEMP}/lts269-merge-preview"
+          git worktree add --detach "${WT}" "${PROD}"
+          pushd "${WT}" >/dev/null
+          set +e
+          git merge --no-commit --no-ff "${TARGET_COMMIT}" > "${DIAG}/merge-output.txt" 2>&1
+          MERGE_RC=$?
+          set -e
+          echo "merge_exit_code=${MERGE_RC}" > "${DIAG}/merge-preview-status.txt"
+          git diff --name-only --diff-filter=U | LC_ALL=C sort > "${DIAG}/conflict-paths.txt"
+          git ls-files -u > "${DIAG}/unmerged-index-stages.txt"
+          git status --porcelain=v2 > "${DIAG}/merge-status-porcelain-v2.txt"
+          git diff --stat "${PROD}" > "${DIAG}/preview-diff-stat.txt"
+          git diff --name-status "${PROD}" > "${DIAG}/preview-changed-paths.tsv"
+          CONFLICT_COUNT="$(wc -l < "${DIAG}/conflict-paths.txt")"
+          echo "conflict_count=${CONFLICT_COUNT}" >> "${DIAG}/merge-preview-status.txt"
+
+          mkdir -p "${DIAG}/conflict-stages/base" "${DIAG}/conflict-stages/ours" "${DIAG}/conflict-stages/theirs"
+          while IFS= read -r path; do
+            for stage in 1 2 3; do
+              case "${stage}" in
+                1) side=base ;;
+                2) side=ours ;;
+                3) side=theirs ;;
+              esac
+              mkdir -p "${DIAG}/conflict-stages/${side}/$(dirname "${path}")"
+              if git show ":${stage}:${path}" > "${DIAG}/conflict-stages/${side}/${path}" 2>/dev/null; then
+                :
+              else
+                rm -f "${DIAG}/conflict-stages/${side}/${path}"
+                printf 'ABSENT\n' > "${DIAG}/conflict-stages/${side}/${path}.absent"
+              fi
+            done
+          done < "${DIAG}/conflict-paths.txt"
+
+          git merge --abort || true
+          popd >/dev/null
+          git worktree remove --force "${WT}"
+
+          {
+            cat "${DIAG}/identity.txt"
+            cat "${DIAG}/target-verification.txt"
+            cat "${DIAG}/patch-equivalence-summary.txt"
+            cat "${DIAG}/merge-preview-status.txt"
+            echo "production_unchanged=$(git ls-remote origin "refs/heads/${PROD_BRANCH}" | awk '{print $1}')"
+            echo 'result=PASS'
+          } | tee "${DIAG}/RECON-SUMMARY.txt"
+          test "$(grep '^production_unchanged=' "${DIAG}/RECON-SUMMARY.txt" | cut -d= -f2)" = "${EXPECTED_PROD}"
+
+      - name: Upload complete reconnaissance diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts269-recon-${{ github.run_id }}
+          path: ${{ runner.temp }}/lts269-recon
+          if-no-files-found: error
+          retention-days: 30
