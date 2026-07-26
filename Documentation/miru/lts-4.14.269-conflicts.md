@@ -15,9 +15,9 @@ merged changes that require downstream review.
 - Reconnaissance: **complete**
 - Target object verification: **complete**
 - Authentic merge preview: **complete**
-- Authentic merge scaffold: **not yet created**
+- Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **22**
-- Index-resolved conflicts: **0**
+- Index-resolved conflicts: **22**
 - Semantically resolved conflicts: **0**
 - Remaining semantic conflicts: **22**
 - Targeted compilation: **not started**
@@ -161,7 +161,10 @@ git merge --no-commit --no-ff 0eec6f6001d15bb1108835a642ec4637d75eef19
 
 The no-commit preview was run against ledger commit
 `48b12319641fc290d3b5dfe6232e0d5e12cdf6a6`. It produced exactly 22 authentic
-conflicts. The complete original conflict list, index stages, and all available
+conflicts. The authentic scaffold was then created at
+`4f081ec063c9818adbe394b89f2ff035b27c30df` with first parent
+`35404dc845143f99457e52b7b56d2392f9086123` and second parent
+`0eec6f6001d15bb1108835a642ec4637d75eef19`. The complete original conflict list, index stages, and all available
 stage-1/base, stage-2/Miru and stage-3/Android-Common files are preserved in the
 reconnaissance artifact.
 
@@ -180,28 +183,28 @@ Required scaffold parents:
 
 | # | Path | Semantic subsystem | Index status | Semantic status | Owning resolution commit | Validation |
 |---:|---|---|---|---|---|---|
-| 1 | `arch/arm/Makefile` | ARM build system | unmerged in preview | unresolved | pending | pending |
-| 2 | `arch/arm64/mm/proc.S` | ARM64 MMU / processor setup | unmerged in preview | unresolved | pending | pending |
-| 3 | `drivers/clk/clk.c` | common clock framework | unmerged in preview | unresolved | pending | pending |
-| 4 | `drivers/dma-buf/dma-buf.c` | dma-buf ownership and lifetime | unmerged in preview | unresolved | pending | pending |
-| 5 | `drivers/hid/hid-chicony.c` | HID keyboard quirks | unmerged in preview | unresolved | pending | pending |
-| 6 | `drivers/hid/hid-holtek-kbd.c` | HID keyboard quirks | unmerged in preview | unresolved | pending | pending |
-| 7 | `drivers/hid/hid-holtek-mouse.c` | HID mouse quirks | unmerged in preview | unresolved | pending | pending |
-| 8 | `drivers/hid/wacom_sys.c` | Wacom HID lifecycle | unmerged in preview | unresolved | pending | pending |
-| 9 | `drivers/media/dvb-core/dmxdev.c` | DVB demux core | unmerged in preview | unresolved | pending | pending |
-| 10 | `drivers/staging/android/ion/ion.c` | Android ION memory allocator | unmerged in preview | unresolved | pending | pending |
-| 11 | `drivers/usb/dwc3/gadget.c` | DWC3 gadget | unmerged in preview | unresolved | pending | pending |
-| 12 | `drivers/usb/gadget/composite.c` | USB composite gadget core | unmerged in preview | unresolved | pending | pending |
-| 13 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | unmerged in preview | unresolved | pending | pending |
-| 14 | `drivers/usb/gadget/function/rndis.c` | RNDIS gadget protocol | unmerged in preview | unresolved | pending | pending |
-| 15 | `drivers/usb/gadget/function/rndis.h` | RNDIS private interface | unmerged in preview | unresolved | pending | pending |
-| 16 | `drivers/usb/gadget/legacy/dbgp.c` | USB debug gadget | unmerged in preview | unresolved | pending | pending |
-| 17 | `drivers/usb/gadget/legacy/inode.c` | legacy gadget filesystem | unmerged in preview | unresolved | pending | pending |
-| 18 | `fs/file_table.c` | VFS file lifetime | unmerged in preview | unresolved | pending | pending |
-| 19 | `fs/fuse/file.c` | FUSE I/O and lifetime | unmerged in preview | unresolved | pending | pending |
-| 20 | `kernel/sched/cpufreq_schedutil.c` | schedutil frequency governor | unmerged in preview | unresolved | pending | pending |
-| 21 | `net/ipv4/ip_gre.c` | IPv4 GRE networking | unmerged in preview | unresolved | pending | pending |
-| 22 | `net/packet/af_packet.c` | packet socket networking | unmerged in preview | unresolved | pending | pending |
+| 1 | `arch/arm/Makefile` | ARM build system | index-resolved in scaffold | unresolved | pending | pending |
+| 2 | `arch/arm64/mm/proc.S` | ARM64 MMU / processor setup | index-resolved in scaffold | unresolved | pending | pending |
+| 3 | `drivers/clk/clk.c` | common clock framework | index-resolved in scaffold | unresolved | pending | pending |
+| 4 | `drivers/dma-buf/dma-buf.c` | dma-buf ownership and lifetime | index-resolved in scaffold | unresolved | pending | pending |
+| 5 | `drivers/hid/hid-chicony.c` | HID keyboard quirks | index-resolved in scaffold | unresolved | pending | pending |
+| 6 | `drivers/hid/hid-holtek-kbd.c` | HID keyboard quirks | index-resolved in scaffold | unresolved | pending | pending |
+| 7 | `drivers/hid/hid-holtek-mouse.c` | HID mouse quirks | index-resolved in scaffold | unresolved | pending | pending |
+| 8 | `drivers/hid/wacom_sys.c` | Wacom HID lifecycle | index-resolved in scaffold | unresolved | pending | pending |
+| 9 | `drivers/media/dvb-core/dmxdev.c` | DVB demux core | index-resolved in scaffold | unresolved | pending | pending |
+| 10 | `drivers/staging/android/ion/ion.c` | Android ION memory allocator | index-resolved in scaffold | unresolved | pending | pending |
+| 11 | `drivers/usb/dwc3/gadget.c` | DWC3 gadget | index-resolved in scaffold | unresolved | pending | pending |
+| 12 | `drivers/usb/gadget/composite.c` | USB composite gadget core | index-resolved in scaffold | unresolved | pending | pending |
+| 13 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | unresolved | pending | pending |
+| 14 | `drivers/usb/gadget/function/rndis.c` | RNDIS gadget protocol | index-resolved in scaffold | unresolved | pending | pending |
+| 15 | `drivers/usb/gadget/function/rndis.h` | RNDIS private interface | index-resolved in scaffold | unresolved | pending | pending |
+| 16 | `drivers/usb/gadget/legacy/dbgp.c` | USB debug gadget | index-resolved in scaffold | unresolved | pending | pending |
+| 17 | `drivers/usb/gadget/legacy/inode.c` | legacy gadget filesystem | index-resolved in scaffold | unresolved | pending | pending |
+| 18 | `fs/file_table.c` | VFS file lifetime | index-resolved in scaffold | unresolved | pending | pending |
+| 19 | `fs/fuse/file.c` | FUSE I/O and lifetime | index-resolved in scaffold | unresolved | pending | pending |
+| 20 | `kernel/sched/cpufreq_schedutil.c` | schedutil frequency governor | index-resolved in scaffold | unresolved | pending | pending |
+| 21 | `net/ipv4/ip_gre.c` | IPv4 GRE networking | index-resolved in scaffold | unresolved | pending | pending |
+| 22 | `net/packet/af_packet.c` | packet socket networking | index-resolved in scaffold | unresolved | pending | pending |
 
 ## Conflict-state definitions
 
