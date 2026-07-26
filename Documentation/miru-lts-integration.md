@@ -2,6 +2,40 @@
 
 This document records production LTS milestones for the OnePlus 7 Pro Miru H.40 kernel. The permanent production branch is `miru-h40`; milestone integration branches are temporary and may be deleted after merge and tagging.
 
+## Milestone 4: Linux 4.14.269
+
+Status: **completed, merged into production, CI-validated, and device-confirmed on 2026-07-26 and 2026-07-27**.
+
+This milestone advances the tested Miru H.40 line from Android stable 4.14.241 to 4.14.269 while preserving the Qualcomm/Oplus hardware architecture, ColorOS ABI, and established device compatibility work.
+
+| Item | Revision |
+|---|---|
+| Miru production integration base | `4394ccbfa3805ce392b65b3ea148ff1eb084a974` |
+| Android stable parent / target | `a446f52a5d3fc71698a073d08ce1eeb923727b42` → `0eec6f6001d15bb1108835a642ec4637d75eef19` |
+| Exact device-tested LTS source | `14d41d8a57b1e08aa15ff786973b855c78f58fd7` |
+| 4.14.269 production merge | `eb1cc39f93fb080c9903ffdba48f432ab0ac2b7b` (PR #68) |
+| KCAL source / production merge | `5c21d9d15ac7228837f9cb63de3061bb6b383a5d` → `c8107343ced9e589447aa29f8c025425bd148b0a` (PR #69) |
+| Kernel release | `4.14.269-miru-h40-lts269-14d41d8-ci3+` |
+| Initial semantic conflicts | `22` |
+| Resolved semantic conflicts | `22` |
+| Remaining semantic conflicts | `0` |
+| Full LTS build | PASS — run `30197447946` |
+| KCAL build | PASS — run `30204348781` |
+| Module result | 32 modules; ABI-report errors `0` in both validation runs |
+| Device validation | PASS — ci3 flashed, booted, and worked on the OnePlus 7 Pro; maintainer reconfirmed on 2026-07-27. KCAL was confirmed working before PR #69 merge. |
+
+### Completed validation and release decision
+
+- The normal two-parent Android stable merge is preserved in production; the 4.14.269 integration branch remains as audit history.
+- All 22 authentic semantic conflicts were resolved and recorded in `Documentation/miru/lts-4.14.269-conflicts.md`.
+- The final LTS build from `14d41d8a57b1e08aa15ff786973b855c78f58fd7` succeeded, with 32 matching external modules and zero ABI-report errors.
+- The real device booted and operated normally using `4.14.269-miru-h40-lts269-14d41d8-ci3+`.
+- PR #69 added KCAL RGB display calibration after the LTS merge. Its exact PR source was built successfully with the same 32-module and zero-ABI-error checks, then device-confirmed by the maintainer before normal merge.
+- The ci3 release suffix is intentionally static. The LTS and KCAL validation artifacts are distinguished by their exact source commits and artifact IDs, not by the release string alone.
+- The permanent workflow contains the production 4.14.269 validation logic only. Documentation/merge commits use `[skip ci]` because the validated source has already completed its dedicated compilation run.
+
+See the 4.14.269 [validation summary](miru/lts-4.14.269-validation.md), [conflict ledger](miru/lts-4.14.269-conflicts.md), and [user-facing changelog](miru/lts-4.14.269-changelog.md) for the full record.
+
 ## Milestone 3: Linux 4.14.241
 
 Status: **completed, merged into production, CI-validated, and device-confirmed on 2026-07-26**.
