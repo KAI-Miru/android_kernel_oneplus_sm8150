@@ -12,13 +12,14 @@ merged changes that require downstream review.
 - Immutable production baseline: `4394ccbfa3805ce392b65b3ea148ff1eb084a974`
 - Production baseline version: `4.14.241`
 - Ledger preparation date: `2026-07-26`
-- Reconnaissance: **in progress**
-- Target object verification: **official ref identified; canonical Git-object re-hash pending CI**
-- Authentic merge: **not started**
-- Initial authentic conflicts: **pending merge preview**
+- Reconnaissance: **complete**
+- Target object verification: **complete**
+- Authentic merge preview: **complete**
+- Authentic merge scaffold: **not yet created**
+- Initial authentic conflicts: **22**
 - Index-resolved conflicts: **0**
 - Semantically resolved conflicts: **0**
-- Remaining semantic conflicts: **pending merge preview**
+- Remaining semantic conflicts: **22**
 - Targeted compilation: **not started**
 - Full kernel build: **not started**
 - External-module build: **not started**
@@ -35,9 +36,12 @@ branch was created and resolved to:
 ```
 
 The top-level `Makefile` at this commit reports Linux `4.14.241`. The commit is
-the production merge titled `Merge Miru H.40 Linux 4.14.241 into production`.
-The new integration branch was created directly from this exact SHA. Production
-must remain unchanged throughout this milestone.
+the two-parent production merge titled `Merge Miru H.40 Linux 4.14.241 into
+production`, with first parent
+`cc49ffcb5c5207746618a799b250c67decdc0d15` and second parent
+`0f419ca269b112a1fbf6cac188b6349cbc1a38ce`. The new integration branch was
+created directly from this exact production SHA. Production must remain
+unchanged throughout this milestone.
 
 ## Authoritative Android Common target
 
@@ -45,19 +49,47 @@ must remain unchanged throughout this milestone.
 - Tag: `ASB-2022-03-05_4.14-stable`
 - Annotated tag object: `7ec0138c8a212a717efbf37824b83eebd0b2b7f2`
 - Peeled target commit: `0eec6f6001d15bb1108835a642ec4637d75eef19`
+- Target tree: `8b5c01bc580aef81a77ce2dcf3f7a3a56e09b8b8`
 - Target version: `4.14.269`
 - Stable range for this milestone: `4.14.242` through `4.14.269`
 
-The official Gitiles tag page identifies the tag object and peeled commit above
-and identifies the peeled commit as the Android Common merge of Linux 4.14.269.
-The annotated tag contains no known embedded signature claim at this stage.
-Canonical tag and commit payloads must be re-hashed with Git and the ref must be
-peeled in CI before the merge begins.
+GitHub Actions run `30180408281` fetched the exact annotated tag directly from
+Android Common and verified all of the following before any merge scaffold was
+created:
+
+1. `refs/tags/ASB-2022-03-05_4.14-stable` resolves to the exact supplied tag
+   object SHA;
+2. peeling the tag resolves to the exact supplied target commit SHA;
+3. the object types are `tag` and `commit`;
+4. re-hashing each canonical object payload with Git reproduces the supplied
+   object ID;
+5. the target `Makefile` reports Linux `4.14.269`;
+6. the previous Android Common 4.14.241 target
+   `a446f52a5d3fc71698a073d08ce1eeb923727b42` is an ancestor of production;
+7. the new 4.14.269 target is not an ancestor of production.
+
+No embedded-signature claim is made. Cryptographic identity is established by
+exact ref peeling and canonical Git-object SHA-1 re-hashing.
+
+Reconnaissance artifact:
+
+- Workflow run: `30180408281`
+- Name: `miru-lts269-recon-30180408281`
+- Artifact ID: `8625406799`
+- Size: `880517` bytes
+- SHA-256: `afea052dc34b06a65defc0492f10c746b75e7015f2a990b6b9b3ac208920397b`
+
+The run is red only because its final cleanup assertion expected a completely
+empty worktree after `git merge --abort`, while the workflow's own untracked
+`lts269-recon/` diagnostics directory was still present. Object verification,
+repository reconnaissance, the authentic merge attempt, conflict-stage capture,
+and artifact upload all completed. The cleanup assertion will be corrected
+before any retry.
 
 ## Pinned build environment
 
-The deliberately approved 4.14.241 production environment remains pinned unless
-a newer repository document explicitly supersedes it:
+The current workflow and repository documentation still retain the deliberately
+approved 4.14.241 production environment. It remains pinned:
 
 - Vendor/modules repository: `KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150`
 - Vendor/modules commit: `125ff7d0153cbb3aaa8f9fd618c33b7f728d7798`
@@ -68,12 +100,17 @@ a newer repository document explicitly supersedes it:
 - ARM32 GCC/binutils commit: `b0c6a654327ca8796bed1e61dffcf523d04dceaa`
 - AOSP build-tools commit: `7322db1e1e4715fe217a27f721613e6be8438676`
 - Production stock config: `h40-repro/config/GM1911_11_H.40.config`
-- Official fallback defconfig: `vendor/sm8150-perf_defconfig`
+- Official defconfig entry points: `vendor/sm8150-perf_defconfig` and
+  `vendor/sm8150_defconfig`
 - Production build driver: `h40-repro/build-h40.sh`
 - Existing CI wrapper: `scripts/miru/ci_build_4.14.190.sh`
 - External-module build driver: `scripts/miru/build_external_modules_4.14.190.sh`
 
-No toolchain or vendor-source upgrade is part of this LTS integration.
+The production build driver uses the checked-in H.40 stock config by default and
+builds `Image`, `Image.gz`, `Image.gz-dtb`, DTBs and in-tree modules. The external
+module driver rebuilds the known 32-module manifest against the same kernel
+output and validates vermagic and symbol CRCs. No compiler or vendor-source
+upgrade is part of this LTS integration.
 
 ## Repository reconnaissance summary
 
@@ -83,15 +120,37 @@ No toolchain or vendor-source upgrade is part of this LTS integration.
 - Current permanent workflow: `.github/workflows/miru-h40-build.yml`
 - Existing completed ledgers: 4.14.190, 4.14.210 and 4.14.241
 - Existing 4.14.241 validation record: `Documentation/miru/lts-4.14.241-validation.md`
-- Previous Android Common target in production ancestry: `a446f52a5d3fc71698a073d08ce1eeb923727b42`
-- Stale prior milestone branch observed: `miru-h40-lts241-integration` at `0f419ca269b112a1fbf6cac188b6349cbc1a38ce`
-- 4.14.269 target ancestry in production: **pending explicit Git verification; version and history indicate absent**
-- Patch-equivalent 4.14.242–4.14.269 commits already present: **pending `git cherry` reconnaissance**
+- Previous Android Common target in production ancestry:
+  `a446f52a5d3fc71698a073d08ce1eeb923727b42`
+- Android Common 4.14.269 target in production ancestry: **absent**
+- Full `rev-list` count in the previous-target to new-target graph: `1630`
+- Patch-candidate entries reported by `git cherry`: `1602`
+- Patch-equivalent entries already present in production: `3`
+- Not patch-equivalent in production: `1599`
+- Stale prior milestone branch: `miru-h40-lts241-integration` at
+  `0f419ca269b112a1fbf6cac188b6349cbc1a38ce`
+- Permanent non-production source branch: `oneplus/sm8150_s_12.1_op7pro` at
+  `180d787684d5965be5145bcfbf666ed427b4ea18`
+- Temporary helper base: `miru-h40-lts269-ci-base`; it must be deleted or
+  neutralized after this milestone's CI work.
+
+The three target-range commits whose patches are already equivalent in
+production are:
+
+```text
+8b9d000e83eec02f11068583aa897268dc2d65d6
+c8e76f849aed353347c5f08df575125324847834
+2a899eeca5e8432a44d4cae9a7d44a0e862aff67
+```
+
+They are not treated as evidence that any larger 4.14.242-4.14.269 subsystem is
+already integrated. The remaining target history enters through the authentic
+merge.
 
 ## Authentic merge procedure
 
-After target verification and final reconnaissance, the exact ledger/preparation
-commit will be merged with the verified target using:
+The exact ledger/preparation commit based on production will be merged with the
+verified target using:
 
 ```text
 git fetch --force --no-tags https://android.googlesource.com/kernel/common \
@@ -100,12 +159,17 @@ git checkout miru-h40-lts269-integration
 git merge --no-commit --no-ff 0eec6f6001d15bb1108835a642ec4637d75eef19
 ```
 
-Before a scaffold commit is created, the complete original conflict list and all
-stage-1/base, stage-2/Miru and stage-3/Android-Common conflict blobs must be
-preserved. Cleanly merged paths must remain as Git produced them. For scaffold
-creation only, unresolved conflict paths may be staged from the Miru side, but
-every such path remains `index-resolved but semantically unresolved` until a
-focused owning commit completes the semantic resolution.
+The no-commit preview was run against ledger commit
+`48b12319641fc290d3b5dfe6232e0d5e12cdf6a6`. It produced exactly 22 authentic
+conflicts. The complete original conflict list, index stages, and all available
+stage-1/base, stage-2/Miru and stage-3/Android-Common files are preserved in the
+reconnaissance artifact.
+
+For scaffold creation, cleanly merged paths must remain exactly as Git produced
+them. Every conflict path will be staged from the current Miru side only to make
+a representable two-parent merge commit. Every such path will remain recorded as
+`index-resolved but semantically unresolved` until a focused owning commit
+completes the actual resolution.
 
 Required scaffold parents:
 
@@ -114,46 +178,112 @@ Required scaffold parents:
 
 ## Authentic conflict manifest
 
-Pending the no-commit merge preview.
-
 | # | Path | Semantic subsystem | Index status | Semantic status | Owning resolution commit | Validation |
 |---:|---|---|---|---|---|---|
+| 1 | `arch/arm/Makefile` | ARM build system | unmerged in preview | unresolved | pending | pending |
+| 2 | `arch/arm64/mm/proc.S` | ARM64 MMU / processor setup | unmerged in preview | unresolved | pending | pending |
+| 3 | `drivers/clk/clk.c` | common clock framework | unmerged in preview | unresolved | pending | pending |
+| 4 | `drivers/dma-buf/dma-buf.c` | dma-buf ownership and lifetime | unmerged in preview | unresolved | pending | pending |
+| 5 | `drivers/hid/hid-chicony.c` | HID keyboard quirks | unmerged in preview | unresolved | pending | pending |
+| 6 | `drivers/hid/hid-holtek-kbd.c` | HID keyboard quirks | unmerged in preview | unresolved | pending | pending |
+| 7 | `drivers/hid/hid-holtek-mouse.c` | HID mouse quirks | unmerged in preview | unresolved | pending | pending |
+| 8 | `drivers/hid/wacom_sys.c` | Wacom HID lifecycle | unmerged in preview | unresolved | pending | pending |
+| 9 | `drivers/media/dvb-core/dmxdev.c` | DVB demux core | unmerged in preview | unresolved | pending | pending |
+| 10 | `drivers/staging/android/ion/ion.c` | Android ION memory allocator | unmerged in preview | unresolved | pending | pending |
+| 11 | `drivers/usb/dwc3/gadget.c` | DWC3 gadget | unmerged in preview | unresolved | pending | pending |
+| 12 | `drivers/usb/gadget/composite.c` | USB composite gadget core | unmerged in preview | unresolved | pending | pending |
+| 13 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | unmerged in preview | unresolved | pending | pending |
+| 14 | `drivers/usb/gadget/function/rndis.c` | RNDIS gadget protocol | unmerged in preview | unresolved | pending | pending |
+| 15 | `drivers/usb/gadget/function/rndis.h` | RNDIS private interface | unmerged in preview | unresolved | pending | pending |
+| 16 | `drivers/usb/gadget/legacy/dbgp.c` | USB debug gadget | unmerged in preview | unresolved | pending | pending |
+| 17 | `drivers/usb/gadget/legacy/inode.c` | legacy gadget filesystem | unmerged in preview | unresolved | pending | pending |
+| 18 | `fs/file_table.c` | VFS file lifetime | unmerged in preview | unresolved | pending | pending |
+| 19 | `fs/fuse/file.c` | FUSE I/O and lifetime | unmerged in preview | unresolved | pending | pending |
+| 20 | `kernel/sched/cpufreq_schedutil.c` | schedutil frequency governor | unmerged in preview | unresolved | pending | pending |
+| 21 | `net/ipv4/ip_gre.c` | IPv4 GRE networking | unmerged in preview | unresolved | pending | pending |
+| 22 | `net/packet/af_packet.c` | packet socket networking | unmerged in preview | unresolved | pending | pending |
+
+## Conflict-state definitions
+
+### Index-level conflict resolution
+
+An index-level resolution means Git no longer reports an unmerged stage for a
+path. It does **not** establish semantic correctness. The scaffold performs only
+this mechanical step so the authentic two-parent merge commit can exist.
+
+### Semantic conflict resolution
+
+A path becomes semantically resolved only after a focused commit identifies the
+upstream stable changes and their bug intent, compares base/Miru/target code,
+applies the correct combined behavior, checks declarations/callers/private
+interfaces, performs targeted compilation, and passes clean-reversal validation
+back to the scaffold state.
+
+### Non-conflicting upstream changes
+
+All cleanly applicable 4.14.242-4.14.269 changes remain in the scaffold. They are
+not authentic conflicts, but cleanly merged changes in downstream-sensitive
+areas require explicit semantic review before the full build.
+
+### Downstream behavior intentionally retained
+
+Downstream behavior may be retained when it implements required Qualcomm,
+OnePlus, OPlus, ColorOS or Miru semantics absent from generic Android Common.
+Retention must be explicit and justified; whole-file `ours` resolution is not an
+acceptable final semantic decision.
+
+### Upstream behavior intentionally imported
+
+Upstream behavior is imported when it fixes a bug or security issue without
+breaking required downstream semantics. The final source may require a manual
+adaptation rather than textual selection of either side.
+
+### No-source-change resolutions
+
+A conflict may ultimately require no source delta from the scaffold when audit
+shows the Miru implementation already contains the upstream semantic fix or the
+upstream code is inapplicable to the target configuration. Such a path still
+requires an owning focused ledger commit and validation.
 
 ## Clean-merge semantic audit
 
-The following downstream-sensitive areas require explicit review even when Git
-reports no textual conflict:
+The following downstream-sensitive areas require explicit review even though the
+merge preview produced no textual conflict in most of them:
 
-- DT2W
-- AOD and brightness behavior
-- smart-PA and audio fixes
-- MSM/SDE display shutdown and last-close behavior
-- Qualcomm reserved networking-port policy
-- USB gadget, ADB and charging behavior
-- UFS initialization, power management and shutdown behavior
-- Qualcomm IPC, GLINK and QRTR behavior
-- Binder compatibility with the ColorOS 14 port
-- OPlus touchscreen and display interfaces
-- exported kernel symbols, `CONFIG_MODVERSIONS` and symbol CRCs
-- private headers and interfaces consumed by external vendor modules
-- all Miru changes applied after the 4.14.241 integration scaffold
+- [ ] DT2W kernel and vendor companion functionality
+- [ ] AOD luminance, HBM and brightness behavior
+- [ ] smart-PA and audio fixes
+- [ ] MSM/SDE display shutdown and last-close behavior
+- [ ] Qualcomm reserved networking-port policy
+- [ ] USB gadget, ADB, accessory and charging behavior
+- [ ] UFS initialization, power management and shutdown behavior
+- [ ] Qualcomm IPC, GLINK and QRTR behavior
+- [ ] Binder compatibility with the ColorOS 14 port
+- [ ] OPlus touchscreen and display interfaces
+- [ ] exported kernel symbols, `CONFIG_MODVERSIONS` and symbol CRCs
+- [ ] private headers and interfaces consumed by external vendor modules
+- [ ] all Miru changes applied after the 4.14.241 integration scaffold
 
-## Resolution semantics
+## Planned resolution batches
 
-Each conflict row must record one of the following outcomes:
+Only groups containing authentic conflicts will receive conflict-resolution
+commits. Initial grouping, subject to upstream-history analysis:
 
-- upstream behavior semantically imported while downstream behavior is preserved;
-- downstream behavior intentionally retained with upstream intent accounted for;
-- a combined adaptation replaces both textual sides;
-- no source change required after semantic analysis.
+1. ARM and ARM64 build/MMU conflicts;
+2. common clock, dma-buf and ION memory-infrastructure conflicts;
+3. HID input conflicts;
+4. DVB demux conflict;
+5. USB DWC3, composite, FunctionFS, RNDIS and legacy gadget conflicts;
+6. VFS and FUSE conflicts;
+7. schedutil conflict;
+8. IPv4 GRE and packet-socket conflicts.
 
-An unmerged-path count of zero is not semantic completion. Every authentic
-conflict requires an owning focused commit and clean-reversal validation.
+Unrelated groups will not be combined merely to reduce commit count.
 
 ## Validation summary
 
-- Remaining authentic conflict count: **pending**
-- Remaining semantic conflict count: **pending**
+- Remaining authentic conflict count: **22**
+- Remaining semantic conflict count: **22**
 - Clean-reversal results: **not started**
 - Incremental compilation: **not started**
 - Final semantic audit: **not started**
