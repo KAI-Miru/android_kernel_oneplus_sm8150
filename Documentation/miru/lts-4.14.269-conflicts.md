@@ -18,8 +18,8 @@ merged changes that require downstream review.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **22**
 - Index-resolved conflicts: **22**
-- Semantically resolved conflicts: **20**
-- Remaining semantic conflicts: **2**
+- Semantically resolved conflicts: **22**
+- Remaining semantic conflicts: **0**
 - Targeted compilation: **not started**
 - Full kernel build: **not started**
 - External-module build: **not started**
@@ -203,8 +203,8 @@ Required scaffold parents:
 | 18 | `fs/file_table.c` | VFS file lifetime | index-resolved in scaffold | resolved | __B6__ | targeted compile PASS; clean reversal pending |
 | 19 | `fs/fuse/file.c` | FUSE I/O and lifetime | index-resolved in scaffold | resolved | __B6__ | targeted compile PASS; clean reversal pending |
 | 20 | `kernel/sched/cpufreq_schedutil.c` | schedutil frequency governor | index-resolved in scaffold | resolved | __B7__ | targeted compile PASS; clean reversal pending |
-| 21 | `net/ipv4/ip_gre.c` | IPv4 GRE networking | index-resolved in scaffold | unresolved | pending | pending |
-| 22 | `net/packet/af_packet.c` | packet socket networking | index-resolved in scaffold | unresolved | pending | pending |
+| 21 | `net/ipv4/ip_gre.c` | IPv4 GRE networking | index-resolved in scaffold | resolved | __B8__ | targeted compile PASS; clean reversal pending |
+| 22 | `net/packet/af_packet.c` | packet socket networking | index-resolved in scaffold | resolved | __B8__ | targeted compile PASS; clean reversal pending |
 
 ## Conflict-state definitions
 
@@ -356,4 +356,13 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Targeted compilation: `kernel/sched/cpufreq_schedutil.o`.
 
 - Owning commit token: `__B7__`
+- Clean reversal: pending post-commit check.
+
+### IPv4 GRE and packet-socket resolution
+- Paths: `net/ipv4/ip_gre.c`, `net/packet/af_packet.c`.
+- Upstream commits: `99279223a37b46dc7716ec4e0ed4b3e03f1cfa4c`, `899e0319b3f58d85ac9a2f1d2895a71a275e2f4e`, `c38023032a598ec6263e008d62c7f02def72d5c7`, `a829ff7c8ec494eca028824628a964cde543dc76`.
+- Decision: retain the already-present GRE checksum guard and normalize the merged block. Import the packet-socket network-namespace helper and READ/WRITE_ONCE fanout synchronization while retaining the existing guarded bitmap cleanup.
+- Targeted compilation: `net/ipv4/ip_gre.o`, `net/packet/af_packet.o`.
+
+- Owning commit token: `__B8__`
 - Clean reversal: pending post-commit check.
