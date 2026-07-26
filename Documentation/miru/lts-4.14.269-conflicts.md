@@ -387,7 +387,7 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Upstream compatibility fix: `04a7b0c73544b667407ccee19baab02fd083bccf` (`driver: soc: qcom: event_timer.c: fix the compile error for LTS 4.14.254`).
 - Upstream intent: initialize the timerqueue's cached rbtree with `RB_ROOT_CACHED`; all existing add/delete/get-next behavior continues through the timerqueue API.
 - Downstream adaptation: replace only the per-CPU initializer with `.rb_root = RB_ROOT_CACHED`; Qualcomm event ordering, affinity migration and hrtimer behavior remain unchanged.
-- Owning correction commit: `PENDING_EVENT_TIMER_COMMIT`
-- Targeted compilation: pending.
-- Clean reversal: pending.
+- Owning correction commit: `733320a6cd9f74ec378ae6cf0a4956323b859128`
+- Targeted compilation: **PASS** — `drivers/soc/qcom/event_timer.o`.
+- Clean reversal: **PASS** — reverting the owning commit restores both assigned paths to integration head `e4a7100fc896ae9d35c0dc212fb1647fa79bf225`.
 - Full-build validation: pending.
