@@ -1,4 +1,4 @@
-name: Miru H.40 4.14.241 kernel and external modules
+name: Miru H.40 4.14.269 kernel and external modules
 
 on:
   push:
@@ -18,11 +18,11 @@ permissions:
   contents: read
 
 env:
-  PRODUCTION_BASE: cc49ffcb5c5207746618a799b250c67decdc0d15
-  ANDROID_STABLE_TARGET: a446f52a5d3fc71698a073d08ce1eeb923727b42
+  PRODUCTION_BASE: 4394ccbfa3805ce392b65b3ea148ff1eb084a974
+  ANDROID_STABLE_TARGET: 0eec6f6001d15bb1108835a642ec4637d75eef19
   VENDOR_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
-  EXPECTED_RELEASE: 4.14.241-miru-h40-lts241-ci7+
-  MAKEFILE_BUILD_241_BLOB: ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3
+  EXPECTED_RELEASE: 4.14.269-miru-h40-lts269-14d41d8-ci3+
+  MAKEFILE_BUILD_269_BLOB: ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3
 
 jobs:
   production-kernel-and-modules:
@@ -33,13 +33,13 @@ jobs:
     timeout-minutes: 180
 
     steps:
-      - name: Checkout requested 4.14.241 revision
+      - name: Checkout requested 4.14.269 revision
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
-      - name: Verify 4.14.241 source, ancestry, and device fixes
+      - name: Verify 4.14.269 source, ancestry, and device fixes
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -50,10 +50,10 @@ jobs:
           git diff --check "${PRODUCTION_BASE}" HEAD
           test -z "$(git ls-files -u)"
           test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = "241"
-          grep -Fq -- '- Semantically resolved conflicts: **32**' Documentation/miru/lts-4.14.241-conflicts.md
-          grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.241-conflicts.md
+          grep -Fq -- '- Semantically resolved conflicts: **22**' Documentation/miru/lts-4.14.269-conflicts.md
+          grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.269-conflicts.md
           if git grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . \
-              ':!Documentation/miru/lts-4.14.241-conflicts.md' \
+              ':!Documentation/miru/lts-4.14.269-conflicts.md' \
               > source-conflict-markers.txt; then
             cat source-conflict-markers.txt
             exit 1
@@ -78,7 +78,7 @@ jobs:
             echo "glink_enoent_normalization=absent"
           } | tee source-validation.txt
 
-      - name: Prepare pinned 4.14.241 build driver
+      - name: Prepare pinned 4.14.269 build driver
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -99,17 +99,17 @@ jobs:
                   raise SystemExit(f'missing expected build-driver text: {old}')
               text = text.replace(old, new, 1)
 
-          one('BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e', 'BASE_SHA=cc49ffcb5c5207746618a799b250c67decdc0d15')
-          one('STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac', 'STABLE_SHA=a446f52a5d3fc71698a073d08ce1eeb923727b42')
-          one("':!Documentation/miru/lts-4.14.190-conflicts.md'", "':!Documentation/miru/lts-4.14.241-conflicts.md'")
+          one('BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e', 'BASE_SHA=4394ccbfa3805ce392b65b3ea148ff1eb084a974')
+          one('STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac', 'STABLE_SHA=0eec6f6001d15bb1108835a642ec4637d75eef19')
+          one("':!Documentation/miru/lts-4.14.190-conflicts.md'", "':!Documentation/miru/lts-4.14.269-conflicts.md'")
           one('test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "190"', 'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "241"')
-          one("grep -Fq -- '- Resolved conflicts: 28' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq -- '- Semantically resolved conflicts: **32**' Documentation/miru/lts-4.14.241-conflicts.md")
-          one("grep -Fq -- '- Remaining conflicts: 0' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.241-conflicts.md")
-          one('echo "== Miru H.40 Android 4.14.190 CI build =="', 'echo "== Miru H.40 Android 4.14.241 production candidate build =="')
-          one('echo "kernel_version=4.14.190"', 'echo "kernel_version=4.14.241"')
-          one('echo "conflicts=28/28 resolved"', 'echo "conflicts=32/32 resolved"')
-          one('export KERNEL_LOCALVERSION=-miru-h40-lts190-ci1', 'export KERNEL_LOCALVERSION=-miru-h40-lts241-ci7')
-          one("grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts190-ci1\"' \"${OUT_DIR}/.config\"", "grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts241-ci7\"' \"${OUT_DIR}/.config\"")
+          one("grep -Fq -- '- Resolved conflicts: 28' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq -- '- Semantically resolved conflicts: **22**' Documentation/miru/lts-4.14.269-conflicts.md")
+          one("grep -Fq -- '- Remaining conflicts: 0' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.269-conflicts.md")
+          one('echo "== Miru H.40 Android 4.14.190 CI build =="', 'echo "== Miru H.40 Android 4.14.269 production candidate build =="')
+          one('echo "kernel_version=4.14.190"', 'echo "kernel_version=4.14.269"')
+          one('echo "conflicts=28/28 resolved"', 'echo "conflicts=22/22 resolved"')
+          one('export KERNEL_LOCALVERSION=-miru-h40-lts190-ci1', 'export KERNEL_LOCALVERSION=-miru-h40-lts269-14d41d8-ci3')
+          one("grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts190-ci1\"' \"${OUT_DIR}/.config\"", "grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts269-14d41d8-ci3\"' \"${OUT_DIR}/.config\"")
           one("grep -m1 '^Linux version 4\\.14\\.190-'", "grep -m1 '^Linux version 4\\.14\\.241-'")
           one('git fetch --no-tags --depth=1 origin "${SCAFFOLD_SHA}"\n', '')
           one('rm -rf "${ANDROID_ROOT}" "${VENDOR_SOURCE}"', 'rm -rf "${ANDROID_ROOT}" "${VENDOR_SOURCE}"\ngit worktree prune')
@@ -126,10 +126,10 @@ jobs:
           one(old, new)
           path.write_text(text)
           PY
-          grep -Fq 'kernel_version=4.14.241' scripts/miru/ci_build_4.14.190.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-lts241-ci7' scripts/miru/ci_build_4.14.190.sh
+          grep -Fq 'kernel_version=4.14.269' scripts/miru/ci_build_4.14.190.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-lts269-14d41d8-ci3' scripts/miru/ci_build_4.14.190.sh
 
-      - name: Build and validate the 4.14.241 kernel
+      - name: Build and validate the 4.14.269 kernel
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -151,7 +151,7 @@ jobs:
           path = Path('scripts/miru/build_external_modules_4.14.190.sh')
           text = path.read_text()
           old_release = '4.14.190-miru-h40-lts190-ci1+'
-          new_release = '4.14.241-miru-h40-lts241-ci7+'
+          new_release = '4.14.269-miru-h40-lts269-14d41d8-ci3+'
           old_hash = 'expected = "74ce588c69513197a354ef0032c2145e91ee0641"'
           new_hash = 'expected = "ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3"'
           if old_release not in text:
@@ -160,10 +160,10 @@ jobs:
               raise SystemExit('missing 4.14.190 Makefile.build integrity hash')
           text = text.replace(old_release, new_release, 1)
           text = text.replace(old_hash, new_hash, 1)
-          text = text.replace('4.14.190', '4.14.241').replace('lts190', 'lts241-ci7')
+          text = text.replace('4.14.190', '4.14.269').replace('lts190', 'lts269-14d41d8-ci3')
           path.write_text(text)
           PY
-          test "$(git -C "${RUNNER_TEMP}/android-root/kernel/msm-4.14" hash-object scripts/Makefile.build)" = "${MAKEFILE_BUILD_241_BLOB}"
+          test "$(git -C "${RUNNER_TEMP}/android-root/kernel/msm-4.14" hash-object scripts/Makefile.build)" = "${MAKEFILE_BUILD_269_BLOB}"
           bash scripts/miru/build_external_modules_4.14.190.sh
           test "$(find "${RUNNER_TEMP}/miru-external-modules/dropin" -maxdepth 1 -type f -name '*.ko' | wc -l)" = 32
           grep -Fq 'errors=0' external-module-diagnostics/MODULE-ABI-REPORT.txt
@@ -192,7 +192,7 @@ jobs:
             echo "vermagic=${EXPECTED_RELEASE} SMP preempt mod_unload modversions aarch64"
             echo "module_count=${MODULE_COUNT}"
             echo "module_abi_errors=0"
-            echo "makefile_build_blob=${MAKEFILE_BUILD_241_BLOB}"
+            echo "makefile_build_blob=${MAKEFILE_BUILD_269_BLOB}"
             echo "run_id=${GITHUB_RUN_ID}"
             echo "run_url=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           } | tee final-report/VALIDATION-SUMMARY.txt
@@ -204,15 +204,15 @@ jobs:
           find "${RUNNER_TEMP}/android-root/out/h40-artifacts" -type f -print0 | sort -z | xargs -0 sha256sum > final-report/KERNEL-FILES-SHA256.txt
           find "${MODULE_DIR}" -type f -print0 | sort -z | xargs -0 sha256sum > final-report/MODULE-FILES-SHA256.txt
           sha256sum \
-            "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.241.7z" \
-            "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.241-audit.zip" \
+            "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.269.7z" \
+            "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.269-audit.zip" \
             > final-report/MODULE-PACKAGES-SHA256.txt
 
       - name: Upload kernel output
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-lts-4.14.241-ci7-build
+          name: miru-h40-lts-4.14.269-ci3-build
           path: ${{ runner.temp }}/android-root/out/h40-artifacts
           if-no-files-found: warn
           compression-level: 0
@@ -222,10 +222,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-v3-modules-dropin-4.14.241-ci7
+          name: miru-v3-modules-dropin-4.14.269-ci3
           path: |
-            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.241.7z
-            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.241-audit.zip
+            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.269.7z
+            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.269-audit.zip
           if-no-files-found: warn
           compression-level: 0
           retention-days: 30
@@ -234,7 +234,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-lts-4.14.241-ci7-diagnostics
+          name: miru-h40-lts-4.14.269-ci3-diagnostics
           path: |
             build-diagnostics
             external-module-diagnostics
