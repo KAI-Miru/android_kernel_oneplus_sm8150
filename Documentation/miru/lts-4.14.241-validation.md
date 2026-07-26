@@ -9,10 +9,10 @@
 - Android Common parent/target: `a446f52a5d3fc71698a073d08ce1eeb923727b42`
 - Original authentic merge scaffold: `ff895111416c91c1aaf9acf518ca79ac3f66a80b`
 
-The production branch was read and held unchanged while the 4.14.241 source
-was resolved and device-tested. The integration preserves the Android stable
-history; it is intended to be promoted with a normal merge commit, never by
-squash or rebase.
+The production branch was held unchanged while the 4.14.241 source was
+resolved and device-tested. The integration preserves the Android stable
+history; it was promoted with a normal merge commit, never by squash or
+rebase.
 
 ## Source review
 
@@ -67,6 +67,13 @@ candidates boot-looped at the splash screen and eventually entered TWRP. This
 confirms the QRTR correction plus restored GLINK error propagation as the
 device-tested source state.
 
+On 2026-07-26, the maintainer additionally confirmed that the final production
+`4.14.241-miru-h40-lts241-ci7+` kernel is fully working on the OnePlus 7 Pro.
+This is a real-device confirmation of the final production candidate; it
+supplements the recorded `ci6` boot evidence and the immutable `ci7` CI
+artifacts. The separately recorded `ci4` module test remains the explicit
+on-device external-module evidence.
+
 The established H.40 device paths remain present: WLAN, the applicable audio
 stack, modem IPC, storage, display, touch, charging and suspend/resume. This is
 not a claim of new performance or battery behavior.
@@ -96,19 +103,21 @@ This verifies ABI compatibility of the tested `ci4` package with the booting
 `ci6` kernel. It does not represent a device test of a newly built matching
 module package.
 
-## Production publication rule
+## Production publication result
 
-The permanent 4.14.241 workflow must rebuild the kernel and exactly 32 external
+The permanent 4.14.241 workflow rebuilt the kernel and exactly 32 external
 modules from the pinned vendor source
-`125ff7d0153cbb3aaa8f9fd618c33b7f728d7798`, verify the
+`125ff7d0153cbb3aaa8f9fd618c33b7f728d7798`, verified the
 `scripts/Makefile.build` blob
-`ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3`, require zero ABI errors, and
-upload the kernel output, module drop-in, diagnostics, and checksums. If its
-release suffix differs from `ci6`, it is a newly built production candidate and
-is not implicitly covered by the `ci6` phone test.
+`ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3`, reported zero ABI errors, and
+uploaded the kernel output, matching module drop-in, diagnostics, and checksums.
+The pull-request run and the actual production merge run both passed; the latter
+is run `30029365944` for merge commit
+`4394ccbfa3805ce392b65b3ea148ff1eb084a974`.
 
 ## Release decision
 
-The 4.14.241 source is approved for production promotion after the permanent
-workflow passes for the pull-request head. The promotion must use a merge commit
-and must be followed by the same permanent workflow on the actual merge commit.
+The 4.14.241 source was merged into `miru-h40` with normal merge commit
+`4394ccbfa3805ce392b65b3ea148ff1eb084a974`. Its production workflow passed,
+and the maintainer subsequently confirmed the final `ci7` kernel working on
+device. No source change is required for that confirmation.
