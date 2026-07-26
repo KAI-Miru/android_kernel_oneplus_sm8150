@@ -20,7 +20,7 @@ merged changes that require downstream review.
 - Index-resolved conflicts: **22**
 - Semantically resolved conflicts: **22**
 - Remaining semantic conflicts: **0**
-- Targeted compilation: **not started**
+- Targeted compilation: **PASS for all eight conflict batches**
 - Full kernel build: **not started**
 - External-module build: **not started**
 - Device-test status: **not performed for this milestone**
@@ -183,28 +183,28 @@ Required scaffold parents:
 
 | # | Path | Semantic subsystem | Index status | Semantic status | Owning resolution commit | Validation |
 |---:|---|---|---|---|---|---|
-| 1 | `arch/arm/Makefile` | ARM build system | index-resolved in scaffold | resolved | __B1__ | targeted compile PASS; clean reversal pending |
-| 2 | `arch/arm64/mm/proc.S` | ARM64 MMU / processor setup | index-resolved in scaffold | resolved | __B1__ | targeted compile PASS; clean reversal pending |
-| 3 | `drivers/clk/clk.c` | common clock framework | index-resolved in scaffold | resolved | __B2__ | targeted compile PASS; clean reversal pending |
-| 4 | `drivers/dma-buf/dma-buf.c` | dma-buf ownership and lifetime | index-resolved in scaffold | resolved with no source delta | __B2__ | targeted compile PASS; clean reversal pending |
-| 5 | `drivers/hid/hid-chicony.c` | HID keyboard quirks | index-resolved in scaffold | resolved with no source delta | __B3__ | targeted compile PASS; clean reversal pending |
-| 6 | `drivers/hid/hid-holtek-kbd.c` | HID keyboard quirks | index-resolved in scaffold | resolved | __B3__ | targeted compile PASS; clean reversal pending |
-| 7 | `drivers/hid/hid-holtek-mouse.c` | HID mouse quirks | index-resolved in scaffold | resolved | __B3__ | targeted compile PASS; clean reversal pending |
-| 8 | `drivers/hid/wacom_sys.c` | Wacom HID lifecycle | index-resolved in scaffold | resolved with no source delta | __B3__ | targeted compile PASS; clean reversal pending |
-| 9 | `drivers/media/dvb-core/dmxdev.c` | DVB demux core | index-resolved in scaffold | resolved | __B4__ | targeted compile PASS; clean reversal pending |
-| 10 | `drivers/staging/android/ion/ion.c` | Android ION memory allocator | index-resolved in scaffold | resolved with no source delta | __B2__ | targeted compile PASS; clean reversal pending |
-| 11 | `drivers/usb/dwc3/gadget.c` | DWC3 gadget | index-resolved in scaffold | resolved | __B5__ | targeted compile PASS; clean reversal pending |
-| 12 | `drivers/usb/gadget/composite.c` | USB composite gadget core | index-resolved in scaffold | resolved | __B5__ | targeted compile PASS; clean reversal pending |
-| 13 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | resolved | __B5__ | targeted compile PASS; clean reversal pending |
-| 14 | `drivers/usb/gadget/function/rndis.c` | RNDIS gadget protocol | index-resolved in scaffold | resolved with no source delta | __B5__ | targeted compile PASS; clean reversal pending |
-| 15 | `drivers/usb/gadget/function/rndis.h` | RNDIS private interface | index-resolved in scaffold | resolved with no source delta | __B5__ | targeted compile PASS; clean reversal pending |
-| 16 | `drivers/usb/gadget/legacy/dbgp.c` | USB debug gadget | index-resolved in scaffold | resolved | __B5__ | targeted compile PASS; clean reversal pending |
-| 17 | `drivers/usb/gadget/legacy/inode.c` | legacy gadget filesystem | index-resolved in scaffold | resolved | __B5__ | targeted compile PASS; clean reversal pending |
-| 18 | `fs/file_table.c` | VFS file lifetime | index-resolved in scaffold | resolved | __B6__ | targeted compile PASS; clean reversal pending |
-| 19 | `fs/fuse/file.c` | FUSE I/O and lifetime | index-resolved in scaffold | resolved | __B6__ | targeted compile PASS; clean reversal pending |
-| 20 | `kernel/sched/cpufreq_schedutil.c` | schedutil frequency governor | index-resolved in scaffold | resolved | __B7__ | targeted compile PASS; clean reversal pending |
-| 21 | `net/ipv4/ip_gre.c` | IPv4 GRE networking | index-resolved in scaffold | resolved | __B8__ | targeted compile PASS; clean reversal pending |
-| 22 | `net/packet/af_packet.c` | packet socket networking | index-resolved in scaffold | resolved | __B8__ | targeted compile PASS; clean reversal pending |
+| 1 | `arch/arm/Makefile` | ARM build system | index-resolved in scaffold | resolved | 380d3aad61a3b26278017ebf35059783eb121b42 | targeted compile PASS; clean reversal PASS |
+| 2 | `arch/arm64/mm/proc.S` | ARM64 MMU / processor setup | index-resolved in scaffold | resolved | 380d3aad61a3b26278017ebf35059783eb121b42 | targeted compile PASS; clean reversal PASS |
+| 3 | `drivers/clk/clk.c` | common clock framework | index-resolved in scaffold | resolved | 4bf268ae2ad0a4a7128a16c9c5ae4a0e1022ca92 | targeted compile PASS; clean reversal PASS |
+| 4 | `drivers/dma-buf/dma-buf.c` | dma-buf ownership and lifetime | index-resolved in scaffold | resolved with no source delta | 4bf268ae2ad0a4a7128a16c9c5ae4a0e1022ca92 | targeted compile PASS; clean reversal PASS |
+| 5 | `drivers/hid/hid-chicony.c` | HID keyboard quirks | index-resolved in scaffold | resolved with no source delta | 7f3d8fd31204928c50fb7ad8c03db944410d6819 | targeted compile PASS; clean reversal PASS |
+| 6 | `drivers/hid/hid-holtek-kbd.c` | HID keyboard quirks | index-resolved in scaffold | resolved | 7f3d8fd31204928c50fb7ad8c03db944410d6819 | targeted compile PASS; clean reversal PASS |
+| 7 | `drivers/hid/hid-holtek-mouse.c` | HID mouse quirks | index-resolved in scaffold | resolved | 7f3d8fd31204928c50fb7ad8c03db944410d6819 | targeted compile PASS; clean reversal PASS |
+| 8 | `drivers/hid/wacom_sys.c` | Wacom HID lifecycle | index-resolved in scaffold | resolved with no source delta | 7f3d8fd31204928c50fb7ad8c03db944410d6819 | targeted compile PASS; clean reversal PASS |
+| 9 | `drivers/media/dvb-core/dmxdev.c` | DVB demux core | index-resolved in scaffold | resolved | e244ebbb15c0019bda151601ba6c96ad920e9ca7 | targeted compile PASS; clean reversal PASS |
+| 10 | `drivers/staging/android/ion/ion.c` | Android ION memory allocator | index-resolved in scaffold | resolved with no source delta | 4bf268ae2ad0a4a7128a16c9c5ae4a0e1022ca92 | targeted compile PASS; clean reversal PASS |
+| 11 | `drivers/usb/dwc3/gadget.c` | DWC3 gadget | index-resolved in scaffold | resolved | 37bd2903f8f5e7c2c687020d29bf33fe0df4a6b2 | targeted compile PASS; clean reversal PASS |
+| 12 | `drivers/usb/gadget/composite.c` | USB composite gadget core | index-resolved in scaffold | resolved | 37bd2903f8f5e7c2c687020d29bf33fe0df4a6b2 | targeted compile PASS; clean reversal PASS |
+| 13 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | resolved | 37bd2903f8f5e7c2c687020d29bf33fe0df4a6b2 | targeted compile PASS; clean reversal PASS |
+| 14 | `drivers/usb/gadget/function/rndis.c` | RNDIS gadget protocol | index-resolved in scaffold | resolved with no source delta | 37bd2903f8f5e7c2c687020d29bf33fe0df4a6b2 | targeted compile PASS; clean reversal PASS |
+| 15 | `drivers/usb/gadget/function/rndis.h` | RNDIS private interface | index-resolved in scaffold | resolved with no source delta | 37bd2903f8f5e7c2c687020d29bf33fe0df4a6b2 | targeted compile PASS; clean reversal PASS |
+| 16 | `drivers/usb/gadget/legacy/dbgp.c` | USB debug gadget | index-resolved in scaffold | resolved | 37bd2903f8f5e7c2c687020d29bf33fe0df4a6b2 | targeted compile PASS; clean reversal PASS |
+| 17 | `drivers/usb/gadget/legacy/inode.c` | legacy gadget filesystem | index-resolved in scaffold | resolved | 37bd2903f8f5e7c2c687020d29bf33fe0df4a6b2 | targeted compile PASS; clean reversal PASS |
+| 18 | `fs/file_table.c` | VFS file lifetime | index-resolved in scaffold | resolved | 7f777aa60e37ce39fa6d3d0975740089b5560a0a | targeted compile PASS; clean reversal PASS |
+| 19 | `fs/fuse/file.c` | FUSE I/O and lifetime | index-resolved in scaffold | resolved | 7f777aa60e37ce39fa6d3d0975740089b5560a0a | targeted compile PASS; clean reversal PASS |
+| 20 | `kernel/sched/cpufreq_schedutil.c` | schedutil frequency governor | index-resolved in scaffold | resolved | 4256e7d052a52c9db467dd095d2f9d1ed8e41cc9 | targeted compile PASS; clean reversal PASS |
+| 21 | `net/ipv4/ip_gre.c` | IPv4 GRE networking | index-resolved in scaffold | resolved | 26f9bf82de03c2a094efceff0d568011f54ebfff | targeted compile PASS; clean reversal PASS |
+| 22 | `net/packet/af_packet.c` | packet socket networking | index-resolved in scaffold | resolved | 26f9bf82de03c2a094efceff0d568011f54ebfff | targeted compile PASS; clean reversal PASS |
 
 ## Conflict-state definitions
 
@@ -287,8 +287,8 @@ Unrelated groups will not be combined merely to reduce commit count.
 
 - Remaining authentic conflict count: **22**
 - Remaining semantic conflict count: **22**
-- Clean-reversal results: **not started**
-- Incremental compilation: **not started**
+- Clean-reversal results: **PASS for all eight owning commits**
+- Incremental compilation: **PASS for all eight conflict batches**
 - Final semantic audit: **not started**
 - Full kernel and external-module build: **not started**
 - Physical device validation: **not performed**
@@ -301,8 +301,8 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Decision: import the ARM build-flag cleanups while retaining Qualcomm/OnePlus overlay, module and downstream build behavior. Retain the downstream deferred DBM enable model in `proc.S`; widen the Cortex-A55 broken-DBM range in `arch/arm64/kernel/cpufeature.c` to all variants and revisions while retaining the Kryo-specific entries.
 - Targeted compilation: ARM32 `arch/arm/kernel/entry-common.o`; ARM64 `arch/arm64/kernel/cpufeature.o` and `arch/arm64/mm/proc.o`.
 
-- Owning commit token: `__B1__`
-- Clean reversal: pending post-commit check.
+- Owning commit token: `380d3aad61a3b26278017ebf35059783eb121b42`
+- Clean reversal: PASS in a disposable worktree.
 
 ### Clock, dma-buf and ION resolution
 - Paths: `drivers/clk/clk.c`, `drivers/dma-buf/dma-buf.c`, `drivers/staging/android/ion/ion.c`.
@@ -310,8 +310,8 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Decision: remove the orphan clock list from the generic debugfs list array while preserving the downstream dedicated orphan debugfs views. The existing Miru dma-buf release/list lifecycle and ION mapping lifetime already contain the target fixes, so those two paths are semantic no-source-change resolutions.
 - Targeted compilation: `drivers/clk/clk.o`, `drivers/dma-buf/dma-buf.o`, `drivers/staging/android/ion/ion.o`.
 
-- Owning commit token: `__B2__`
-- Clean reversal: pending post-commit check.
+- Owning commit token: `4bf268ae2ad0a4a7128a16c9c5ae4a0e1022ca92`
+- Clean reversal: PASS in a disposable worktree.
 
 ### HID input resolution
 - Paths: `drivers/hid/hid-chicony.c`, `drivers/hid/hid-holtek-kbd.c`, `drivers/hid/hid-holtek-mouse.c`, `drivers/hid/wacom_sys.c`.
@@ -319,8 +319,8 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Decision: retain the existing Chicony USB guard and Wacom lifecycle fixes. Correct the Holtek keyboard's uninitialized parse result and make the Holtek mouse probe parse and start hardware with proper error propagation.
 - Targeted compilation: the four conflicted HID objects.
 
-- Owning commit token: `__B3__`
-- Clean reversal: pending post-commit check.
+- Owning commit token: `7f3d8fd31204928c50fb7ad8c03db944410d6819`
+- Clean reversal: PASS in a disposable worktree.
 
 ### DVB demux resolution
 - Path: `drivers/media/dvb-core/dmxdev.c`.
@@ -328,8 +328,8 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Decision: import device-registration error checking and complete unwind cleanup while preserving downstream buffer sizing, capability handling and debugfs behavior.
 - Targeted compilation: `drivers/media/dvb-core/dmxdev.o`.
 
-- Owning commit token: `__B4__`
-- Clean reversal: pending post-commit check.
+- Owning commit token: `e244ebbb15c0019bda151601ba6c96ad920e9ca7`
+- Clean reversal: PASS in a disposable worktree.
 
 ### USB core and gadget resolution
 - Paths: `drivers/usb/dwc3/gadget.c`, `drivers/usb/gadget/composite.c`, `drivers/usb/gadget/function/f_fs.c`, `drivers/usb/gadget/function/rndis.c`, `drivers/usb/gadget/function/rndis.h`, `drivers/usb/gadget/legacy/dbgp.c`, `drivers/usb/gadget/legacy/inode.c`.
@@ -337,8 +337,8 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Decision: preserve Miru's stronger full memory barrier and downstream diagnostics. Import DWC3 started-list ring accounting, stale delayed-status reset, timeout continuation and bottom-half protection; composite self-powered and request-direction fixes; FunctionFS stream/lifetime/locking fixes; and legacy gadget direction checks. Existing RNDIS bounds and IRQ-safe locking are retained as semantic no-source-change resolutions.
 - Targeted compilation: DWC3 gadget, composite, FunctionFS, RNDIS and legacy gadget objects represented by their Makefiles.
 
-- Owning commit token: `__B5__`
-- Clean reversal: pending post-commit check.
+- Owning commit token: `37bd2903f8f5e7c2c687020d29bf33fe0df4a6b2`
+- Clean reversal: PASS in a disposable worktree.
 
 ### VFS and FUSE resolution
 - Paths: `fs/file_table.c`, `fs/fuse/file.c`.
@@ -346,8 +346,8 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Decision: add the `fput_many()` implementation matching the cleanly merged declaration and callers, and consistently gate FUSE I/O/lifetime paths with `fuse_is_bad()` so aborted connections do not continue unsafe operations.
 - Targeted compilation: `fs/file_table.o`, `fs/fuse/file.o`.
 
-- Owning commit token: `__B6__`
-- Clean reversal: pending post-commit check.
+- Owning commit token: `7f777aa60e37ce39fa6d3d0975740089b5560a0a`
+- Clean reversal: PASS in a disposable worktree.
 
 ### Schedutil resolution
 - Path: `kernel/sched/cpufreq_schedutil.c`.
@@ -355,8 +355,8 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Decision: provide the governor kobject release callback and preserve cached tunables before the final kobject put can free the tunables object, preventing a use-after-free while retaining downstream schedutil policy behavior.
 - Targeted compilation: `kernel/sched/cpufreq_schedutil.o`.
 
-- Owning commit token: `__B7__`
-- Clean reversal: pending post-commit check.
+- Owning commit token: `4256e7d052a52c9db467dd095d2f9d1ed8e41cc9`
+- Clean reversal: PASS in a disposable worktree.
 
 ### IPv4 GRE and packet-socket resolution
 - Paths: `net/ipv4/ip_gre.c`, `net/packet/af_packet.c`.
@@ -364,5 +364,5 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Decision: retain the already-present GRE checksum guard and normalize the merged block. Import the packet-socket network-namespace helper and READ/WRITE_ONCE fanout synchronization while retaining the existing guarded bitmap cleanup.
 - Targeted compilation: `net/ipv4/ip_gre.o`, `net/packet/af_packet.o`.
 
-- Owning commit token: `__B8__`
-- Clean reversal: pending post-commit check.
+- Owning commit token: `26f9bf82de03c2a094efceff0d568011f54ebfff`
+- Clean reversal: PASS in a disposable worktree.
