@@ -18,8 +18,8 @@ merged changes that require downstream review.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **22**
 - Index-resolved conflicts: **22**
-- Semantically resolved conflicts: **9**
-- Remaining semantic conflicts: **13**
+- Semantically resolved conflicts: **10**
+- Remaining semantic conflicts: **12**
 - Targeted compilation: **not started**
 - Full kernel build: **not started**
 - External-module build: **not started**
@@ -191,7 +191,7 @@ Required scaffold parents:
 | 6 | `drivers/hid/hid-holtek-kbd.c` | HID keyboard quirks | index-resolved in scaffold | resolved | __B3__ | targeted compile PASS; clean reversal pending |
 | 7 | `drivers/hid/hid-holtek-mouse.c` | HID mouse quirks | index-resolved in scaffold | resolved | __B3__ | targeted compile PASS; clean reversal pending |
 | 8 | `drivers/hid/wacom_sys.c` | Wacom HID lifecycle | index-resolved in scaffold | resolved with no source delta | __B3__ | targeted compile PASS; clean reversal pending |
-| 9 | `drivers/media/dvb-core/dmxdev.c` | DVB demux core | index-resolved in scaffold | unresolved | pending | pending |
+| 9 | `drivers/media/dvb-core/dmxdev.c` | DVB demux core | index-resolved in scaffold | resolved | __B4__ | targeted compile PASS; clean reversal pending |
 | 10 | `drivers/staging/android/ion/ion.c` | Android ION memory allocator | index-resolved in scaffold | resolved with no source delta | __B2__ | targeted compile PASS; clean reversal pending |
 | 11 | `drivers/usb/dwc3/gadget.c` | DWC3 gadget | index-resolved in scaffold | unresolved | pending | pending |
 | 12 | `drivers/usb/gadget/composite.c` | USB composite gadget core | index-resolved in scaffold | unresolved | pending | pending |
@@ -320,4 +320,13 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Targeted compilation: the four conflicted HID objects.
 
 - Owning commit token: `__B3__`
+- Clean reversal: pending post-commit check.
+
+### DVB demux resolution
+- Path: `drivers/media/dvb-core/dmxdev.c`.
+- Upstream commit: `cde0f1a0a486fb47017ef74e79f31aaf3444fff9`.
+- Decision: import device-registration error checking and complete unwind cleanup while preserving downstream buffer sizing, capability handling and debugfs behavior.
+- Targeted compilation: `drivers/media/dvb-core/dmxdev.o`.
+
+- Owning commit token: `__B4__`
 - Clean reversal: pending post-commit check.
