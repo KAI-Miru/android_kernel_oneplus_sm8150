@@ -7,7 +7,7 @@ merged changes that require downstream review.
 
 ## Current status
 
-- Integration branch retained as audit history: `miru-h40-lts269-integration`
+- Completed integration branch: retired after production promotion; audit remains in the normal merge history and permanent records
 - Production branch: `miru-h40`
 - Immutable production baseline: `4394ccbfa3805ce392b65b3ea148ff1eb084a974`
 - 4.14.269 production merge: `eb1cc39f93fb080c9903ffdba48f432ab0ac2b7b` (PR #68)
@@ -475,4 +475,4 @@ or vendor interface changed after the tested source head.
 - KCAL's dedicated run `30204348781` succeeded with Android Clang 10.0.5/r377782c, a full kernel build, exactly 32 external modules, and zero ABI-report errors. The maintainer confirmed it working on device before the production merge.
 - The production workflow is now the sole workflow definition in the production tree and validates 4.14.269 source/ancestry, QRTR and GLINK safety gates, the pinned `scripts/Makefile.build` hash, 32 external modules, vermagic, symbol CRCs, diagnostics, and checksums.
 - No post-merge recompilation was started for the documentation/merge commits: their validated source had already passed dedicated CI, and those commits use `[skip ci]` to prevent duplicate compilation.
-- Temporary workflow definitions have no place in the production source tree. The retained 4.14.269 integration branch is audit history, not a production trigger.
+- Temporary workflow definitions have no place in the production source tree. The completed 4.14.269 integration and helper branches were retired after promotion; the normal merge history, ledger, validation record, and artifact references remain.
