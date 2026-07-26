@@ -374,7 +374,7 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Trigger: the exact H.40 build reported `unused label 'fail'` as a forbidden new warning.
 - Upstream intent: return `ERR_PTR(ret)` immediately when `msm_gem_new_impl()` fails, rather than entering cleanup for an object that was not successfully created.
 - Downstream adaptation: retain the immediate upstream error return and remove the now-unreachable `fail:` block. Miru's delayed-import/cache-flag behavior remains unchanged.
-- Owning correction commit: `PENDING_MSM_GEM_COMMIT`
-- Targeted compilation: pending.
-- Clean reversal: pending.
+- Owning correction commit: `96029c92c2019065e5be870109f74721f7489be6`
+- Targeted compilation: **PASS** — `drivers/gpu/drm/msm/msm_gem.o`.
+- Clean reversal: **PASS** — reverting the owning commit restores both assigned paths to integration head `3a01e9e0434b633f034186e6df5115e60054733b`.
 - Full-build validation: pending.
