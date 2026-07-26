@@ -18,8 +18,8 @@ merged changes that require downstream review.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **22**
 - Index-resolved conflicts: **22**
-- Semantically resolved conflicts: **10**
-- Remaining semantic conflicts: **12**
+- Semantically resolved conflicts: **17**
+- Remaining semantic conflicts: **5**
 - Targeted compilation: **not started**
 - Full kernel build: **not started**
 - External-module build: **not started**
@@ -193,13 +193,13 @@ Required scaffold parents:
 | 8 | `drivers/hid/wacom_sys.c` | Wacom HID lifecycle | index-resolved in scaffold | resolved with no source delta | __B3__ | targeted compile PASS; clean reversal pending |
 | 9 | `drivers/media/dvb-core/dmxdev.c` | DVB demux core | index-resolved in scaffold | resolved | __B4__ | targeted compile PASS; clean reversal pending |
 | 10 | `drivers/staging/android/ion/ion.c` | Android ION memory allocator | index-resolved in scaffold | resolved with no source delta | __B2__ | targeted compile PASS; clean reversal pending |
-| 11 | `drivers/usb/dwc3/gadget.c` | DWC3 gadget | index-resolved in scaffold | unresolved | pending | pending |
-| 12 | `drivers/usb/gadget/composite.c` | USB composite gadget core | index-resolved in scaffold | unresolved | pending | pending |
-| 13 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | unresolved | pending | pending |
-| 14 | `drivers/usb/gadget/function/rndis.c` | RNDIS gadget protocol | index-resolved in scaffold | unresolved | pending | pending |
-| 15 | `drivers/usb/gadget/function/rndis.h` | RNDIS private interface | index-resolved in scaffold | unresolved | pending | pending |
-| 16 | `drivers/usb/gadget/legacy/dbgp.c` | USB debug gadget | index-resolved in scaffold | unresolved | pending | pending |
-| 17 | `drivers/usb/gadget/legacy/inode.c` | legacy gadget filesystem | index-resolved in scaffold | unresolved | pending | pending |
+| 11 | `drivers/usb/dwc3/gadget.c` | DWC3 gadget | index-resolved in scaffold | resolved | __B5__ | targeted compile PASS; clean reversal pending |
+| 12 | `drivers/usb/gadget/composite.c` | USB composite gadget core | index-resolved in scaffold | resolved | __B5__ | targeted compile PASS; clean reversal pending |
+| 13 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | resolved | __B5__ | targeted compile PASS; clean reversal pending |
+| 14 | `drivers/usb/gadget/function/rndis.c` | RNDIS gadget protocol | index-resolved in scaffold | resolved with no source delta | __B5__ | targeted compile PASS; clean reversal pending |
+| 15 | `drivers/usb/gadget/function/rndis.h` | RNDIS private interface | index-resolved in scaffold | resolved with no source delta | __B5__ | targeted compile PASS; clean reversal pending |
+| 16 | `drivers/usb/gadget/legacy/dbgp.c` | USB debug gadget | index-resolved in scaffold | resolved | __B5__ | targeted compile PASS; clean reversal pending |
+| 17 | `drivers/usb/gadget/legacy/inode.c` | legacy gadget filesystem | index-resolved in scaffold | resolved | __B5__ | targeted compile PASS; clean reversal pending |
 | 18 | `fs/file_table.c` | VFS file lifetime | index-resolved in scaffold | unresolved | pending | pending |
 | 19 | `fs/fuse/file.c` | FUSE I/O and lifetime | index-resolved in scaffold | unresolved | pending | pending |
 | 20 | `kernel/sched/cpufreq_schedutil.c` | schedutil frequency governor | index-resolved in scaffold | unresolved | pending | pending |
@@ -329,4 +329,13 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Targeted compilation: `drivers/media/dvb-core/dmxdev.o`.
 
 - Owning commit token: `__B4__`
+- Clean reversal: pending post-commit check.
+
+### USB core and gadget resolution
+- Paths: `drivers/usb/dwc3/gadget.c`, `drivers/usb/gadget/composite.c`, `drivers/usb/gadget/function/f_fs.c`, `drivers/usb/gadget/function/rndis.c`, `drivers/usb/gadget/function/rndis.h`, `drivers/usb/gadget/legacy/dbgp.c`, `drivers/usb/gadget/legacy/inode.c`.
+- Upstream commits: `0d18cda400d506e01c9c8108447c6ceddc0288f7`, `24749050f167ee4734f8b6183b6cb7403c7a09b6`, `a58d290e7cd85aaef2500ad1daea14202d0570c7`, `3594650c3ec1dbf4fbea5860aa5822150ca60d9d`, `c4ae95a816290ee2b9df80a8ca5ff3ec7cbe3b54`, `e7c8afee149134b438df153b09af7fd928a8bc24`, `6be75351b0acbde12f8c604bd9590b4ecc1daf8e`, `c7ad83d561df15ac6043d3b0d783aee777cf1731`, `9b3a3a363591aa002cd5abedbdca098f398eddd5`, `d3c17d5e271ab688cb117330ec85e125ebf24d88`, `e74a5b78c45ff97f41554c49115237954e5ea27e`, `32048f4be071f9a6966744243f1786f45bb22dc2`, `52500239e3f2d6fc77b6f58632a9fb98fe74ac09`, `4c22fbcef778badb00fb8bb9f409daa29811c175`, `669c2b178956718407af5631ccbc61c24413f038`.
+- Decision: preserve Miru's stronger full memory barrier and downstream diagnostics. Import DWC3 started-list ring accounting, stale delayed-status reset, timeout continuation and bottom-half protection; composite self-powered and request-direction fixes; FunctionFS stream/lifetime/locking fixes; and legacy gadget direction checks. Existing RNDIS bounds and IRQ-safe locking are retained as semantic no-source-change resolutions.
+- Targeted compilation: DWC3 gadget, composite, FunctionFS, RNDIS and legacy gadget objects represented by their Makefiles.
+
+- Owning commit token: `__B5__`
 - Clean reversal: pending post-commit check.
