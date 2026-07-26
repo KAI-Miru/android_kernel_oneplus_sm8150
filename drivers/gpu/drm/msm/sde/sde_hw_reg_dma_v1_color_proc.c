@@ -13,6 +13,7 @@
 #include "sde_reg_dma.h"
 #include "sde_hw_reg_dma_v1_color_proc.h"
 #include "sde_hw_color_proc_common_v4.h"
+#include "sde_kcal_ctrl.h"
 #include "sde_hw_ctl.h"
 #include "sde_hw_sspp.h"
 #include "sde_hwio.h"
@@ -1010,6 +1011,8 @@ void reg_dmav1_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 		data[i + 18] = coeffs->gb;
 		data[i + 21] = coeffs->rgb;
 	}
+
+	sde_kcal_apply_pcc(data);
 
 	REG_DMA_SETUP_OPS(dma_write_cfg,
 		ctx->cap->sblk->pcc.base + PCC_C_OFF,
