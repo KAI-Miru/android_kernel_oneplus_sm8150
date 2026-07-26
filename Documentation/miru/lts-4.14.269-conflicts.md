@@ -18,8 +18,8 @@ merged changes that require downstream review.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **22**
 - Index-resolved conflicts: **22**
-- Semantically resolved conflicts: **0**
-- Remaining semantic conflicts: **22**
+- Semantically resolved conflicts: **2**
+- Remaining semantic conflicts: **20**
 - Targeted compilation: **not started**
 - Full kernel build: **not started**
 - External-module build: **not started**
@@ -183,8 +183,8 @@ Required scaffold parents:
 
 | # | Path | Semantic subsystem | Index status | Semantic status | Owning resolution commit | Validation |
 |---:|---|---|---|---|---|---|
-| 1 | `arch/arm/Makefile` | ARM build system | index-resolved in scaffold | unresolved | pending | pending |
-| 2 | `arch/arm64/mm/proc.S` | ARM64 MMU / processor setup | index-resolved in scaffold | unresolved | pending | pending |
+| 1 | `arch/arm/Makefile` | ARM build system | index-resolved in scaffold | resolved | __B1__ | targeted compile PASS; clean reversal pending |
+| 2 | `arch/arm64/mm/proc.S` | ARM64 MMU / processor setup | index-resolved in scaffold | resolved | __B1__ | targeted compile PASS; clean reversal pending |
 | 3 | `drivers/clk/clk.c` | common clock framework | index-resolved in scaffold | unresolved | pending | pending |
 | 4 | `drivers/dma-buf/dma-buf.c` | dma-buf ownership and lifetime | index-resolved in scaffold | unresolved | pending | pending |
 | 5 | `drivers/hid/hid-chicony.c` | HID keyboard quirks | index-resolved in scaffold | unresolved | pending | pending |
@@ -292,3 +292,14 @@ Unrelated groups will not be combined merely to reduce commit count.
 - Final semantic audit: **not started**
 - Full kernel and external-module build: **not started**
 - Physical device validation: **not performed**
+
+## Semantic resolution records
+
+### ARM and ARM64 build/MMU resolution
+- Paths: `arch/arm/Makefile`, `arch/arm64/mm/proc.S`.
+- Upstream commits: `1f66b391c76e40fc737ed4fd216bc9e217dcf4e0`, `11487021d37f28c1dfc22860b826d43d4a060c0f`, `c13d897b09515e63131c9e88318fbea653a1378d`.
+- Decision: import the ARM build-flag cleanups while retaining Qualcomm/OnePlus overlay, module and downstream build behavior. Retain the downstream deferred DBM enable model in `proc.S`; widen the Cortex-A55 broken-DBM range in `arch/arm64/kernel/cpufeature.c` to all variants and revisions while retaining the Kryo-specific entries.
+- Targeted compilation: ARM32 `arch/arm/kernel/entry-common.o`; ARM64 `arch/arm64/kernel/cpufeature.o` and `arch/arm64/mm/proc.o`.
+
+- Owning commit token: `__B1__`
+- Clean reversal: pending post-commit check.
