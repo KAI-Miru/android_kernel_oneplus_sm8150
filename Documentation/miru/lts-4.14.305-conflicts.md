@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **26**
-- Remaining semantic conflicts: **7**
+- Semantically resolved conflicts: **28**
+- Remaining semantic conflicts: **5**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -229,8 +229,8 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 18 | `drivers/usb/dwc3/core.c` | DWC3 core / power | index-resolved in scaffold | resolved | `dd3d84f1193fb6d902975175b708a9a0ecb6fe97` | core.o PASS | clean reversal PASS |
 | 19 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | resolved | `300e597ea849222a807c47c4dcf8c324025a5ac8` | f_fs.o PASS | clean reversal PASS |
 | 20 | `drivers/usb/gadget/function/rndis.c` | USB RNDIS gadget | index-resolved in scaffold | resolved | `73952d0d69d680a113768bf7ca0a64ec6b50312e` | rndis.o PASS | identity + reversal PASS |
-| 21 | `drivers/usb/host/xhci.c` | xHCI host lifecycle | index-resolved in scaffold | unresolved | — | — | — |
-| 22 | `drivers/usb/host/xhci.h` | xHCI interfaces | index-resolved in scaffold | unresolved | — | — | — |
+| 21 | `drivers/usb/host/xhci.c` | xHCI host lifecycle | index-resolved in scaffold | resolved | `a7fbd76fc6643a2d1d3fdbe778d33c9447376889` | xhci-hcd.o PASS | clean reversal PASS |
+| 22 | `drivers/usb/host/xhci.h` | xHCI interfaces | index-resolved in scaffold | resolved | `a7fbd76fc6643a2d1d3fdbe778d33c9447376889` | xhci-hcd.o PASS | clean reversal PASS |
 | 23 | `fs/fat/fatent.c` | FAT allocation table | index-resolved in scaffold | resolved | `f0a8bbd0f352fe031a519a32d8b7db7d15ac3853` | targeted compile PASS | clean reversal PASS |
 | 24 | `include/net/netfilter/nf_queue.h` | netfilter queue API | index-resolved in scaffold | resolved | `413ff863d871397a6bed7965f3700945daaaab76` | nf_queue.o PASS | clean reversal PASS |
 | 25 | `include/net/sock.h` | socket core API | index-resolved in scaffold | unresolved | — | — | — |
@@ -614,3 +614,19 @@ Kernel and module outputs:
 - Android safety-sequence, dual-port preservation, and unchanged error-cleanup gates: **PASS**.
 - Clean reversal: **PASS**; reverting `dd3d84f1193fb6d902975175b708a9a0ecb6fe97` restored `drivers/usb/dwc3/core.c` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
 - Validation workflow run: `30265814173`.
+
+### xHCI lifecycle and LPM safety union
+
+- Owning source commit: `a7fbd76fc6643a2d1d3fdbe778d33c9447376889`.
+- Owned paths: `drivers/usb/host/xhci.c` and `drivers/usb/host/xhci.h`.
+- Relevant Android Common commits: `f4a5311dfd1cbf9440f006974c1ceec8175f7652,da10a10feaaafdf94c4eec943dde7a7fb798fc6b,0b3787fca33fea855deb1c796f5af572bdc64788,e97d0b01017e3812925287629c8bea8331223d11,db730385457aac4b92fd9144a81281608c452744,0eec6f6001d15bb1108835a642ec4637d75eef19`, all target-reachable from `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
+- Provenance verification: reset-timeout	f4a5311dfd1cbf9440f006974c1ceec8175f7652;startup-grace	da10a10feaaafdf94c4eec943dde7a7fb798fc6b;shutdown-polling	0b3787fca33fea855deb1c796f5af572bdc64788;resume-reset-failure	e97d0b01017e3812925287629c8bea8331223d11;broken-suspend-warning	db730385457aac4b92fd9144a81281608c452744;usb2-lpm-baseline	0eec6f6001d15bb1108835a642ec4637d75eef19;suspend-timeout-baseline	0eec6f6001d15bb1108835a642ec4637d75eef19;halt-timeout-baseline	0eec6f6001d15bb1108835a642ec4637d75eef19; each target marker was checked in its own target-reachable diff.
+- Android behavior imported: use a 10-second reset timeout only where reset completion is critical, retain 250 ms reset limits under shutdown/stop locks, use a 64-bit handshake timeout, add the xHC-start roothub grace period, stop roothub polling at shutdown, use the 512 us USB2 LPM default, and retain the target suspend/resume failure behavior.
+- Downstream intent retained: Miru's IRQ flood guard, removal-aware handshake helper, secondary interrupter/event-ring APIs, physical-address helpers, core ID, and stop-endpoint hook remain present and are compiled together.
+- Semantic decision: union Android's lifecycle and power-safety sequences with the downstream host-controller extensions. The reset command keeps Miru's removal-aware poll while adopting Android's tunable timeout; the clean companion `xhci-hub.c` grace-period consumer remains untouched at scaffold blob `2b9befbf41160f297ec06952130c2209fe6c4d99`.
+- Scaffold blobs: `0bcf825fe895b4a4eac13bd1e45d610876e6bae4` and `4e3554115e1b0aa804d0d36d14b8121d537f5570`. Target blobs: `0f2b67f38d2ea64ada356269e63c28e28f8e0bac` and `7611fc893a0e14498bd033c5b0d77e89405d4f19`.
+- Audited source patch SHA-256: `d7c4b1103ad274647d4a130a16b9984707aff9510c8a21d8e21924a2ce3cb176` using `git diff --binary --full-index`.
+- Targeted compilation: **PASS** for `drivers/usb/host/xhci-hcd.o`, including the core and roothub objects, using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Android lifecycle, LPM, source-preservation, and clean-companion gates: **PASS**.
+- Clean reversal: **PASS**; reverting `a7fbd76fc6643a2d1d3fdbe778d33c9447376889` restored both owned paths exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
+- Validation workflow run: `30273373592`.
