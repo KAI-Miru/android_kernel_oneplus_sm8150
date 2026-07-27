@@ -2,32 +2,28 @@
 name: Miru H.40 4.14.305 ARM64 resolution
 
 on:
-  pull_request:
+  push:
     branches:
-      - miru-h40
-    types:
-      - reopened
-      - synchronize
+      - miru-h40-lts305-integration
 
 permissions:
   contents: write
 
 jobs:
   resolve-arm64:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == true
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 180
 
     steps:
       - name: Checkout exact integration head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
       - name: Resolve, compile, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_arm64_resolution_v2.sh
+        run: bash scripts/miru/lts305_arm64_resolution_ci.sh
 
       - name: Upload ARM64 resolution diagnostics
         if: always()
