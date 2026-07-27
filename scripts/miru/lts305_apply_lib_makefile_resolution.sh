@@ -274,8 +274,8 @@ test -s "${OUT_DIR}/drivers/char/random.o"
 ar t "${OUT_DIR}/lib/crypto/libblake2s.o" > "${DIAG}/libblake2s-members.txt"
 ar t "${OUT_DIR}/${CRYPTO_BUILTIN}" > "${DIAG}/crypto-built-in-members.txt"
 for members in "${DIAG}/libblake2s-members.txt" "${DIAG}/crypto-built-in-members.txt"; do
-  grep -Eq '(^|/)blake2s\\.o$' "${members}"
-  grep -Eq '(^|/)blake2s-generic\\.o$' "${members}"
+  grep -Eq '(^|/)blake2s[.]o$' "${members}"
+  grep -Eq '(^|/)blake2s-generic[.]o$' "${members}"
 done
 if grep -nE '(^|[[:space:]])(warning|error):' \
     "${DIAG}/olddefconfig.log" "${DIAG}/targeted-compile.log" \
