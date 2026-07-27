@@ -1,5 +1,5 @@
 # Push-only helper; never target production through a pull request.
-# Explicit guarded launch for the three-path MMC resolution validation.
+# Launching guarded three-path MMC resolution validation.
 name: Miru H.40 4.14.305 MMC resolution
 
 on:
