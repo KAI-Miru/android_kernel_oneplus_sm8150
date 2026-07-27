@@ -1,5 +1,5 @@
-# Trigger guarded FunctionFS validation after corrected toolchain pin.
-name: Miru H.40 4.14.305 FunctionFS lifetime resolution
+# Trigger guarded RNDIS target-equivalence validation after helper installation.
+name: Miru H.40 4.14.305 RNDIS bounds equivalence
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   statuses: write
 
 jobs:
-  resolve-functionfs:
+  resolve-rndis-equivalence:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -21,15 +21,15 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Resolve, validate, reverse, document and guarded-push
+      - name: Validate equivalence, compile, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_functionfs_resolution.sh
+        run: bash scripts/miru/lts305_apply_rndis_equivalence_resolution.sh
 
-      - name: Upload FunctionFS resolution diagnostics
+      - name: Upload RNDIS equivalence diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-functionfs-resolution-${{ github.run_id }}
-          path: lts305-functionfs-resolution
+          name: miru-lts305-rndis-equivalence-${{ github.run_id }}
+          path: lts305-rndis-target-equivalence
           if-no-files-found: error
           retention-days: 14
