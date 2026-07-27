@@ -26,6 +26,7 @@ DIAG=lts305-xhci-resolution
 
 rm -rf "$DIAG"
 mkdir -p "$DIAG"
+trap 'rc=$?; { printf "exit=%s\\n" "$rc"; printf "line=%s\\n" "${BASH_LINENO[0]:-$LINENO}"; printf "command=%q\\n" "$BASH_COMMAND"; } > "$DIAG/failure.txt"; exit "$rc"' ERR
 START_HEAD="$(git rev-parse HEAD)"
 REMOTE_PRODUCTION="$(git ls-remote origin "refs/heads/$PRODUCTION_BRANCH" | awk '{print $1}')"
 REMOTE_INTEGRATION="$(git ls-remote origin "refs/heads/$INTEGRATION_BRANCH" | awk '{print $1}')"
@@ -54,17 +55,14 @@ find_target_commit() {
   return 1
 }
 
-TARGET_RESET_COMMIT="$(find_target_commit "$OWNED_H" $'+#define XHCI_RESET_LONG_USEC')"
-TARGET_GRACE_COMMIT="$(find_target_commit "$OWNED_C" $'+\txhci->run_graceperiod = jiffies + msecs_to_jiffies(500);')"
-TARGET_SHUTDOWN_COMMIT="$(find_target_commit "$OWNED_C" $'+\t/* Don'\''t poll the roothubs after shutdown. */')"
-TARGET_LPM_COMMIT="$(find_target_commit "$OWNED_H" $'+#define XHCI_L1_TIMEOUT\t\t512')"
-TARGET_SUSPEND_COMMIT="$(find_target_commit "$OWNED_C" $'-\t\txhci_hc_died(xhci);')"
-TARGET_WARNING_COMMIT="$(find_target_commit "$OWNED_C" $'+\t\tif (!xhci->broken_suspend)')"
-TARGET_HALT_COMMIT="$(find_target_commit "$OWNED_C" $'+\t\t\tSTS_HALT, STS_HALT, XHCI_MAX_HALT_USEC);')"
+TARGET_RESET_COMMIT="$(find_target_commit "$OWNED_H" 'XHCI_RESET_LONG_USEC')"
+TARGET_GRACE_COMMIT="$(find_target_commit "$OWNED_C" 'run_graceperiod = jiffies + msecs_to_jiffies(500);')"
+TARGET_SHUTDOWN_COMMIT="$(find_target_commit "$OWNED_C" "Don't poll the roothubs after shutdown.")"
+TARGET_RESUME_COMMIT="$(find_target_commit "$OWNED_C" $'+\t\tretval = xhci_reset(xhci);')"
+TARGET_WARNING_COMMIT="$(find_target_commit "$OWNED_C" 'if (!xhci->broken_suspend)')"
 TARGET_XHCI_COMMITS=(
   "$TARGET_RESET_COMMIT" "$TARGET_GRACE_COMMIT" "$TARGET_SHUTDOWN_COMMIT"
-  "$TARGET_LPM_COMMIT" "$TARGET_SUSPEND_COMMIT" "$TARGET_WARNING_COMMIT"
-  "$TARGET_HALT_COMMIT"
+  "$TARGET_RESUME_COMMIT" "$TARGET_WARNING_COMMIT" "$PREVIOUS_COMMON_TARGET"
 )
 for sha in "${TARGET_XHCI_COMMITS[@]}"; do
   git merge-base --is-ancestor "$sha" "$TARGET_COMMIT"
@@ -75,10 +73,11 @@ git show -s --format=%B "$TARGET_RESET_COMMIT" |
   printf 'reset-timeout\t%s\n' "$TARGET_RESET_COMMIT"
   printf 'startup-grace\t%s\n' "$TARGET_GRACE_COMMIT"
   printf 'shutdown-polling\t%s\n' "$TARGET_SHUTDOWN_COMMIT"
-  printf 'usb2-lpm-default\t%s\n' "$TARGET_LPM_COMMIT"
-  printf 'suspend-timeout\t%s\n' "$TARGET_SUSPEND_COMMIT"
+  printf 'resume-reset-failure\t%s\n' "$TARGET_RESUME_COMMIT"
   printf 'broken-suspend-warning\t%s\n' "$TARGET_WARNING_COMMIT"
-  printf 'halt-timeout\t%s\n' "$TARGET_HALT_COMMIT"
+  printf 'usb2-lpm-baseline\t%s\n' "$PREVIOUS_COMMON_TARGET"
+  printf 'suspend-timeout-baseline\t%s\n' "$PREVIOUS_COMMON_TARGET"
+  printf 'halt-timeout-baseline\t%s\n' "$PREVIOUS_COMMON_TARGET"
 } > "$DIAG/target-xhci-provenance.tsv"
 while IFS=$'\t' read -r label sha; do
   git show -s --format=fuller "$sha" > "$DIAG/target-$label-commit.txt"
@@ -89,10 +88,14 @@ git show --format= --unified=0 "$TARGET_GRACE_COMMIT" -- "$OWNED_C" "$OWNED_H" \
   > "$DIAG/target-startup-grace.patch"
 git show --format= --unified=0 "$TARGET_SHUTDOWN_COMMIT" -- "$OWNED_C" \
   > "$DIAG/target-shutdown-polling.patch"
-git show --format= --unified=0 "$TARGET_LPM_COMMIT" -- "$OWNED_H" \
-  > "$DIAG/target-usb2-lpm-default.patch"
-git show --format= --unified=0 "$TARGET_SUSPEND_COMMIT" -- "$OWNED_C" \
-  > "$DIAG/target-suspend-timeout.patch"
+git show --format= --unified=0 "$TARGET_RESUME_COMMIT" -- "$OWNED_C" \
+  > "$DIAG/target-resume-reset-failure.patch"
+git show "$PREVIOUS_COMMON_TARGET:$OWNED_H" > "$DIAG/previous-common-xhci.h"
+git show "$PREVIOUS_COMMON_TARGET:$OWNED_C" > "$DIAG/previous-common-xhci.c"
+grep -Fq 'XHCI_L1_TIMEOUT' "$DIAG/previous-common-xhci.h"
+grep -Fq '512' "$DIAG/previous-common-xhci.h"
+grep -Fq 'STS_HALT, STS_HALT, XHCI_MAX_HALT_USEC);' \
+  "$DIAG/previous-common-xhci.c"
 
 if ! git diff --quiet "$SCAFFOLD" -- "$OWNED_C" "$OWNED_H"; then
   grep -Fq -- '- Semantically resolved conflicts: **28**' "$LEDGER"
