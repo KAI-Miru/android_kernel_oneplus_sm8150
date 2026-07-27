@@ -1,3 +1,4 @@
+# Launch head is based on audited resolver and driver commits.
 name: Miru H.40 4.14.305 ARM64 resolution
 
 on:
