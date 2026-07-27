@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **22**
-- Remaining semantic conflicts: **11**
+- Semantically resolved conflicts: **23**
+- Remaining semantic conflicts: **10**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -225,7 +225,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 14 | `drivers/mmc/host/sdhci.c` | SDHCI host | index-resolved in scaffold | resolved | `ee7b6bc5a208fa0afcdebb7bd18882e7d0a8326e` | targeted compile PASS | clean reversal PASS |
 | 15 | `drivers/net/ethernet/stmicro/stmmac/stmmac_hwtstamp.c` | Ethernet timestamping | index-resolved in scaffold | resolved | `0c2edde500e6c8f9c88e593c94731cdb6fe49cc5` | targeted compile PASS | clean reversal PASS |
 | 16 | `drivers/rpmsg/qcom_glink_native.c` | Qualcomm GLINK | index-resolved in scaffold | resolved | `0986f57a7fed5bf69ca14f141666a648a1471350` | targeted compile PASS | clean reversal PASS |
-| 17 | `drivers/usb/core/quirks.c` | USB device quirks | index-resolved in scaffold | unresolved | — | — | — |
+| 17 | `drivers/usb/core/quirks.c` | USB device quirks | index-resolved in scaffold | resolved | `9a2b86edaa5e60488d29808a7fc89750f52213e5` | quirks.o PASS | clean reversal PASS |
 | 18 | `drivers/usb/dwc3/core.c` | DWC3 core / power | index-resolved in scaffold | unresolved | — | — | — |
 | 19 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | unresolved | — | — | — |
 | 20 | `drivers/usb/gadget/function/rndis.c` | USB RNDIS gadget | index-resolved in scaffold | unresolved | — | — | — |
@@ -546,3 +546,18 @@ Kernel and module outputs:
 - Queue API identity and clean implementation-blob gates: **PASS**.
 - Clean reversal: **PASS**; reverting `413ff863d871397a6bed7965f3700945daaaab76` restored `include/net/netfilter/nf_queue.h` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`, preserved the clean implementation blob and restored the complete pre-resolution integration tree.
 - Validation workflow run: `30258863431`.
+
+### USB device quirk union
+
+- Owning source commit: `9a2b86edaa5e60488d29808a7fc89750f52213e5`.
+- Owned path: `drivers/usb/core/quirks.c`.
+- Relevant Android Common commits: `a85bffde5c01d0eed902e5cd8f14b8f57876fbbd,6ae382fd0253557a4d8baffc40295a8dc7ea417b,97a1b90db590b509c8c77f94734c324789dc71bf,ff4f627eb1694a27443913879797deac8fb8ff6e,ff4f627eb1694a27443913879797deac8fb8ff6e`, all target-reachable from `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
+- Android behavior imported: add NO_LPM, RESET_RESUME, and CONFIG_INTF_STRINGS quirks for the Realforce keyboard, NVIDIA Jetson recovery devices, Realtek multicard reader, Dell Gen2 device, and VCOM device.
+- Downstream intent retained: Miru's duplicate Kingston DataTraveler entry remains twice and its Galaxy MTP no-LPM entry remains once, in their original scaffold order.
+- Semantic decision: take a non-overlapping union of all four Android insertion blocks; preserve all pre-existing Miru quirk-table entries byte-for-byte.
+- Scaffold blob: `184c7d2e042244244796dfed3ac6f4c6457ebfdf`. Target blob: `c102c7a9a3b4fe0bce8100671c6c46206ef7d717`.
+- Audited source patch SHA-256: `35bd66d9c49e4068d0d9b38ac484383ad990a30ffee5b2246bd5751cb4ba0980` using `git diff --binary --full-index`.
+- Targeted compilation: **PASS** for `drivers/usb/core/quirks.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Android block identity and downstream quirk-preservation gates: **PASS**.
+- Clean reversal: **PASS**; reverting `9a2b86edaa5e60488d29808a7fc89750f52213e5` restored `drivers/usb/core/quirks.c` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
+- Validation workflow run: `30260382522`.
