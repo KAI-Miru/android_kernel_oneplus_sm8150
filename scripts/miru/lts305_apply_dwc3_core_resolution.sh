@@ -44,9 +44,9 @@ while IFS=$'\t' read -r sha subject; do
      printf '%s\n' "${patch}" | grep '^+' | grep -Fq $'\t\t\t\tdwc3_core_soft_reset(dwc);'; then
     TARGET_ULPI_COMMITS+=("${sha}")
   fi
-  if printf '%s\n' "${patch}" | grep -Fq $'-\tusb_phy_shutdown(dwc->usb2_phy);' &&
+  if printf '%s\n' "${patch}" | grep -Fq -- $'-\tusb_phy_shutdown(dwc->usb2_phy);' &&
      printf '%s\n' "${patch}" | grep -Fq $'+\tusb_phy_shutdown(dwc->usb2_phy);' &&
-     printf '%s\n' "${patch}" | grep -Fq $'-\tphy_power_off(dwc->usb2_generic_phy);' &&
+     printf '%s\n' "${patch}" | grep -Fq -- $'-\tphy_power_off(dwc->usb2_generic_phy);' &&
      printf '%s\n' "${patch}" | grep -Fq $'+\tphy_power_off(dwc->usb2_generic_phy);'; then
     TARGET_PHY_COMMITS+=("${sha}")
   fi
