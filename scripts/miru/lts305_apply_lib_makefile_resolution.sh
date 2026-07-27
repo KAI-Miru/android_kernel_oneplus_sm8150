@@ -271,8 +271,12 @@ test -s "${OUT_DIR}/${TARGET_BUILTIN}"
 test -s "${OUT_DIR}/lib/crypto/libblake2s.o"
 test -s "${OUT_DIR}/${CRYPTO_BUILTIN}"
 test -s "${OUT_DIR}/drivers/char/random.o"
+ar t "${OUT_DIR}/lib/crypto/libblake2s.o" > "${DIAG}/libblake2s-members.txt"
 ar t "${OUT_DIR}/${CRYPTO_BUILTIN}" > "${DIAG}/crypto-built-in-members.txt"
-grep -Fq 'libblake2s.o' "${DIAG}/crypto-built-in-members.txt"
+for members in "${DIAG}/libblake2s-members.txt" "${DIAG}/crypto-built-in-members.txt"; do
+  grep -Eq '(^|/)blake2s\\.o$' "${members}"
+  grep -Eq '(^|/)blake2s-generic\\.o$' "${members}"
+done
 if grep -nE '(^|[[:space:]])(warning|error):' \
     "${DIAG}/olddefconfig.log" "${DIAG}/targeted-compile.log" \
     > "${DIAG}/targeted-diagnostics.txt"; then
@@ -287,6 +291,7 @@ fi
   echo "target_goal=${TARGET_GOAL}"
   echo "target_builtin=${TARGET_BUILTIN}"
   echo "crypto_builtin=${CRYPTO_BUILTIN}"
+  echo "blake2s_members=blake2s.o,blake2s-generic.o"
   echo "makefile_parse=olddefconfig PASS"
   echo "crypto_subdirectory_built=yes"
   echo "independent_consumer_object=drivers/char/random.o"
