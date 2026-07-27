@@ -1,4 +1,4 @@
-# Trigger guarded netfilter queue header validation after helper installation.
+# Trigger guarded netfilter queue header validation.
 name: Miru H.40 4.14.305 netfilter queue header resolution
 
 on:
