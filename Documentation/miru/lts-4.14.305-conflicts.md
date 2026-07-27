@@ -578,3 +578,8 @@ Kernel and module outputs:
 - Android safety-sequence and downstream-diagnostic preservation gates: **PASS**.
 - Clean reversal: **PASS**; reverting `300e597ea849222a807c47c4dcf8c324025a5ac8` restored `drivers/usb/gadget/function/f_fs.c` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
 - Validation workflow run: `30262867644`.
+
+### RNDIS no-source-delta ownership anchor
+
+- Owned path: `drivers/usb/gadget/function/rndis.c`.
+- This documentation-only anchor establishes explicit ownership for a target-equivalence validation. No kernel source change is made by this commit.
