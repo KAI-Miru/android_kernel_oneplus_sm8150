@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **10**
-- Remaining semantic conflicts: **23**
+- Semantically resolved conflicts: **11**
+- Remaining semantic conflicts: **22**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -217,7 +217,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 6 | `arch/arm64/kernel/setup.c` | ARM64 boot/setup | index-resolved in scaffold | resolved | `8633007f8d97174821bd9f200aa675e50e4bd9f2` | targeted compile PASS | clean reversal PASS |
 | 7 | `arch/arm64/mm/mmu.c` | ARM64 MMU / mappings | index-resolved in scaffold | resolved | `8633007f8d97174821bd9f200aa675e50e4bd9f2` | targeted compile PASS | clean reversal PASS |
 | 8 | `drivers/char/Kconfig` | character-driver configuration | index-resolved in scaffold | unresolved | — | — | — |
-| 9 | `drivers/clk/qcom/clk-rcg2.c` | Qualcomm clock RCG | index-resolved in scaffold | unresolved | — | — | — |
+| 9 | `drivers/clk/qcom/clk-rcg2.c` | Qualcomm clock RCG | index-resolved in scaffold | resolved | `512d47f08402bf130a78e05a92341d62ae04c120` | targeted compile PASS | clean reversal PASS |
 | 10 | `drivers/edac/edac_device.c` | EDAC polling/lifetime | index-resolved in scaffold | unresolved | — | — | — |
 | 11 | `drivers/mailbox/mailbox.c` | mailbox core | index-resolved in scaffold | unresolved | — | — | — |
 | 12 | `drivers/mmc/core/host.c` | MMC host core | index-resolved in scaffold | unresolved | — | — | — |
@@ -390,3 +390,17 @@ Kernel and module outputs:
 - Protected GLINK source gates: **PASS**.
 - Clean reversal: **PASS**; reverting `0986f57a7fed5bf69ca14f141666a648a1471350` restored the owned path exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`.
 - Validation workflow run: `30240476056`.
+- Validation artifact: run `30240476056`, artifact `8643145751`, digest `sha256:77b97379d5b34a933cc86757edd4efe5806eb507af85f2e97f1c299f5b566787`, size `7883` bytes.
+
+### Qualcomm pixel-clock fraction parity
+
+- Owning semantic commit: `512d47f08402bf130a78e05a92341d62ae04c120` (empty source commit; tree identical to its parent).
+- Owned path: `drivers/clk/qcom/clk-rcg2.c`.
+- Relevant Android Common commit: `775be2311ae448df6eeb027412e836d75211caed` (upstream `b527358cb4cd58a8279c9062b0786f1fab628fdc`).
+- Target behavior: the pixel-clock fraction table contains `(2, 3)` for the SM8350/SM8450 pixel-clock use cases.
+- Downstream behavior retained: the Miru table already contains `(2, 3)` exactly once together with `(1, 1)`, `(4, 9)`, `(3, 8)`, and `(2, 9)`; the scaffold blob is `9fc98819321a4f00e0c21aed3fcb66f657ad3fb1`.
+- Semantic decision: **no source delta**. The retained Miru implementation already contains the complete target behavior, so no duplicate fraction entry was added.
+- Canonical source delta SHA-256: `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` (empty `git diff --binary --full-index`).
+- Targeted compilation: **PASS** for `drivers/clk/qcom/clk-rcg2.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Clean reversal: **PASS**; reverting the empty semantic commit in a disposable worktree preserved the complete integration tree, while the owned path remained byte-identical to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`.
+- Validation workflow run: `30241067412`.
