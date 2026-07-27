@@ -192,7 +192,6 @@ count(hub, "Keep polling roothubs for a grace period after xHC start", 1,
       "clean companion grace documentation")
 
 downstream_c = [
-    "struct usb_hcd *hcd = xhci_to_hcd(xhci);",
     t + "disable_irq(hcd->irq);",
     t + "enable_irq(hcd->irq);",
     "static phys_addr_t xhci_get_sec_event_ring_phys_addr",
