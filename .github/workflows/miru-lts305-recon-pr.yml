@@ -49,7 +49,7 @@ jobs:
 
       - name: Resolve, compile, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_core_fatal_resolution.sh
+        run: bash scripts/miru/lts305_apply_core_fatal_resolution_v2.sh
 
       - name: Upload exit and panic resolution diagnostics
         if: always()
