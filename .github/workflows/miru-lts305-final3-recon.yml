@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: GPL-2.0
+name: Miru H.40 4.14.305 final conflict reconnaissance
+
+on:
+  push:
+    branches:
+      - miru-h40-lts305-integration
+    paths:
+      - .github/workflows/miru-lts305-final3-recon.yml
+
+permissions:
+  contents: read
+
+jobs:
+  final3-recon:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout exact integration head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Collect exact three-way evidence without compiling
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          OUT=lts305-final3-recon
+          rm -rf "$OUT"
+          mkdir -p "$OUT"
+
+          PRODUCTION=61371a1024e341f434deaf61b79a05f73827260a
+          PREVIOUS=0eec6f6001d15bb1108835a642ec4637d75eef19
+          TARGET=4415bf5e08942aee6487946a3e0a50956ef68f1e
+          SCAFFOLD=b92a77e96dd54fd30f8f39c7eef23e76f211c515
+          PREP="$(git rev-parse "$SCAFFOLD^1")"
+          BASE="$(git merge-base "$PREP" "$TARGET")"
+          PATHS=(mm/memory.c net/ipv4/tcp_output.c net/ipv6/ip6_output.c)
+
+          {
+            echo "head=$(git rev-parse HEAD)"
+            echo "production=$PRODUCTION"
+            echo "previous_common=$PREVIOUS"
+            echo "target=$TARGET"
+            echo "scaffold=$SCAFFOLD"
+            echo "preparation=$PREP"
+            echo "merge_base=$BASE"
+            echo "sublevel=$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)"
+          } | tee "$OUT/identity.txt"
+
+          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 305
+          git merge-base --is-ancestor "$PRODUCTION" HEAD
+          git merge-base --is-ancestor "$TARGET" HEAD
+          test "$(git rev-parse "$SCAFFOLD^2")" = "$TARGET"
+
+          for p in "${PATHS[@]}"; do
+            safe="${p//\//__}"
+            mkdir -p "$OUT/$safe"
+            git show "$BASE:$p" > "$OUT/$safe/base.c"
+            git show "$SCAFFOLD:$p" > "$OUT/$safe/miru-scaffold.c"
+            git show "$TARGET:$p" > "$OUT/$safe/android-target.c"
+            git show "HEAD:$p" > "$OUT/$safe/current-head.c"
+            git diff --binary --full-index "$BASE" "$SCAFFOLD" -- "$p" > "$OUT/$safe/base-to-miru.patch"
+            git diff --binary --full-index "$BASE" "$TARGET" -- "$p" > "$OUT/$safe/base-to-target.patch"
+            git diff --binary --full-index "$SCAFFOLD" "$TARGET" -- "$p" > "$OUT/$safe/miru-to-target.patch"
+            git diff --binary --full-index "$SCAFFOLD" HEAD -- "$p" > "$OUT/$safe/scaffold-to-head.patch"
+            git log --reverse --format='commit %H%nAuthor: %an <%ae>%nDate: %aI%nSubject: %s%n' -p "$PREVIOUS..$TARGET" -- "$p" > "$OUT/$safe/target-history.patch"
+            git log --reverse --format='%H%x09%aI%x09%s' "$PREVIOUS..$TARGET" -- "$p" > "$OUT/$safe/target-history.tsv"
+            {
+              echo "base_blob=$(git rev-parse "$BASE:$p")"
+              echo "miru_blob=$(git rev-parse "$SCAFFOLD:$p")"
+              echo "target_blob=$(git rev-parse "$TARGET:$p")"
+              echo "head_blob=$(git rev-parse "HEAD:$p")"
+              echo "target_commit_count=$(git rev-list --count "$PREVIOUS..$TARGET" -- "$p")"
+            } > "$OUT/$safe/blobs.txt"
+          done
+
+          git status --short > "$OUT/status.txt"
+          test ! -s "$OUT/status.txt"
+          find "$OUT" -type f -print0 | sort -z | xargs -0 sha256sum > "$OUT/SHA256SUMS"
+
+      - name: Upload final-conflict evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts305-final3-recon-${{ github.run_id }}
+          path: lts305-final3-recon
+          if-no-files-found: error
+          retention-days: 14
