@@ -1,5 +1,4 @@
-# Trigger guarded resolution after helper installation.
-name: Miru H.40 4.14.305 character Kconfig resolution
+name: Miru H.40 4.14.305 library Makefile resolution
 
 on:
   push:
@@ -11,7 +10,7 @@ permissions:
   statuses: write
 
 jobs:
-  resolve-character-kconfig:
+  resolve-library-makefile:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -23,13 +22,13 @@ jobs:
 
       - name: Resolve, validate, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_char_kconfig_resolution.sh
+        run: bash scripts/miru/lts305_apply_lib_makefile_resolution.sh
 
-      - name: Upload character Kconfig resolution diagnostics
+      - name: Upload library Makefile resolution diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-char-kconfig-resolution-${{ github.run_id }}
-          path: lts305-char-kconfig-resolution
+          name: miru-lts305-lib-makefile-resolution-${{ github.run_id }}
+          path: lts305-lib-makefile-resolution
           if-no-files-found: error
           retention-days: 14
