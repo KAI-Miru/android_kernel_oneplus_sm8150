@@ -1,4 +1,4 @@
-# Trigger guarded socket-header validation after target/source alignment.
+# Trigger guarded socket-header validation with exact target provenance.
 name: Miru H.40 4.14.305 socket core API resolution
 
 on:
