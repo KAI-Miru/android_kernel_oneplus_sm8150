@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-name: Miru H.40 4.14.305 resolve final three conflicts
+name: Miru H.40 4.14.305 semantic audit fallback
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  resolve-final-three:
+  semantic-audit:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
 
@@ -23,22 +23,31 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Decode audited source-only resolver
+      - name: Decode source-only semantic audit
         shell: bash
-        env:
-          RESOLVER_B64: H4sICPmPZ2oCA2x0czMwNV9maW5hbDMuc2gA7Fx7c9tGkv8fn2LMpEJSIagHKcovapeWaEcVvUqk481FWRQIDEgU8QoeohXb+9nv1zMACICkTNnx3tXeqcoyienp6el39wz03ZPdJAp3J7a3y707NtGjmRLxmKlDnvgssANu6bajKK9uBpcnP/VdO0zUWXdPdeKos3eo2l7Mp6Ee276nXN9cnb49GZ9dXWoV6OLQ6KdBv7ffOdrX9/cOurzT3be6na7Jdau3Pzl6pu8dWkedpwdHB709XRkPbt4Mx/1ud/9wYh3yvafPugc6573u06Nn3Z7e4Xv64d6zwx63ek+tfa6MTgavX1+dn/Ynzw70oyP+rGeah13L7OxZT63OM+OIc+ugw4961sH+vnG4f6icD0/fDG/6p76RuNyLxU52ie5d7FDttve7bdqn4XuWYxtx1HZN5WJ40XfdXZe7fnjfNpTxyXXf4/GuHdx1d2Mj0PwkDpIYI2fXvWykh1+95cjp2eBNP2WiZXu601FDHvlOIliphC5TQ4vVvie4muLOTTtkapA/GIEzY+2n4eC0X/u+MbVjFvI7NdDDiDN62qwpN8OLq/FQW7I+g3QiLOX6MWd+aE9tj9VCbkW7M66b0e73K1KssY9MX8xZ/UMQQtzs+/1P9SX6s8vx8M3NYHv8DyKNeRRjjyuk11gfj8taVIUuUCLBlzyqKUSXy8MpV6HhnKmqHam6ZwCBH65iftxkqaSPnJRpanVauqdGxE2meqwe7f5z9PbV+fCX4Tk2tbsb1NmFPueW7XCwkHgKsP0m7RiqpExDHjD19R9Yj9VVNuKu7sW2oTvOPRP6dQe8uTI/Zzs7nb2dnTpWlIZQq2K4AQbbs70pi1Jclenl2Rn5ZY2s0d6efw+7qQlKn3b0zt7Bvt6DE7D4ZGI85d0Dq9fpHnQ7Vuewc2gcHPW6h52H0cHsMnTcMo50wzo6fNo72O8ddff3epPeIRboTHpHB08n/Nme9ezgYXSwVYmu1zsyuk/3O+ak25t0nhpmxzg8MA/3n+1NOvBCugXKul3jUFG+Y+OZHbGFH84tx18w8oYeGbDgd8BDyw/diEV+Ehpc9T08zLl4pzu2KdxNW+DhIWc6/nk+cyHgFtjsBpBy2GKO7c3pf9c3EwcjUCDb1aFZU+5x6XwJGojNqC0Uj0RkT1kS8bDt6S5n9Qu4NHY+HrGzpcdmr/y4vgJPAndYXfhu8oEFF/93Aojang8dce7bmDlLJm0sXVeU4D6e+V6HqWAwCZq9fFm//rWuWKHvskCPZ449AdmBH8bsGl+V9HN0H2EyHoDz9LyBB209nN79tv97U4nwlAbbITRdi/n7uNFUpFvRHYxhrskt5sOwGr5jtpjHF2CYPuFO87nC8DN1/AlAI/HFoykgOPFiAm+Kh7aF50/6bF9OoJ9Qt6EYo/so5u7wvR03rNoHgfTTc8bfB9yIYUa+x1PRQmKxMWsxC4hN9sH7VJOYI7EcMUsv0bffVBRBslKv1yMKOtAH3zZZ7Ew08p13XIv1icO1yA206N4zGmJ4B3xpKh+U23h3h43AQCiUyR37jocsnnGhf2GYBDHb2VU+KcqDqEF+ilV8bxItrW9M0AacwJeTI9HRMuS1NCvxDFK9xkZKWuzy7fk5MfXFF+65Nj5/xcQDRghnoe/Zf0oLmXEHZlwryus2DnmchB48SFxcMfEie+pBLxwf3vJPPdCCmGuh7k15I4rDxEA8cBNtCm0Gd3ZAWytn+QpOsPPdjAvIBaia+YljEk4GnrCTq3dYpoHIeafHvAkDmfKIxb5PXE6psT14Dc4mvu+k0zUiyfAXUUYNfTd5DGuP2E76IRfmKxKkpSdO3MrXletgjdsYNtN4ks+5jfMNADV/oUgcV/BZoJ6mS5IlAuEHgYAUhGRMe4RPpB1I5CmqDL96bMy4MddcPQgQiP4SntdAkCAs8BHK7tfLWWzizGLr6RB7c7h+B/ksgAmeP7R51JZ7kCxKIIU5d+4bGaskr25jONzY9lJW3VLUCO/J1YH62NeiRaCJR42AhqDYGcInnu9ptFw6Ln7nWMMo+u3iQhu9G1wPL8ej31VVzuQOvBlNtyPNtVNnXsbAPqQ4UraRqNgO/U5JvI3Foz6rICB6aSRF9KJAiutqwtXysEEQzZyeTwXF//rN56RDWm+4l5De5xK5b0G2ECnTWWovTAeadH+76UyBvWomVZkVpfYwvz+x/wGO02qZOf/wwwalxUgKTvFpA8yTviBGC9MHUnoPs+Fzsq4JiSBDWe5G2N+Ez/Q726+aHm3mGngGkFXjzrXUY4GVNvaEnv8cuYXHGS+pkoj9WHdoK0JTBE0FDQLDHB9bFfxbRXAbT3lcHcy2SfqZeIQZZg0kKUiMjCz95OSw6xYpCuoJISNUGaICCbexxL9p/i2VkJsHU+/5y4X2evD2fKzdDMc3v2bDn6o0RMgOGzuVnVCCRZ70cUQ9gj3bbWGvSvXGSZ9yCYccOap0EmXIFvthjWoUdkiz10CwPjLDIh92d/KPbIcSd2m5qAMoRiIfRAi4QMrBbFLGIizGhPPR7lwdmaMIgGRjSL9Nzha24xShPR/JMddDYyYmolaBvVPuH9kTxPYpUv0C9HWIglukpfoUBRvqnDL2yX0ROs6oJkEV8ewuBUQeQKROgmTCVGQmttCsiudhDVlIiWhCQkLlc/9R0dh3N2fjYVGwmxEXPG0eayUICNQsR5/CGbIGUAukH/EBBf7N8BSC7/fzzd7Ga0EysacEZjuIZpCFmW/hk0x3FMHZq7nICzwOSSCfMfzgvs2uZvTQcdptRTJ5Gf42OLps5ZXYgHCQQ6VxAmEvc4lNZvo88uoxCDB4FOmhTYW/qGZymYeoloVmFxKVDIH0sh8/ygAgCyX5jAqkLARM/XRrmzxrKWCsgV6/nJuaXGFFjClZtFpPUm6ZRSUpKV5l/U9KwYpzidVhsAAUXBIJKlkOOIWyHFGpJSJXNpbNFNyUrFwDmXkFooqbrWySHdcjZurhHFYdS2isjsJ/AVsXfZbEmzp6FFEq+RN8iB23laJxbtjnJvPaaFz/O0yH5PL8y+yntgjtmKuB9HyZbmP3a3KJfIekeT+9u/btqGxveQohYkiMneccO786+Rlb2sLJbYxP+XeYL1Wr60UDuq7ORleXkjNlH7H9BqCNgRilbfTXY39on8V0+oZTag5YnRkoddK0eaFHTJbVJhPtHVnJIYlsl1Nq20u7XFyzPUShlbRrGW0KFOdh/yFWf/oKhueLFRhdg2KaCyinKkeZqH2xTQPbDO9XKkPM1rA5pvbhzQZvhtro7L+GTGWhUShY8CXdyiTk+jz110ifTZhpBH6ZDUAXa6GvQGs5STTTTCEHyZQomaQs2bxubZZMsWfhyWgmE2hou9+xsR4iHc5TdOGrTH+B5ALLuiwKuJE4SOXvJAJVsizAEjy8kyk+Km/4MYXcGfX60tZbbZs+UK0pUq+VuZ9vcGya+QCHNk35vDVtmrmMOoA47rNOBlE7ubp8ffZGG10PT96eD8Znvww1IWqBuIaNsSiH/c72DCdB/vYyDnWD7/I7JIHRLhEtuN2eHVdmlD14ZTDlnWBaqQJJ84w7V5NCpIqgWZlMqkd+ealDFYiIInLWnBU93bZw0bJvGzWV618V0W42bctiqiqqTjpnkB1jBQvQqDyB8Ias/s/GS/nD2j9+7Mufj8fyB4+a39eXs9lxejiWnssVjuzi93HtBTkpT2HQ8vhBQIDw96BiX6HwiG/PP4NZsWyxKd00C3uRXXXXxX+qy+oOnZakBzBMosEwon6kWzy+ZxbMKztsrNMBo3ZydXFxNt54ulc8yiB2qrBJOmXyfFUuq9pEDjX/5cGDGkrSUsTyqCMlttS8p2OVxzTv/y/37m/jy+FYG5yeaqPxYDxqRBSvPA5lnzdb7Pzs8u0/tIuzVxp4enVz9uZ0MB6MhpfjVp7TMkbnxdF8oqWpLz42RSN7GRW+0RK3MT2XnZ8ooE0CY7YyqwGfdnk1JlzIDN4NxkyeXSP6z3kSVAIicoUxHNRcpAKu/t52E5d5iTvhIfMtmgrX45mU32KpOY8j8hwcnlimfQvbQ2SR6TBiAhcTF8sO+IKOx4yFZ6qODeXmIsX2snQwLUEmHGbEG3GgHkcIdYmntxh9AT1auqoW8T+asqgQnAkoS5AjoBGWXoWnpzm4HWlEg5bSkKVK6+b0q7hfrAUFOSkoUey9L4BVFgNY5Uk1TSzJAA7d96bkJPQ73Xbk4YY9JcvzZevd5FNyGYhSi5ltzGQSB/RSIChcrIROMZPYduw/udmmTviKBJbCimdwrJaOIEK+DGMSj5GEom8hBSyQUGNjFVG8WX2UtHuyVocE2ZVFGmtJXWQkzfxI7JsISQJKT9eKHRC6SFSQ98J5hboomFIcjo5CAwvC93k+y06pwF14RjCh3dxONYU8k0iURiXNrEo/H0ClvUY5RFuXba3SzaLqbqVoj9by8s5WlTzzM4ZUUzBPleJLNU7mj0IrIPHc3dREhUP5JYUQ+EHQH9x124g8Ruxo5NJQEE6o4JBQL269WksGh/LcGwRS7eryZNjYAkuziEYMsRxVjghEZjQWVnr5EJXxDEnBjMIZ+1AiVOjAEsVWxC6RlbFJevPRtQRTokt5BAIw91qMhyF2/J1tUYS+uj5/O9JeDwfjtzdD7eLqFFkExRntEknwu+FNlcOriORj4Yk06MUXoUYCHupeRBlV7tIylTE5DFKeKlQCE1yD5kYUzEW0k46Cnshop2RnfCj0uDi2nqG4jWZh4s2ZuNtRCEwInOQXSfEzp4SUIAcxpUcp0GnHbdEg5u8NHgh9xvSla9Qj3qIg56UoaDRdGr7nTx768Jfk4fCcgJW8i1xYg2otHjFQrYspGS4h9PUBkkL76OdX2skrkQvALPkfLcEfslnumfBTzebSp6yDp6Sr4M1KZ8DqcPBmcHYpuAslAO8zKeyA3GlULHk/I5/bOFeaFKRAItLVdaT9J0iVciZKUfmUbiU+RshLfr3ss71iW2trMa4Kkp4VBZFKLe9+r5eyXJbGjpe2n1Ekp4SUdVNPYUl3K8NTPPkFdEabnLj0JYVYUjILhP+US5Ydx8UYkjVbCDM4oR4Typf5suk6pGwpQo1OXQ3fcfQgojS5RUpTpLPYwinyybU9LW7A97XYg/srULFk1NZ0LKe8WGVEBp6qTIkJIruJ5hq8goG6HpmcJir7xMmvT1C5wXZoKfLgETJBeUVE+HM3FrYmdoAR0rhoDmUSGBd6aGq64/hG0TkIk3YpcwAULSjuhIjpBT5+JWEmd2IkWBl94iutSDSqa0nMlFWCCsv5PNECOOe5pDUr7lNyKVkVYLU1V77EcTXVZtBVan5pSEX11f1lD+baJLEsPLv30ktSckCgENBxkDrJaC7dZ+VK11+0oI0cBGroeVwkvenithHNKXcUgxkB2xLJaq911CpXAWzg+mL8lk5NdCfLT6RpkZ8K32t+ELdhPRoivpuhyr8jLMjEugooY72oczFHE1mTGyd0l0IGm1aJcqRY+KQFBGL4/tzmiDYFM/9aWuSFuXvPYOKp6LzqFtI9WZCQ2ohSKMct/LvgGjVJc5INUuYVUrfY6/qJ6R5XpCEJrFyOK0tHuGlkmJl/16gjoZ1dnqztW9AYdS3ocsLgcjQavhml7lDTqN+xaV6p3zH69TKdX3LBVUq+jI4vp0Ik3HT6So1CansxgAxOfmbCClHqGFGpv+7q4Zyu1SpUOMsvVNj+JvLe2romTZoT1z5bZ2WAj6t1HjVrWXRk08qpfvZ0Gyec72tbPc8mPFrEmPi7bBmmvesl3yNI5nR5ynF17SSRSBTBfrLL/DgkpNtTHjc3CG7Zuqc3QPwAaDRvEfgLHlLXPqVcPl++NKLNsDWNbpRvhMBHMCdLCVbgU85KarWQuhvHx6z8NJrZVlyZINcJbPNB3nx9q5/6y1/e6hfd6bwhD1Zs0edfhXqoyb8G2rKhEyd0AEoXA+ilDlNcz9c9uEE6C/0jsUM8m9zLW8+iOU5dZtkxzTSmvXy5QmY4K7ZdjsTNF3WWKtEu6RDA27PH4qiz0qtJtiffP1piKTuQ5YrIXZL32ZrF8w0hwIfONwCQbX3t8QZZ5Dc53lgizo43BK2l4w16zeP/jze2Pd5ANA3uetrMDNOaMdDvHR/7lVXYLIb+Nyw7jGLxRC1cCxG9A/L2vpUpJeECqmZ2Ik1q0XjxggJ1sYL6lkvSxXpOZ9R0kMr+DiELJZhwcu0WlMzM7zCERqIJ2YoT0g00I+8PdVmko5aFr705EcnrvJwdyayEhyEdFu8t71hAGwuBC5aKWBf0NBObs01+1/ghRODFt2ZLKWwRP2fXYoqIbK9vBm+ufh5V79Ptrbts/e8kI+Nfeh/0QfoKfIwSg7InwUk5tcrLR5O7ntjXg7PzUfmaFLUrS/z6Fkut50uVggJH6BXcJOQbOSIy3kZKSTu7unU6Gmv/eH1zoY3fXl4Oz8XlaSRP7CWo+6UH0i415PaVzt3Z5S8DcVvGQEqhHtO7i22iQ6RtfZpf6t49DMRqtL4qQmVs0xEUFRPylYvyDmg2vczIQ2nl642Y/chok2HcszXPkvDCCfyYMr+BOov9jeG3eoxfAKLR51B12pKrv6d15AqNBvFCZaWVwSP2ryNap0yQujxNLVNGYOSqpHeQE1IubNrCElWVWkHsj+uoL80i3UO+TEsv1Y/9rXDgu4HGFVRrmYmdLAX8b5DLfxDfpCUKG+tXNGh5fvcYvXvZT2dtoEwar7hqxN1I2J8g4xtrurTts+u7Hst8lCqkhxyDh+JVWJGSijq3ejFquwi86VpVNSjLy1UPwOVOVkIe5NeZ1ompcuOp4N6mka/RFisQ1AikRu+TJxJ2A1i5cRai7k0ch+3QxwpkxWn/ZResKO398qpLJM15hYQAuEXVtQr1UNW1Brp6r0ps4aG6QyjkQ4UHBfNvUngsEWeFhyCWqsbQjyJVvK6fJuR5/2D5Bri4Vf6i8vq456evgKcvia+8YJ0Ww6WShn1kMehNmZq+eJ7Xn5KtWxQ9LnfFgaBIdsiFiPInaBZrHcHbQOhnXhY9R12UNQ24+xW3PQuzH33fszB3+xuftU1vIAgLBMoidhtu7n2jtnoTv9Yqjpeu+teaTWRehdE1F/Yfnp5RQCV5ur+1zcGyRyxAVxpzFQZs33QT126MIJ+5dYeqMhG69VVBYaN/BuLPu3kCEn98BCqW/lEGTRqMJm4t968HoxECWAoz56HHHa1gkv3Lq7F2Pbx5fXVzMTxdQso/0/Ag5Fo/XfpDIO02/aco+QV6Yk0Y6U6DqjYmz0dgCDo8GXSU7BmfDmqMPBM+dWpsEQNuEZOrc+cxd+HzYWd4RiuTPIRrk+6V3gQ1ZiBhEZNHAV74+10UOP/d3LX1NnFE4Xf/ipFBskozOCRtVSXyQ5RUNA8RQSF9AYIvu44XnF1314YEgtQf0V/YX9LznTPX9RrnVpUXBN7ZnXPOzLlf6Oakqcw7et8suM14iW+8erdJE7UPMl3moYQ28NcXGlr/uchSs+SsDcXydMVCFhrJqjdCPeHenAyqiS6G79GO0n6MM7HqoD5yhD+2Y5dAMY4mBf3M1ORWC3fgcg+NYNcDK9vtY6tZo0MVQUuwclLSQBec59dWoHrjLy1duLhs2CofSXM2rg6icFZHgemblgZ60+oxGPwtroA+3nu1/zvPiwr0MeE0JOunvAJyhIpmYRnBeNaugexrxK/BMVs//1ItLpoHEAH22+3rsT1r15D3Aeu1+4IQt9vXk+6sXaOkN9nW7ptess731FIeAeW/qaLzUBGVVAS7kklAgbVyw1hrUbVmNs5aVE/T/GNWFvnrtpksZAOuUbT1/w2wTtPkPC3vHGBt33g8E5kFN1y8LYuDp4Stq/K70TQn2Wzdwk27kV0W73SttjfpwvWDKWl9JV2eprGqG3VBXCu+1toBDqtyNBiPUa54TW6le3Ct/vnr7/hPWyE4fuhtg037X4I72fHs0nn7FTuYWU0YmZKWJhOErBCUxLVpnXNiD/IcUJNtIrCUXJbjKPcM+zXOk8NW5OT8FGZYHo50D7rvStp5+XI/2gGUGuG2AgTicXsGAecddl3cQiyVhyPifwbDSoJ6KX0/gjJsQtEW2h5LxDXGnU6H3NhHj9SR7X0qDS+ZuUC5jPXRMj9pmpHbnV0gEsRzDLV68UnEiDi/YqHtfJOfnspbPC9oPtmJ2RkP9/KkhEvpPGmbcN0JQamPcoK7+gHdjhyz6T4/PdZjVLlIpGAXEqGE4bY8qETLhJrPZv4QCj/J4ck+yiiZq4tiUWnffWxCX9Ib4BrBxVfEYXANrjp+9Zss37U9pgy0nM7kk/QcylddFy2BssuQ+Z7NBKXzuRkB5/s3CUwQKihjWKpa2FFss69o4vzjaE9V+WBGnva82lD9qFnwh34Qu9hQwWvcpEiw53iJ/MUZj6f7KDOgTNugFMUBDczLeLkYTHEpulJnYSQiqfc0rzi5jraPLJHxBXMpmBlNMOCpAoZWKaICPMMLO4pOaSp5eHtPTCyoJK+Mh0wBcXKtSR2T+g4JYJAoZsW0OMfcBG4/mk+YYaDIbV1W0AXLoR131kSvElVcdmuBmCGtRX/Yx4QqBQc+eYIl+xFr+meAec4Fx2ivISc5GBWqAqdJwfZnBlkk3MlhmG4GC0WRcabJFGziPWe9Wfbb974rwEABtJlmiAEjqAihbXGNSitZgAHLiUBFGI7KkczDecsRk3CEn6K5EuZ2ciLWHUtyoll3rZEYsk5zmr9fj6fQTSfcszFZXXLXDUowrdBf1NSqsqHABBqXTornpGRKwXAlrnCluVXFUklqk7nZyJSJc1cV1627InQrm6TGVBsuGYzY6uI9fcHe0cmJbqzXE1kdl6YJmEv1aeuFh2HXIkkvaidqDh+b0Xd1DV8Eg4gKKE8hTj4+POieHh7QlZqX2XDhoAz4SyqWNFcsBZU0jayf5RzzQVshK1MiR4J4Uk0QjLNLNeDKc8NWQJrOQHDC8JzSDwNm3kZzAHnUWFSgH3FAh2RlQX09Y+jZ2dUJqb3jwzrXs1JqunUgQj+uzOl/z1Ik8ggfQIpEuSXDe0iLcAIZxDk9OFbPT17cTn7EptIq+VEz29bID+mo2j9VZg4JX+ERov4K5oUIFpfJD5jDc9uGjdfgeIbTQQ7WqBZD/Wzr101Bu0zfy7dtiyzHmFYk37pETNLPdNPRX1JZk4M8R9F03EDJNTX0G/hrfnVDa8FSHYFX5AdZ9EgOzH2xyCXbxcDCxBHDhgc96oLpza+bOBnQERRRPqNZYKZTQXYFm8PIovs7gp9uT8ZnHs8XgzKp0NQ6Te0wCqBstD7AR9k7H/quzPQZEh+kc097AOEojv4dN+2ESDIsoOsXeZ5OGXgyAbX5J6NQfc98GsVq7sen8AyysWrf1TmQ1KbEXZZiLm2eia5RXJyqAH/jmAym0KZXIrqRZa7Ujz3zsDW7cVLUzbwO04zhj0GmMSlGnGo0+09dWrEhQuKdtdfVh2ymRtnbTuvgxf665ONdxndv32t8d234t1jWSS0A6ZOdDSkKCSKyTdR73LnNHP03eeDYvckbrTf3cyyUOzZPawCWILuFI87iPsi4+2/Nn7/n0PulWfWtLy4fQDqinL/DR3rREvtcqPdOrmkvDHq7JWxcmOdBcNo952JLuyCIIrsFSXikbqW/zX6lvaG97e3wR3MDe5v+x4ZkGkmdd07qBBguJ9NWrCT9m4ja6S2d1Nc4L06AYnaOqTIgIWX+WwWl51czkmBK8wEhllghNq0/098uyZWrlN4MQuouhUKb0E8np0cnbZE1M3LC3U3g+fIN16H1L3pMOGF9YwAA
         run: |
-          set -Eeuo pipefail
-          printf '%s' "$RESOLVER_B64" | base64 -d | gzip -d > "$RUNNER_TEMP/lts305-final3-resolver.sh"
-          chmod 0700 "$RUNNER_TEMP/lts305-final3-resolver.sh"
-          bash -n "$RUNNER_TEMP/lts305-final3-resolver.sh"
-          "$RUNNER_TEMP/lts305-final3-resolver.sh"
+          cat .github/miru-audit/lts305-semantic-audit.b64.* |
+            tr -d '\n' |
+            base64 -d |
+            gzip -d > /tmp/audit-lts305-semantics.sh
+          chmod +x /tmp/audit-lts305-semantics.sh
+          bash -n /tmp/audit-lts305-semantics.sh
 
-      - name: Upload source-only resolution diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: miru-lts305-final3-resolution-${{ github.run_id }}
-          path: lts305-final3-resolution
-          if-no-files-found: warn
-          retention-days: 14
+      - name: Audit conflicts and clean-merge risks
+        shell: bash
+        run: |
+          set +e
+          /tmp/audit-lts305-semantics.sh > /tmp/lts305-semantic-audit-runner.log 2>&1
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            mkdir -p Documentation/miru
+            cp /tmp/lts305-semantic-audit-runner.log \
+              Documentation/miru/lts-4.14.305-semantic-audit-runner.log
+            git config user.name 'Miru Semantic Audit Bot'
+            git config user.email 'audit@miru.invalid'
+            git add Documentation/miru/lts-4.14.305-semantic-audit-runner.log
+            git commit -m 'docs: preserve semantic audit failure diagnostics [skip ci]'
+            git push origin HEAD:miru-h40-lts305-integration
+            exit "$rc"
+          fi
