@@ -1,5 +1,5 @@
 # Push-only helper; never target production through a pull request.
-# Explicit guarded launch for mailbox polling-timer resolution validation.
+# Launching guarded mailbox polling-timer resolution validation.
 name: Miru H.40 4.14.305 mailbox resolution
 
 on:
