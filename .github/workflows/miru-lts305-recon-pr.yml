@@ -74,6 +74,7 @@ jobs:
             cancelled) state=error ;;
             *) state=failure ;;
           esac
+          export state
           payload="$(python3 - <<'PY'
           import json, os
           print(json.dumps({
