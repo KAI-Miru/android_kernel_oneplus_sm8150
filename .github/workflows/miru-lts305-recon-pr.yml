@@ -1,5 +1,5 @@
 # Push-only helper; never target production through a pull request.
-# Corrected target-reachable virtio ID validation is staged but not launched.
+# Launching corrected target-reachable virtio ID validation.
 name: Miru H.40 4.14.305 virtio ID resolution
 
 on:
