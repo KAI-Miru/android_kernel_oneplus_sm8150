@@ -1,6 +1,6 @@
 # Push-only helper; never target production through a pull request.
-# Explicit guarded launch for the Qualcomm GLINK semantic resolution.
-name: Miru H.40 4.14.305 Qualcomm GLINK resolution
+# Staged for explicit pixel-clock parity validation.
+name: Miru H.40 4.14.305 pixel-clock parity
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   statuses: write
 
 jobs:
-  resolve-glink:
+  validate-pixel-clock-parity:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
 
@@ -28,7 +28,7 @@ jobs:
           import json, os
           print(json.dumps({
               'state': 'pending',
-              'context': 'miru/lts305-glink-resolution',
+              'context': 'miru/lts305-pixel-clock-parity',
               'description': f"run {os.environ['GITHUB_RUN_ID']} is validating",
               'target_url': os.environ['RUN_URL'],
           }))
@@ -48,16 +48,16 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Resolve, compile, reverse, document and guarded-push
+      - name: Validate parity, compile, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_glink_resolution.sh
+        run: bash scripts/miru/lts305_validate_pixel_clock_parity.sh
 
-      - name: Upload GLINK resolution diagnostics
+      - name: Upload pixel-clock parity diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-glink-resolution-${{ github.run_id }}
-          path: lts305-glink-resolution
+          name: miru-lts305-pixel-clock-parity-${{ github.run_id }}
+          path: lts305-pixel-clock-parity
           if-no-files-found: error
           retention-days: 14
 
@@ -80,7 +80,7 @@ jobs:
           import json, os
           print(json.dumps({
               'state': os.environ['state'],
-              'context': 'miru/lts305-glink-resolution',
+              'context': 'miru/lts305-pixel-clock-parity',
               'description': f"run {os.environ['GITHUB_RUN_ID']} finished: {os.environ['JOB_STATUS']}",
               'target_url': os.environ['RUN_URL'],
           }))
