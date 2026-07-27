@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0
-name: Miru H.40 4.14.305 final conflict reconnaissance
+name: Miru H.40 4.14.305 final conflict merge view
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  final3-recon:
+  final3-merge-view:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
 
@@ -23,76 +23,83 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Collect and publish exact three-way evidence without compiling
+      - name: Publish three-way merge views without compiling
         shell: bash
         run: |
           set -Eeuo pipefail
           BRANCH=miru-h40-lts305-integration
           START_HEAD="$(git rev-parse HEAD)"
           OUT=Documentation/miru/lts305-final3-recon
-          rm -rf "$OUT"
-          mkdir -p "$OUT"
-
-          PRODUCTION=61371a1024e341f434deaf61b79a05f73827260a
-          PREVIOUS=0eec6f6001d15bb1108835a642ec4637d75eef19
+          BASE=0eec6f6001d15bb1108835a642ec4637d75eef19
           TARGET=4415bf5e08942aee6487946a3e0a50956ef68f1e
           SCAFFOLD=b92a77e96dd54fd30f8f39c7eef23e76f211c515
-          PREP="$(git rev-parse "$SCAFFOLD^1")"
-          BASE="$(git merge-base "$PREP" "$TARGET")"
           PATHS=(mm/memory.c net/ipv4/tcp_output.c net/ipv6/ip6_output.c)
 
-          {
-            echo "head=$START_HEAD"
-            echo "production=$PRODUCTION"
-            echo "previous_common=$PREVIOUS"
-            echo "target=$TARGET"
-            echo "scaffold=$SCAFFOLD"
-            echo "preparation=$PREP"
-            echo "merge_base=$BASE"
-            echo "sublevel=$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)"
-            echo "compilation=not_performed"
-          } | tee "$OUT/identity.txt"
-
           test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 305
-          git merge-base --is-ancestor "$PRODUCTION" HEAD
           git merge-base --is-ancestor "$TARGET" HEAD
-          test "$(git rev-parse "$SCAFFOLD^2")" = "$TARGET"
 
           for p in "${PATHS[@]}"; do
             safe="${p//\//__}"
             mkdir -p "$OUT/$safe"
-            git diff --binary --full-index "$BASE" "$SCAFFOLD" -- "$p" > "$OUT/$safe/base-to-miru.diff.txt"
-            git diff --binary --full-index "$BASE" "$TARGET" -- "$p" > "$OUT/$safe/base-to-target.diff.txt"
-            git diff --binary --full-index "$SCAFFOLD" "$TARGET" -- "$p" > "$OUT/$safe/miru-to-target.diff.txt"
-            git diff --binary --full-index "$SCAFFOLD" HEAD -- "$p" > "$OUT/$safe/scaffold-to-head.diff.txt"
-            git log --reverse --format='commit %H%nAuthor: %an <%ae>%nDate: %aI%nSubject: %s%n' -p "$PREVIOUS..$TARGET" -- "$p" > "$OUT/$safe/target-history.diff.txt"
-            git log --reverse --format='%H%x09%aI%x09%s' "$PREVIOUS..$TARGET" -- "$p" > "$OUT/$safe/target-history.tsv"
-            {
-              echo "base_blob=$(git rev-parse "$BASE:$p")"
-              echo "miru_blob=$(git rev-parse "$SCAFFOLD:$p")"
-              echo "target_blob=$(git rev-parse "$TARGET:$p")"
-              echo "head_blob=$(git rev-parse "HEAD:$p")"
-              echo "target_commit_count=$(git rev-list --count "$PREVIOUS..$TARGET" -- "$p")"
-            } > "$OUT/$safe/blobs.txt"
-            test ! -s "$OUT/$safe/scaffold-to-head.diff.txt"
+            ours="$(mktemp)"
+            base="$(mktemp)"
+            theirs="$(mktemp)"
+            git show "$SCAFFOLD:$p" > "$ours"
+            git show "$BASE:$p" > "$base"
+            git show "$TARGET:$p" > "$theirs"
+            set +e
+            git merge-file -p --diff3 -L MIRU -L BASE -L ANDROID "$ours" "$base" "$theirs" > "$OUT/$safe/three-way-merge.txt"
+            rc=$?
+            set -e
+            test "$rc" -le 1
+            echo "merge_file_exit=$rc" > "$OUT/$safe/three-way-status.txt"
+            python3 - "$OUT/$safe/three-way-merge.txt" "$OUT/$safe/conflict-sections.txt" <<'PY'
+          import sys
+          from pathlib import Path
+          src = Path(sys.argv[1]).read_text().splitlines()
+          out = []
+          i = 0
+          while i < len(src):
+              if src[i].startswith('<<<<<<< '):
+                  start = max(0, i - 12)
+                  j = i + 1
+                  while j < len(src) and not src[j].startswith('>>>>>>> '):
+                      j += 1
+                  if j == len(src):
+                      raise SystemExit('unterminated conflict marker')
+                  end = min(len(src), j + 13)
+                  out.extend(src[start:end])
+                  out.append('\n--- conflict boundary ---\n')
+                  i = end
+              else:
+                  i += 1
+          Path(sys.argv[2]).write_text('\n'.join(out) + ('\n' if out else 'no conflicts\n'))
+          PY
+            rm -f "$ours" "$base" "$theirs"
           done
 
+          {
+            echo "head=$START_HEAD"
+            echo "base=$BASE"
+            echo "target=$TARGET"
+            echo "scaffold=$SCAFFOLD"
+            echo "compilation=not_performed"
+          } > "$OUT/merge-view-identity.txt"
           find "$OUT" -type f -print0 | sort -z | xargs -0 sha256sum > "$OUT/SHA256SUMS"
           git diff --check
           git config user.name 'Miru LTS Integration Bot'
           git config user.email 'miru-lts-integration@users.noreply.github.com'
-          git add -- "$OUT"
-          test -n "$(git diff --cached --name-only)"
-          git commit -m 'docs: record readable final 4.14.305 conflict evidence [skip ci]'
+          git add -f -- "$OUT"
+          git commit -m 'docs: record final 4.14.305 three-way merge views [skip ci]'
           REMOTE_HEAD="$(git ls-remote origin "refs/heads/$BRANCH" | awk '{print $1}')"
           test "$REMOTE_HEAD" = "$START_HEAD"
           git push origin "HEAD:refs/heads/$BRANCH"
 
-      - name: Upload final-conflict evidence
+      - name: Upload merge views
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-final3-recon-${{ github.run_id }}
+          name: miru-lts305-final3-merge-view-${{ github.run_id }}
           path: Documentation/miru/lts305-final3-recon
           if-no-files-found: error
           retention-days: 14
