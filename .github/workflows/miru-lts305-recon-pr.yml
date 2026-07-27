@@ -1,4 +1,4 @@
-# Retry guarded xHCI core/header validation after baseline-provenance correction.
+# Retry guarded xHCI validation after downstream multiplicity correction.
 name: Miru H.40 4.14.305 xHCI lifecycle and LPM resolution
 
 on:
