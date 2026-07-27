@@ -47,7 +47,8 @@ TARGET_QUIRK_COMMITS=()
 for marker in "${markers[@]}"; do
   found=
   while IFS=$'\t' read -r sha subject; do
-    if git show --format= "${sha}" -- "${OWNED_PATH}" | grep -Fq "${marker}"; then
+    if git show --format= --unified=0 "${sha}" -- "${OWNED_PATH}" | \
+        grep '^+' | grep -Fq "${marker}"; then
       found="${sha}"
       break
     fi
