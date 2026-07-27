@@ -29,8 +29,11 @@ jobs:
       - name: Verify objects and preserve authentic preview
         shell: bash
         env:
-          EXPECTED_PARENT: a6a68995ea4d5cfdb1ac1c65204e2b2797d53eaa
-        run: bash scripts/miru/lts305_recon_preview.sh
+          EXPECTED_PARENT: 70a543ec98753cb3e250947dbba5a59b230c2d7f
+        run: |
+          git config user.name "Miru LTS Integration Bot"
+          git config user.email "miru-lts-integration@users.noreply.github.com"
+          bash scripts/miru/lts305_recon_preview.sh
 
       - name: Upload reconnaissance artifact
         if: always()
