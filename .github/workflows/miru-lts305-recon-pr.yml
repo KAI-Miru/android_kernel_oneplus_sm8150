@@ -1,5 +1,5 @@
 # Push-only helper; never target production through a pull request.
-# Staged for explicit FAT ratelimit parity validation.
+# Explicit guarded launch for FAT ratelimit parity validation.
 name: Miru H.40 4.14.305 FAT ratelimit parity
 
 on:
