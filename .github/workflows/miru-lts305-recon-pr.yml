@@ -1,5 +1,5 @@
-# Trigger guarded DWC3 core validation after target-diff alignment.
-name: Miru H.40 4.14.305 DWC3 core lifecycle resolution
+# Trigger guarded xHCI core/header validation after target-diff alignment.
+name: Miru H.40 4.14.305 xHCI lifecycle and LPM resolution
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   statuses: write
 
 jobs:
-  resolve-dwc3-core:
+  resolve-xhci:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -23,13 +23,13 @@ jobs:
 
       - name: Resolve, validate, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_dwc3_core_resolution.sh
+        run: bash scripts/miru/lts305_apply_xhci_resolution.sh
 
-      - name: Upload DWC3 core resolution diagnostics
+      - name: Upload xHCI resolution diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-dwc3-core-resolution-${{ github.run_id }}
-          path: lts305-dwc3-core-resolution
+          name: miru-lts305-xhci-resolution-${{ github.run_id }}
+          path: lts305-xhci-resolution
           if-no-files-found: error
           retention-days: 14
