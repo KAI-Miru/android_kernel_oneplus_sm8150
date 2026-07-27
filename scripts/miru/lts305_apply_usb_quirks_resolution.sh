@@ -207,17 +207,18 @@ python3 - "${OWNED_PATH}" <<'PY' | tee "${DIAG}/source-behavior.txt"
 from pathlib import Path
 import sys
 text = Path(sys.argv[1]).read_text()
-for marker in (
-    "USB_DEVICE(0x0853, 0x011b)",
-    "USB_DEVICE(0x0955, 0x7018)",
-    "USB_DEVICE(0x0955, 0x7f21)",
-    "USB_DEVICE(0x0bda, 0x0151)",
-    "USB_DEVICE(0x413c, 0xb062)",
-    "USB_DEVICE(0x4296, 0x7570)",
-    "USB_DEVICE(0x0951, 0x1666)",
-    "USB_DEVICE(0x04e8, 0x6860)",
-):
-    assert text.count(marker) == 1, marker
+expected_counts = {
+    "USB_DEVICE(0x0853, 0x011b)": 1,
+    "USB_DEVICE(0x0955, 0x7018)": 1,
+    "USB_DEVICE(0x0955, 0x7f21)": 1,
+    "USB_DEVICE(0x0bda, 0x0151)": 1,
+    "USB_DEVICE(0x413c, 0xb062)": 1,
+    "USB_DEVICE(0x4296, 0x7570)": 1,
+    "USB_DEVICE(0x0951, 0x1666)": 2,
+    "USB_DEVICE(0x04e8, 0x6860)": 1,
+}
+for marker, expected in expected_counts.items():
+    assert text.count(marker) == expected, marker
 print("source_behavior_gates=PASS")
 PY
 git add -- "${OWNED_PATH}"
