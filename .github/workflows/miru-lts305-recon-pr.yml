@@ -1,6 +1,6 @@
 # Push-only helper; never target production through a pull request.
-# Launching guarded mailbox polling-timer resolution validation.
-name: Miru H.40 4.14.305 mailbox resolution
+# Explicit guarded launch for the three-path MMC resolution validation.
+name: Miru H.40 4.14.305 MMC resolution
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   statuses: write
 
 jobs:
-  resolve-mailbox:
+  resolve-mmc:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
 
@@ -28,7 +28,7 @@ jobs:
           import json, os
           print(json.dumps({
               'state': 'pending',
-              'context': 'miru/lts305-mailbox-resolution',
+              'context': 'miru/lts305-mmc-resolution',
               'description': f"run {os.environ['GITHUB_RUN_ID']} is validating",
               'target_url': os.environ['RUN_URL'],
           }))
@@ -50,14 +50,14 @@ jobs:
 
       - name: Resolve, compile, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_mailbox_resolution_v2.sh
+        run: bash scripts/miru/lts305_apply_mmc_resolution.sh
 
-      - name: Upload mailbox resolution diagnostics
+      - name: Upload MMC resolution diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-mailbox-resolution-${{ github.run_id }}
-          path: lts305-mailbox-resolution
+          name: miru-lts305-mmc-resolution-${{ github.run_id }}
+          path: lts305-mmc-resolution
           if-no-files-found: error
           retention-days: 14
 
@@ -80,7 +80,7 @@ jobs:
           import json, os
           print(json.dumps({
               'state': os.environ['state'],
-              'context': 'miru/lts305-mailbox-resolution',
+              'context': 'miru/lts305-mmc-resolution',
               'description': f"run {os.environ['GITHUB_RUN_ID']} finished: {os.environ['JOB_STATUS']}",
               'target_url': os.environ['RUN_URL'],
           }))
