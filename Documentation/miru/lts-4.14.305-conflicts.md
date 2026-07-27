@@ -18,11 +18,11 @@ introduced by cleanly merged changes.
 - Reconnaissance: **complete**
 - Target object verification: **PASS**
 - Authentic merge preview: **complete**
-- Authentic merge scaffold: **armed but not yet created**
+- Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
-- Index-resolved conflicts: **0**
-- Semantically resolved conflicts: **0**
-- Remaining semantic conflicts: **33**
+- Index-resolved conflicts: **33**
+- Semantically resolved conflicts: **7**
+- Remaining semantic conflicts: **26**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -209,39 +209,39 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 
 | # | Path | Provisional subsystem | Index status | Semantic status | Owning commit | Targeted compile | Clean reversal |
 |---:|---|---|---|---|---|---|---|
-| 1 | `Documentation/arm64/silicon-errata.txt` | ARM64 errata documentation | unresolved | unresolved | — | — | — |
-| 2 | `arch/arm64/Kconfig` | ARM64 configuration / mitigations | unresolved | unresolved | — | — | — |
-| 3 | `arch/arm64/include/asm/cpucaps.h` | ARM64 CPU capabilities | unresolved | unresolved | — | — | — |
-| 4 | `arch/arm64/include/asm/cputype.h` | ARM64 CPU identification | unresolved | unresolved | — | — | — |
-| 5 | `arch/arm64/kernel/cpu_errata.c` | ARM64 CPU errata | unresolved | unresolved | — | — | — |
-| 6 | `arch/arm64/kernel/setup.c` | ARM64 boot/setup | unresolved | unresolved | — | — | — |
-| 7 | `arch/arm64/mm/mmu.c` | ARM64 MMU / mappings | unresolved | unresolved | — | — | — |
-| 8 | `drivers/char/Kconfig` | character-driver configuration | unresolved | unresolved | — | — | — |
-| 9 | `drivers/clk/qcom/clk-rcg2.c` | Qualcomm clock RCG | unresolved | unresolved | — | — | — |
-| 10 | `drivers/edac/edac_device.c` | EDAC polling/lifetime | unresolved | unresolved | — | — | — |
-| 11 | `drivers/mailbox/mailbox.c` | mailbox core | unresolved | unresolved | — | — | — |
-| 12 | `drivers/mmc/core/host.c` | MMC host core | unresolved | unresolved | — | — | — |
-| 13 | `drivers/mmc/core/mmc_ops.c` | MMC command operations | unresolved | unresolved | — | — | — |
-| 14 | `drivers/mmc/host/sdhci.c` | SDHCI host | unresolved | unresolved | — | — | — |
-| 15 | `drivers/net/ethernet/stmicro/stmmac/stmmac_hwtstamp.c` | Ethernet timestamping | unresolved | unresolved | — | — | — |
-| 16 | `drivers/rpmsg/qcom_glink_native.c` | Qualcomm GLINK | unresolved | unresolved | — | — | — |
-| 17 | `drivers/usb/core/quirks.c` | USB device quirks | unresolved | unresolved | — | — | — |
-| 18 | `drivers/usb/dwc3/core.c` | DWC3 core / power | unresolved | unresolved | — | — | — |
-| 19 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | unresolved | unresolved | — | — | — |
-| 20 | `drivers/usb/gadget/function/rndis.c` | USB RNDIS gadget | unresolved | unresolved | — | — | — |
-| 21 | `drivers/usb/host/xhci.c` | xHCI host lifecycle | unresolved | unresolved | — | — | — |
-| 22 | `drivers/usb/host/xhci.h` | xHCI interfaces | unresolved | unresolved | — | — | — |
-| 23 | `fs/fat/fatent.c` | FAT allocation table | unresolved | unresolved | — | — | — |
-| 24 | `include/net/netfilter/nf_queue.h` | netfilter queue API | unresolved | unresolved | — | — | — |
-| 25 | `include/net/sock.h` | socket core API | unresolved | unresolved | — | — | — |
-| 26 | `include/uapi/linux/virtio_ids.h` | Virtio UAPI IDs | unresolved | unresolved | — | — | — |
-| 27 | `kernel/exit.c` | task exit / oops handling | unresolved | unresolved | — | — | — |
-| 28 | `kernel/panic.c` | panic/warn accounting | unresolved | unresolved | — | — | — |
-| 29 | `lib/Makefile` | library build composition | unresolved | unresolved | — | — | — |
-| 30 | `mm/memory.c` | page fault / memory core | unresolved | unresolved | — | — | — |
-| 31 | `net/ipv4/tcp_output.c` | IPv4 TCP output | unresolved | unresolved | — | — | — |
-| 32 | `net/ipv6/ip6_output.c` | IPv6 output / fragmentation | unresolved | unresolved | — | — | — |
-| 33 | `net/netfilter/nf_conntrack_irc.c` | IRC conntrack parsing | unresolved | unresolved | — | — | — |
+| 1 | `Documentation/arm64/silicon-errata.txt` | ARM64 errata documentation | index-resolved in scaffold | resolved | `8633007f8d97174821bd9f200aa675e50e4bd9f2` | targeted compile PASS | clean reversal PASS |
+| 2 | `arch/arm64/Kconfig` | ARM64 configuration / mitigations | index-resolved in scaffold | resolved | `8633007f8d97174821bd9f200aa675e50e4bd9f2` | targeted compile PASS | clean reversal PASS |
+| 3 | `arch/arm64/include/asm/cpucaps.h` | ARM64 CPU capabilities | index-resolved in scaffold | resolved | `8633007f8d97174821bd9f200aa675e50e4bd9f2` | targeted compile PASS | clean reversal PASS |
+| 4 | `arch/arm64/include/asm/cputype.h` | ARM64 CPU identification | index-resolved in scaffold | resolved | `8633007f8d97174821bd9f200aa675e50e4bd9f2` | targeted compile PASS | clean reversal PASS |
+| 5 | `arch/arm64/kernel/cpu_errata.c` | ARM64 CPU errata | index-resolved in scaffold | resolved | `8633007f8d97174821bd9f200aa675e50e4bd9f2` | targeted compile PASS | clean reversal PASS |
+| 6 | `arch/arm64/kernel/setup.c` | ARM64 boot/setup | index-resolved in scaffold | resolved | `8633007f8d97174821bd9f200aa675e50e4bd9f2` | targeted compile PASS | clean reversal PASS |
+| 7 | `arch/arm64/mm/mmu.c` | ARM64 MMU / mappings | index-resolved in scaffold | resolved | `8633007f8d97174821bd9f200aa675e50e4bd9f2` | targeted compile PASS | clean reversal PASS |
+| 8 | `drivers/char/Kconfig` | character-driver configuration | index-resolved in scaffold | unresolved | — | — | — |
+| 9 | `drivers/clk/qcom/clk-rcg2.c` | Qualcomm clock RCG | index-resolved in scaffold | unresolved | — | — | — |
+| 10 | `drivers/edac/edac_device.c` | EDAC polling/lifetime | index-resolved in scaffold | unresolved | — | — | — |
+| 11 | `drivers/mailbox/mailbox.c` | mailbox core | index-resolved in scaffold | unresolved | — | — | — |
+| 12 | `drivers/mmc/core/host.c` | MMC host core | index-resolved in scaffold | unresolved | — | — | — |
+| 13 | `drivers/mmc/core/mmc_ops.c` | MMC command operations | index-resolved in scaffold | unresolved | — | — | — |
+| 14 | `drivers/mmc/host/sdhci.c` | SDHCI host | index-resolved in scaffold | unresolved | — | — | — |
+| 15 | `drivers/net/ethernet/stmicro/stmmac/stmmac_hwtstamp.c` | Ethernet timestamping | index-resolved in scaffold | unresolved | — | — | — |
+| 16 | `drivers/rpmsg/qcom_glink_native.c` | Qualcomm GLINK | index-resolved in scaffold | unresolved | — | — | — |
+| 17 | `drivers/usb/core/quirks.c` | USB device quirks | index-resolved in scaffold | unresolved | — | — | — |
+| 18 | `drivers/usb/dwc3/core.c` | DWC3 core / power | index-resolved in scaffold | unresolved | — | — | — |
+| 19 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | unresolved | — | — | — |
+| 20 | `drivers/usb/gadget/function/rndis.c` | USB RNDIS gadget | index-resolved in scaffold | unresolved | — | — | — |
+| 21 | `drivers/usb/host/xhci.c` | xHCI host lifecycle | index-resolved in scaffold | unresolved | — | — | — |
+| 22 | `drivers/usb/host/xhci.h` | xHCI interfaces | index-resolved in scaffold | unresolved | — | — | — |
+| 23 | `fs/fat/fatent.c` | FAT allocation table | index-resolved in scaffold | unresolved | — | — | — |
+| 24 | `include/net/netfilter/nf_queue.h` | netfilter queue API | index-resolved in scaffold | unresolved | — | — | — |
+| 25 | `include/net/sock.h` | socket core API | index-resolved in scaffold | unresolved | — | — | — |
+| 26 | `include/uapi/linux/virtio_ids.h` | Virtio UAPI IDs | index-resolved in scaffold | unresolved | — | — | — |
+| 27 | `kernel/exit.c` | task exit / oops handling | index-resolved in scaffold | unresolved | — | — | — |
+| 28 | `kernel/panic.c` | panic/warn accounting | index-resolved in scaffold | unresolved | — | — | — |
+| 29 | `lib/Makefile` | library build composition | index-resolved in scaffold | unresolved | — | — | — |
+| 30 | `mm/memory.c` | page fault / memory core | index-resolved in scaffold | unresolved | — | — | — |
+| 31 | `net/ipv4/tcp_output.c` | IPv4 TCP output | index-resolved in scaffold | unresolved | — | — | — |
+| 32 | `net/ipv6/ip6_output.c` | IPv6 output / fragmentation | index-resolved in scaffold | unresolved | — | — | — |
+| 33 | `net/netfilter/nf_conntrack_irc.c` | IRC conntrack parsing | index-resolved in scaffold | unresolved | — | — | — |
 
 Clean merges and future clean-merge corrections do not increase this authentic
 conflict count.
@@ -333,3 +333,29 @@ Kernel and module outputs:
 - Flashing: **not performed**
 - Production merge: **not performed**
 - Production branch modification during this milestone: **prohibited**
+
+## Authentic scaffold evidence
+
+- Scaffold commit: `b92a77e96dd54fd30f8f39c7eef23e76f211c515`
+- Parent 1 (preparation): `b125a425ef1559871b1d6cd662806c8afc53e934`
+- Parent 2 (Android Common): `4415bf5e08942aee6487946a3e0a50956ef68f1e`
+- Scaffold workflow run: `30234354643`
+- Scaffold artifact ID: `8641187330`
+- Parent order: **PASS**
+- Cleanly merged stage-0 preservation: **PASS for 2067 paths**
+- Conflicted stage-2/Miru preservation: **PASS for 33 paths**
+
+## Semantic resolution records
+
+### ARM64 errata, CPU capabilities, FDT setup and MMU
+
+- Owning source commit: `8633007f8d97174821bd9f200aa675e50e4bd9f2`
+- Owned paths: `Documentation/arm64/silicon-errata.txt`, `arch/arm64/Kconfig`, `arch/arm64/include/asm/cpucaps.h`, `arch/arm64/include/asm/cputype.h`, `arch/arm64/kernel/cpu_errata.c`, `arch/arm64/kernel/setup.c`, `arch/arm64/mm/mmu.c`.
+- Relevant Android Common commits: `786ec17678a480c8dc31620aca56b117ac191a6a`, `9aeb4a5a73d392580a2f5ee018dfe5506a2e8359`, `3aee35ffc45b29e795573c047930fb849830806b`, `0b1c660d8516e8960227a92b9ee890e9e3682b31`, `3e3904125fccd042fda24294624e8f66699fd06d`, `2e53c83ea673b657d33cc4fa0018fe41b500afe4`, `06035fd1efb772a178f4a0848d20731ba0973860`, `3c2ae48eceaa40f1ecb18ba31dda3f6fe755796c`, `64bb608e39b5bf0455a9c2380f16f79518a7b4c6`, `9e8261dfa7570b671f2655d68d58f749a2fc856e`, and `a6d363d48a816877d9f9d12da8fc5ed786e333b8`.
+- Downstream intent retained: Cortex-A76 erratum 1286807; Qualcomm Kryo CPU identifiers and the Kryo-4G erratum 1188873 range; `arch_read_machine_name()`; boot-reason/cold-boot interfaces; the downstream early memblock reservation diagnostic; memory-hotplug and mapping behavior outside the conflict hunks.
+- Android behavior imported: the complete timer out-of-line workaround for erratum 1188873 with `COMPAT` dependency; Spectre-BHB capability numbering and mitigation registration; erratum 1742098 COMPAT AES masking; current ARM part identifiers; multi-page trampoline-compatible MMU layout; and the FDT read-write early scan followed by read-only remapping.
+- Semantic decision: take a strict union where identifiers and mitigations are independent, retain Qualcomm-specific ranges, and migrate downstream early-FDT users to the target `fixmap_remap_fdt(dt_phys, &size, prot)` API. The obsolete one-argument MMU wrapper is removed because all remaining callers use the cleanly merged size/protection interface.
+- Audited source patch SHA-256: `220fa976b3bbef9230ea690244b2900795516923398389bff5b8a0cf2fa06038`.
+- Targeted compilation: **PASS** for `arch/arm64/kernel/setup.o`, `arch/arm64/kernel/cpu_errata.o`, `arch/arm64/kernel/cpufeature.o`, `arch/arm64/kernel/entry.o`, and `arch/arm64/mm/mmu.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Clean reversal: **PASS**; reverting `8633007f8d97174821bd9f200aa675e50e4bd9f2` in a disposable worktree restored all seven owned paths exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`.
+- Validation workflow run: `30237605611`.
