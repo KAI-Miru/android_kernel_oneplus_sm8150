@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **25**
-- Remaining semantic conflicts: **8**
+- Semantically resolved conflicts: **26**
+- Remaining semantic conflicts: **7**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -226,7 +226,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 15 | `drivers/net/ethernet/stmicro/stmmac/stmmac_hwtstamp.c` | Ethernet timestamping | index-resolved in scaffold | resolved | `0c2edde500e6c8f9c88e593c94731cdb6fe49cc5` | targeted compile PASS | clean reversal PASS |
 | 16 | `drivers/rpmsg/qcom_glink_native.c` | Qualcomm GLINK | index-resolved in scaffold | resolved | `0986f57a7fed5bf69ca14f141666a648a1471350` | targeted compile PASS | clean reversal PASS |
 | 17 | `drivers/usb/core/quirks.c` | USB device quirks | index-resolved in scaffold | resolved | `9a2b86edaa5e60488d29808a7fc89750f52213e5` | quirks.o PASS | clean reversal PASS |
-| 18 | `drivers/usb/dwc3/core.c` | DWC3 core / power | index-resolved in scaffold | unresolved | — | — | — |
+| 18 | `drivers/usb/dwc3/core.c` | DWC3 core / power | index-resolved in scaffold | resolved | `dd3d84f1193fb6d902975175b708a9a0ecb6fe97` | core.o PASS | clean reversal PASS |
 | 19 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | resolved | `300e597ea849222a807c47c4dcf8c324025a5ac8` | f_fs.o PASS | clean reversal PASS |
 | 20 | `drivers/usb/gadget/function/rndis.c` | USB RNDIS gadget | index-resolved in scaffold | resolved | `73952d0d69d680a113768bf7ca0a64ec6b50312e` | rndis.o PASS | identity + reversal PASS |
 | 21 | `drivers/usb/host/xhci.c` | xHCI host lifecycle | index-resolved in scaffold | unresolved | — | — | — |
@@ -598,3 +598,19 @@ Kernel and module outputs:
 - Target-guard equivalence and downstream-extension preservation gates: **PASS**.
 - Clean reversal: **PASS**; reverting the validation and ownership documentation commits in reverse order restores the complete pre-resolution integration tree, while the owned RNDIS source path remains exactly at scaffold identity.
 - Validation workflow run: `30263767530`.
+
+### DWC3 PHY lifecycle and ULPI timeout recovery
+
+- Owning source commit: `dd3d84f1193fb6d902975175b708a9a0ecb6fe97`.
+- Owned path: `drivers/usb/dwc3/core.c`.
+- Relevant Android Common commits: `7c87f1a44a07becdb2439dc60e5551cedaf89ec4,967d57368d9a49af4f2150c8d9d3c3da865117da`, both target-reachable from `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
+- Provenance verification: the ULPI deferred-probe sequence and the PHY disable reordering were each checked as an added/removal sequence in their own target-reachable commit.
+- Android behavior imported: retry an ULPI timeout through a core soft reset and deferred probe; suspend legacy PHYs and power off Generic PHYs before shutting either down or exiting it.
+- Downstream intent retained: Miru dual-port PHY1 ordering, controller-instance bookkeeping, USB3 suspend helper, and controller-notify hook are preserved.
+- Semantic decision: apply Android's two safety sequences to the matching Miru core-init and runtime-suspend topology. The existing core-init failure cleanup is asserted unchanged because it already performs generic power-off before Generic PHY exit and legacy suspend before legacy shutdown.
+- Scaffold blob: `660868a5371f7f2737ce62ab3e13624477c6dcfb`. Target blob: `5a4bd093c311fd5a8abbbb45d85af3ef46a34ddd`.
+- Audited source patch SHA-256: `7504c9cba829aaab86cb942467ab3a42d49cbade0a094389fb5eb5df52a0611a` using `git diff --binary --full-index`.
+- Targeted compilation: **PASS** for `drivers/usb/dwc3/core.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Android safety-sequence, dual-port preservation, and unchanged error-cleanup gates: **PASS**.
+- Clean reversal: **PASS**; reverting `dd3d84f1193fb6d902975175b708a9a0ecb6fe97` restored `drivers/usb/dwc3/core.c` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
+- Validation workflow run: `30265814173`.
