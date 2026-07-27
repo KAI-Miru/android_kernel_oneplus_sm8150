@@ -1,5 +1,5 @@
 # Push-only helper; never target production through a pull request.
-# Launching guarded virtio mac80211-hwsim ID validation.
+# Corrected target-reachable virtio ID validation is staged but not launched.
 name: Miru H.40 4.14.305 virtio ID resolution
 
 on:
@@ -50,7 +50,7 @@ jobs:
 
       - name: Resolve, probe, compile, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_virtio_id_resolution_v2.sh
+        run: bash scripts/miru/lts305_apply_virtio_id_resolution_v3.sh
 
       - name: Upload virtio ID resolution diagnostics
         if: always()
