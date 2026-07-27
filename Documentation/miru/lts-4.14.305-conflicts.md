@@ -15,14 +15,15 @@ introduced by cleanly merged changes.
 - New Android Common target: `4415bf5e08942aee6487946a3e0a50956ef68f1e`
 - Stable range: `4.14.270` through `4.14.305`
 - Ledger preparation date: `2026-07-27`
-- Reconnaissance: **in progress**
-- Target object verification: **tag canonical payload re-hash PASS; peeled commit raw-object re-hash gated in reconnaissance workflow**
-- Authentic merge preview: **not yet complete**
-- Authentic merge scaffold: **not yet created**
-- Initial authentic conflicts: **pending preserved merge preview**
+- Reconnaissance: **complete**
+- Target object verification: **PASS**
+- Authentic merge preview: **complete**
+- Authentic merge scaffold: **armed but not yet created**
+- Initial authentic conflicts: **33**
 - Index-resolved conflicts: **0**
 - Semantically resolved conflicts: **0**
-- Remaining semantic conflicts: **pending authentic conflict count**
+- Remaining semantic conflicts: **33**
+- Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
 - Physical device testing: **not performed**
@@ -32,8 +33,8 @@ introduced by cleanly merged changes.
 
 ## Mandatory baseline verification
 
-The live `miru-h40` ref was read directly from GitHub immediately before branch
-creation and resolved to:
+The live `miru-h40` ref was read directly from GitHub before branch creation and
+again before every guarded write. It resolved to:
 
 ```text
 61371a1024e341f434deaf61b79a05f73827260a
@@ -54,17 +55,17 @@ Verified baseline ancestry and prior-milestone evidence:
 - Previously validated source
   `14d41d8a57b1e08aa15ff786973b855c78f58fd7` is an ancestor of production.
 - Previous documentation-only head
-  `15785765ddf700681daa8ead543b5811ffa000ad` is treated as milestone evidence,
-  not as the production baseline.
+  `15785765ddf700681daa8ead543b5811ffa000ad` is prior milestone evidence,
+  not the assumed production SHA.
 - `Documentation/miru/lts-4.14.269-conflicts.md` records all 22 authentic
-  conflicts semantically resolved, zero remaining semantic conflicts, successful
-  targeted compilation and clean reversal testing.
+  conflicts semantically resolved and zero remaining semantic conflicts.
 - `Documentation/miru/lts-4.14.269-validation.md` records a successful full
   kernel build, the exact 32-module external set, matching vermagic and zero ABI
-  errors, including binary symbol-CRC validation with `CONFIG_MODVERSIONS`.
+  errors, including binary exported-symbol CRC validation with
+  `CONFIG_MODVERSIONS`.
 
 The integration branch was created directly from the exact live production SHA.
-No prior integration branch was used as its base.
+No previous integration branch was used as its base.
 
 ## Authoritative Android Common target
 
@@ -78,32 +79,48 @@ No prior integration branch was used as its base.
 - Target second parent: `a8ad60f2af5884921167e8cede5784c7849884b2`
 - Previous Android Common target: `0eec6f6001d15bb1108835a642ec4637d75eef19`
 
-Official Gitiles independently reports the exact tag object, peeled commit,
-target tree, author/committer identity and Linux `4.14.305` Makefile version. The
-annotated Android tag's canonical payload was independently reconstructed and
-SHA-1 re-hashed to exactly:
+GitHub Actions run `30233833545` fetched the exact tag directly from official
+Android Common and demonstrated all of the following before the authentic merge
+preview:
 
-```text
-fb7d1aa1e00554d9ac07b2a6267f58e585569b81
-```
+1. `refs/tags/ASB-2023-02-05_4.14-stable` resolved to the expected tag object.
+2. The object type was `tag`.
+3. Peeling resolved to the expected target commit.
+4. The peeled object type was `commit`.
+5. Re-hashing the canonical tag payload reproduced
+   `fb7d1aa1e00554d9ac07b2a6267f58e585569b81`.
+6. Re-hashing the canonical commit payload reproduced
+   `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
+7. The target tree was exactly
+   `b13cdb6b1f31e75df2d2dddeed15b04dceeed939`.
+8. The target `Makefile` reported `VERSION = 4`, `PATCHLEVEL = 14` and
+   `SUBLEVEL = 305`.
+9. The previous `4.14.269` target was an ancestor of the new target.
+10. The new target was not an ancestor of production.
 
-The target merge commit contains additional canonical merge metadata that is not
-present in normalized API output. The reconnaissance workflow must fetch the
-exact objects from Android Common, run `git cat-file`, and re-hash the canonical
-commit and tag payloads before it is allowed to attempt the merge preview. A
-mismatch is a hard stop. No GPG verification claim is made here.
+The Android tag object contains no embedded PGP signature. No GPG verification
+claim is made.
 
-Ancestry checks already demonstrated through the mirrored Git graph:
+### Object-verification and preview artifact
 
-- `0eec6f6001d15bb1108835a642ec4637d75eef19` is an ancestor of
-  `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
-- `4415bf5e08942aee6487946a3e0a50956ef68f1e` is not an ancestor of the
-  production baseline.
+- Successful workflow run: `30233833545`
+- Exact source head: `b387c2a84d031a26ff44edd66e2a867c5aaf2b9b`
+- Artifact name: `miru-lts305-recon-30233833545`
+- Artifact ID: `8641000034`
+- Size: `8029014` bytes
+- Digest: `sha256:e7d3e59f1ae11809086b1c31a2948f80c20c38edad559ab3c07ef18304ea2e71`
+- Created: `2026-07-27T03:11:53Z`
+- Expires: `2026-08-10T03:11:52Z`
+
+The first attempt, run `30233578031`, passed object verification but could not
+start the merge because Git had no local committer identity. Its exact error was
+`Committer identity unknown`. No merge state or repository ref was produced.
+The corrected run configured a local workflow-only identity and passed.
 
 ## Pinned H.40 build environment
 
-The following revisions and entry points are immutable for this milestone unless
-a verified incompatibility is isolated and separately justified:
+The following revisions and entry points remain immutable for this milestone
+unless a verified incompatibility is isolated and separately justified:
 
 - Vendor/modules repository:
   `KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150`
@@ -126,61 +143,113 @@ No toolchain, config or vendor-source upgrade is part of this LTS integration.
 - Default and production branch: `miru-h40`
 - Immutable production SHA: `61371a1024e341f434deaf61b79a05f73827260a`
 - Production source version: Linux `4.14.269`
-- Proposed ledger path: `Documentation/miru/lts-4.14.305-conflicts.md`
+- Ledger path: `Documentation/miru/lts-4.14.305-conflicts.md`
 - Existing integration branch check before creation: branch absent
 - Integration branch creation point: exact production SHA above
-- Permanent production workflow: `.github/workflows/miru-h40-build.yml`
-- Previous milestone records:
-  - `Documentation/miru/lts-4.14.269-conflicts.md`
-  - `Documentation/miru/lts-4.14.269-validation.md`
 - Previous exact validated source is present in production ancestry.
-- New target object is present in the repository object graph but not in
+- New target object is available in the repository object graph but is not in
   production ancestry.
+- Draft helper PR: `#70`, explicitly marked **DO NOT MERGE**.
+- Completed preview-only push workflow was retired after successful artifact
+  retrieval to prevent obsolete repeated runs.
 
-## Authentic merge procedure
+## Authentic merge preview
 
-The verified peeled Android Common commit is the required real second parent.
-The preview command is:
+The exact command was:
 
 ```text
 git merge --no-commit --no-ff 4415bf5e08942aee6487946a3e0a50956ef68f1e
 ```
 
-Before any scaffold is created, reconnaissance must preserve:
+The successful preview produced the expected nonzero merge exit status because
+33 content conflicts remained. Evidence preserved in artifact `8641000034`:
 
-1. complete merge stdout and stderr;
-2. every conflicted path from `git ls-files -u` and porcelain status;
-3. all available stage-1/base, stage-2/Miru and stage-3/Android Common blobs;
-4. rename/delete, add/add, delete/modify and mode conflict metadata;
-5. cleanly merged paths separately from authentic textual conflicts;
-6. pre-preview and post-abort tracked-tree hashes;
-7. proof that `git merge --abort` restores the tracked worktree exactly;
-8. workflow-created untracked diagnostics excluded from tracked-cleanliness
-   assertions only.
+- complete merge stdout and stderr;
+- complete porcelain and short status;
+- exactly 33 conflicted paths;
+- exactly 99 unmerged index entries, proving stages 1, 2 and 3 existed for all
+  33 conflicts;
+- every stage-1/base, stage-2/Miru and stage-3/Android Common blob;
+- raw and name-status index/worktree diffs;
+- 2067 cleanly merged paths listed separately;
+- pre-preview and post-abort status and index evidence;
+- SHA-256 manifest for every diagnostic file.
 
-The authentic merge scaffold may be created only after the preview artifact is
-retrieved and inspected. Its required parent order is:
+After `git merge --abort`:
 
-- parent 1: the final ledger/preparation commit based on production;
+- restored head: `b387c2a84d031a26ff44edd66e2a867c5aaf2b9b`
+- restored tracked tree: `d5b23d98ebd90b3baf1b58310054f6f888622292`
+- tracked worktree restoration: **PASS**
+- staged diff restoration: **PASS**
+- workflow-created `lts305-recon/` diagnostics were ignored only for tracked
+  cleanliness checks.
+
+## Authentic scaffold procedure
+
+The scaffold job is allowed to proceed only from this ledger/preparation commit.
+It must independently repeat production-ref, integration-ref, object, version,
+ancestry and exact conflict-manifest gates.
+
+The required scaffold parent order is:
+
+- parent 1: this final ledger/preparation commit based on production;
 - parent 2: `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
 
-Every authentic conflict path staged from the Miru side in the scaffold remains
-`index-resolved but semantically unresolved` until a later focused owning commit
-performs analysis, targeted compilation and clean reversal testing.
+The job must retain every cleanly merged stage-0 entry exactly as Git produced
+it. It may stage only the stage-2/Miru blob for each of the 33 authentic conflict
+paths, and must prove those staged blobs equal the preserved stage-2 identities.
+Every such path remains `index-resolved but semantically unresolved` after the
+scaffold. The push is non-force and guarded by exact live production and
+integration SHAs immediately before writing.
 
 ## Authentic conflict manifest
 
-The manifest will be populated verbatim from the preserved merge preview. Clean
-merges and later clean-merge corrections do not increase the authentic conflict
-count.
+All conflicts were `UU` content conflicts and all had stages 1, 2 and 3.
+Subsystem labels below are preliminary audit groupings, not final commit groups.
 
-| # | Path | Conflict form | Semantic subsystem | Index status | Semantic status | Owning commit | Targeted compile | Clean reversal |
-|---:|---|---|---|---|---|---|---|---|
-| — | pending preview | pending | pending | unresolved | unresolved | — | — | — |
+| # | Path | Provisional subsystem | Index status | Semantic status | Owning commit | Targeted compile | Clean reversal |
+|---:|---|---|---|---|---|---|---|
+| 1 | `Documentation/arm64/silicon-errata.txt` | ARM64 errata documentation | unresolved | unresolved | — | — | — |
+| 2 | `arch/arm64/Kconfig` | ARM64 configuration / mitigations | unresolved | unresolved | — | — | — |
+| 3 | `arch/arm64/include/asm/cpucaps.h` | ARM64 CPU capabilities | unresolved | unresolved | — | — | — |
+| 4 | `arch/arm64/include/asm/cputype.h` | ARM64 CPU identification | unresolved | unresolved | — | — | — |
+| 5 | `arch/arm64/kernel/cpu_errata.c` | ARM64 CPU errata | unresolved | unresolved | — | — | — |
+| 6 | `arch/arm64/kernel/setup.c` | ARM64 boot/setup | unresolved | unresolved | — | — | — |
+| 7 | `arch/arm64/mm/mmu.c` | ARM64 MMU / mappings | unresolved | unresolved | — | — | — |
+| 8 | `drivers/char/Kconfig` | character-driver configuration | unresolved | unresolved | — | — | — |
+| 9 | `drivers/clk/qcom/clk-rcg2.c` | Qualcomm clock RCG | unresolved | unresolved | — | — | — |
+| 10 | `drivers/edac/edac_device.c` | EDAC polling/lifetime | unresolved | unresolved | — | — | — |
+| 11 | `drivers/mailbox/mailbox.c` | mailbox core | unresolved | unresolved | — | — | — |
+| 12 | `drivers/mmc/core/host.c` | MMC host core | unresolved | unresolved | — | — | — |
+| 13 | `drivers/mmc/core/mmc_ops.c` | MMC command operations | unresolved | unresolved | — | — | — |
+| 14 | `drivers/mmc/host/sdhci.c` | SDHCI host | unresolved | unresolved | — | — | — |
+| 15 | `drivers/net/ethernet/stmicro/stmmac/stmmac_hwtstamp.c` | Ethernet timestamping | unresolved | unresolved | — | — | — |
+| 16 | `drivers/rpmsg/qcom_glink_native.c` | Qualcomm GLINK | unresolved | unresolved | — | — | — |
+| 17 | `drivers/usb/core/quirks.c` | USB device quirks | unresolved | unresolved | — | — | — |
+| 18 | `drivers/usb/dwc3/core.c` | DWC3 core / power | unresolved | unresolved | — | — | — |
+| 19 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | unresolved | unresolved | — | — | — |
+| 20 | `drivers/usb/gadget/function/rndis.c` | USB RNDIS gadget | unresolved | unresolved | — | — | — |
+| 21 | `drivers/usb/host/xhci.c` | xHCI host lifecycle | unresolved | unresolved | — | — | — |
+| 22 | `drivers/usb/host/xhci.h` | xHCI interfaces | unresolved | unresolved | — | — | — |
+| 23 | `fs/fat/fatent.c` | FAT allocation table | unresolved | unresolved | — | — | — |
+| 24 | `include/net/netfilter/nf_queue.h` | netfilter queue API | unresolved | unresolved | — | — | — |
+| 25 | `include/net/sock.h` | socket core API | unresolved | unresolved | — | — | — |
+| 26 | `include/uapi/linux/virtio_ids.h` | Virtio UAPI IDs | unresolved | unresolved | — | — | — |
+| 27 | `kernel/exit.c` | task exit / oops handling | unresolved | unresolved | — | — | — |
+| 28 | `kernel/panic.c` | panic/warn accounting | unresolved | unresolved | — | — | — |
+| 29 | `lib/Makefile` | library build composition | unresolved | unresolved | — | — | — |
+| 30 | `mm/memory.c` | page fault / memory core | unresolved | unresolved | — | — | — |
+| 31 | `net/ipv4/tcp_output.c` | IPv4 TCP output | unresolved | unresolved | — | — | — |
+| 32 | `net/ipv6/ip6_output.c` | IPv6 output / fragmentation | unresolved | unresolved | — | — | — |
+| 33 | `net/netfilter/nf_conntrack_irc.c` | IRC conntrack parsing | unresolved | unresolved | — | — | — |
+
+Clean merges and future clean-merge corrections do not increase this authentic
+conflict count.
 
 ## Semantic resolution requirements
 
-Each resolution commit must:
+Final subsystem groupings will be chosen only after inspecting merge-base, Miru
+and Android Common stages and relevant history. Each resolution commit must:
 
 - own an explicit set of authentic conflict paths;
 - record merge-base, Miru and Android Common behavior;
@@ -197,8 +266,6 @@ No-source-delta resolutions still require explicit ownership and evidence that
 the retained Miru implementation already contains the target behavior.
 
 ## Mandatory clean-merge semantic audit
-
-The audit must cover at least:
 
 - [ ] DT2W and touchscreen gestures
 - [ ] AOD luminance, HBM and brightness
@@ -258,13 +325,6 @@ Kernel and module outputs:
 - [ ] binary symbol CRC compatibility passes
 - [ ] integration-attributable unresolved symbols equal zero
 - [ ] ABI audit errors equal zero
-
-## Validation evidence
-
-No build, module, ABI, runtime or hardware result is claimed at ledger
-initialization. Exact workflow run IDs, artifact IDs, digests, sizes, expiry
-dates, source SHA, release string and file hashes will be recorded only after
-inspection of successful reports and downloaded artifacts.
 
 ## Explicit safety status
 
