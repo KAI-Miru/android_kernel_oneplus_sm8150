@@ -23,7 +23,7 @@ jobs:
 
       - name: Resolve, compile, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_arm64_resolution_ci.sh
+        run: bash scripts/miru/lts305_apply_arm64_resolution.sh
 
       - name: Upload ARM64 resolution diagnostics
         if: always()
