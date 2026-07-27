@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-2.0
+name: Miru H.40 4.14.305 semantic audit
+
+on:
+  push:
+    branches:
+      - miru-h40-lts305-integration
+    paths:
+      - .github/workflows/miru-lts305-semantic-audit.yml
+
+permissions:
+  contents: write
+
+jobs:
+  semantic-audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout exact integration head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Decode source-only semantic audit
+        shell: bash
+        run: |
+          cat .github/miru-audit/lts305-semantic-audit.b64.* |
+            tr -d '\n' |
+            base64 -d |
+            gzip -d > /tmp/audit-lts305-semantics.sh
+          chmod +x /tmp/audit-lts305-semantics.sh
+          bash -n /tmp/audit-lts305-semantics.sh
+
+      - name: Audit conflicts and clean-merge risks
+        shell: bash
+        run: /tmp/audit-lts305-semantics.sh
