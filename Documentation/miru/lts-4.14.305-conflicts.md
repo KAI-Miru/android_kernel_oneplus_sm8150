@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **17**
-- Remaining semantic conflicts: **16**
+- Semantically resolved conflicts: **18**
+- Remaining semantic conflicts: **15**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -223,7 +223,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 12 | `drivers/mmc/core/host.c` | MMC host core | index-resolved in scaffold | resolved | `ee7b6bc5a208fa0afcdebb7bd18882e7d0a8326e` | targeted compile PASS | clean reversal PASS |
 | 13 | `drivers/mmc/core/mmc_ops.c` | MMC command operations | index-resolved in scaffold | resolved | `ee7b6bc5a208fa0afcdebb7bd18882e7d0a8326e` | targeted compile PASS | clean reversal PASS |
 | 14 | `drivers/mmc/host/sdhci.c` | SDHCI host | index-resolved in scaffold | resolved | `ee7b6bc5a208fa0afcdebb7bd18882e7d0a8326e` | targeted compile PASS | clean reversal PASS |
-| 15 | `drivers/net/ethernet/stmicro/stmmac/stmmac_hwtstamp.c` | Ethernet timestamping | index-resolved in scaffold | unresolved | — | — | — |
+| 15 | `drivers/net/ethernet/stmicro/stmmac/stmmac_hwtstamp.c` | Ethernet timestamping | index-resolved in scaffold | resolved | `0c2edde500e6c8f9c88e593c94731cdb6fe49cc5` | targeted compile PASS | clean reversal PASS |
 | 16 | `drivers/rpmsg/qcom_glink_native.c` | Qualcomm GLINK | index-resolved in scaffold | resolved | `0986f57a7fed5bf69ca14f141666a648a1471350` | targeted compile PASS | clean reversal PASS |
 | 17 | `drivers/usb/core/quirks.c` | USB device quirks | index-resolved in scaffold | unresolved | — | — | — |
 | 18 | `drivers/usb/dwc3/core.c` | DWC3 core / power | index-resolved in scaffold | unresolved | — | — | — |
@@ -466,3 +466,19 @@ Kernel and module outputs:
 - MMC source-behavior and clean-header gates: **PASS**.
 - Clean reversal: **PASS**; reverting `ee7b6bc5a208fa0afcdebb7bd18882e7d0a8326e` restored all three owned paths exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`, restored the complete pre-resolution integration tree, and preserved the cleanly merged SDHCI header blob.
 - Validation workflow run: `30245581170`.
+- Validation artifact: run `30245581170`, artifact `8644971628`, digest `sha256:673d49900eb7e52c7c56d6b8dad1ea8bed92d06bcdb824fbedf8c118fe567ff6`, size `16827` bytes.
+
+### STMMAC sub-second increment saturation
+
+- Owning source commit: `0c2edde500e6c8f9c88e593c94731cdb6fe49cc5`.
+- Owned path: `drivers/net/ethernet/stmicro/stmmac/stmmac_hwtstamp.c`.
+- Cleanly merged dependency: `drivers/net/ethernet/stmicro/stmmac/stmmac_ptp.h` already renames the SSINC bound to `PTP_SSIR_SSINC_MAX`; scaffold blob `aa222e0cdce86e00a11d699fd66afb70ea747e23` was preserved unchanged.
+- Relevant Android Common commit: `7a0674fd083d42cded14e0260052b5ec1c8c0fdb` (upstream `ede5a389852d3640a28e7187fb32b7f204380901`).
+- Android behavior imported: saturate an oversized sub-second increment at `PTP_SSIR_SSINC_MAX` instead of masking high bits and potentially producing a zero increment that later becomes a divisor.
+- Downstream behavior retained: Miru's 64-bit whole/fractional increment calculation, the `sns_inc` fractional field and mask, GMAC4 field shifts, and timestamp register composition remain intact.
+- Semantic decision: apply the target saturation rule to downstream `ss_inc` while leaving the independent fractional `sns_inc` path unchanged.
+- Audited source patch SHA-256: `03dd3247bc410120f95dd1eee41e15c5f980f6021425ad26425928e77058671e` using `git diff --binary --full-index`.
+- Targeted compilation: **PASS** for `drivers/net/ethernet/stmicro/stmmac/stmmac_hwtstamp.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- STMMAC source-behavior and clean-header gates: **PASS**.
+- Clean reversal: **PASS**; reverting `0c2edde500e6c8f9c88e593c94731cdb6fe49cc5` restored the owned path exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`, restored the complete pre-resolution integration tree, and preserved the cleanly merged STMMAC header blob.
+- Validation workflow run: `30247407576`.
