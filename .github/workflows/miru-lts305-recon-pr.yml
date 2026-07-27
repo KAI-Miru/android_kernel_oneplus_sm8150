@@ -13,7 +13,6 @@ permissions:
 
 jobs:
   resolve-glink:
-    if: github.event.head_commit.message == 'ci: launch GLINK resolution'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
 
