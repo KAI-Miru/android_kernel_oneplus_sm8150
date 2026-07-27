@@ -11,7 +11,10 @@ SCAFFOLD_PARENT1=b125a425ef1559871b1d6cd662806c8afc53e934
 PREVIOUS_VALIDATED_HEAD=d7e01e67e002a2784f95f90ab095323f0ae25e66
 LEDGER=Documentation/miru/lts-4.14.305-conflicts.md
 OWNED_PATH=lib/Makefile
-TARGET_OBJECT=lib/built-in.a
+# Top-level Kbuild exposes the lib directory as a build goal; its archive is
+# produced beneath that goal but is not itself a top-level make target.
+TARGET_GOAL=lib
+TARGET_ARCHIVE=lib/built-in.a
 VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
 EXPECTED_BASE_BLOB=e16cd469e5f379e9d18d8aa489d9082bbf24c762
 EXPECTED_SCAFFOLD_BLOB=f5125f285da3e82072c127cfe250abaadf5676e9
@@ -261,9 +264,9 @@ make -C "${KERNEL_WORKTREE}" "${make_args[@]}" olddefconfig \
   2>&1 | tee "${DIAG}/olddefconfig.log"
 grep -Fq 'CONFIG_MODVERSIONS=y' "${OUT_DIR}/.config"
 cp "${OUT_DIR}/.config" "${DIAG}/resolved.config"
-make -C "${KERNEL_WORKTREE}" -j4 V=0 "${make_args[@]}" "${TARGET_OBJECT}" drivers/char/random.o \
+make -C "${KERNEL_WORKTREE}" -j4 V=0 "${make_args[@]}" "${TARGET_GOAL}" drivers/char/random.o \
   2>&1 | tee "${DIAG}/targeted-compile.log"
-test -s "${OUT_DIR}/${TARGET_OBJECT}"
+test -s "${OUT_DIR}/${TARGET_ARCHIVE}"
 test -s "${OUT_DIR}/lib/crypto/libblake2s.o"
 test -s "${OUT_DIR}/lib/crypto/built-in.a"
 test -s "${OUT_DIR}/drivers/char/random.o"
@@ -280,7 +283,8 @@ fi
 {
   echo "result=PASS"
   echo "source_commit=${SOURCE_COMMIT}"
-  echo "target_object=${TARGET_OBJECT}"
+  echo "target_goal=${TARGET_GOAL}"
+  echo "target_archive=${TARGET_ARCHIVE}"
   echo "makefile_parse=olddefconfig PASS"
   echo "crypto_subdirectory_built=yes"
   echo "independent_consumer_object=drivers/char/random.o"
