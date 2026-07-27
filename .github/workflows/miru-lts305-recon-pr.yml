@@ -1,5 +1,5 @@
-# Trigger guarded RNDIS target-equivalence validation after preflight.
-name: Miru H.40 4.14.305 RNDIS bounds equivalence
+# Trigger guarded DWC3 core validation after helper installation.
+name: Miru H.40 4.14.305 DWC3 core lifecycle resolution
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   statuses: write
 
 jobs:
-  resolve-rndis-equivalence:
+  resolve-dwc3-core:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -21,15 +21,15 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Validate equivalence, compile, reverse, document and guarded-push
+      - name: Resolve, validate, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_rndis_equivalence_resolution.sh
+        run: bash scripts/miru/lts305_apply_dwc3_core_resolution.sh
 
-      - name: Upload RNDIS equivalence diagnostics
+      - name: Upload DWC3 core resolution diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-rndis-equivalence-${{ github.run_id }}
-          path: lts305-rndis-target-equivalence
+          name: miru-lts305-dwc3-core-resolution-${{ github.run_id }}
+          path: lts305-dwc3-core-resolution
           if-no-files-found: error
           retention-days: 14
