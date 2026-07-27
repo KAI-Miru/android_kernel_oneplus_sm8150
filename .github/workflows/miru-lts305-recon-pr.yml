@@ -1,21 +1,19 @@
-name: Miru H.40 4.14.305 draft reconnaissance
+name: Miru H.40 4.14.305 scaffold
 
 on:
   pull_request:
     branches:
       - miru-h40
     types:
-      - opened
       - reopened
       - synchronize
-      - ready_for_review
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  verify-and-preview:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+  create-authentic-scaffold:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == true
     runs-on: ubuntu-24.04
     timeout-minutes: 45
 
@@ -26,23 +24,15 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Verify objects and preserve authentic preview
+      - name: Create and guarded-push authentic scaffold
         shell: bash
-        env:
-          EXPECTED_PARENT: 70a543ec98753cb3e250947dbba5a59b230c2d7f
-        run: |
-          git config user.name "Miru LTS Integration Bot"
-          git config user.email "miru-lts-integration@users.noreply.github.com"
-          bash scripts/miru/lts305_recon_preview.sh
+        run: bash scripts/miru/lts305_create_scaffold.sh
 
-      - name: Upload reconnaissance artifact
+      - name: Upload scaffold diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-recon-${{ github.run_id }}
-          path: |
-            lts305-recon
-            miru-lts305-recon.tar.gz
-            miru-lts305-recon.tar.gz.sha256
+          name: miru-lts305-scaffold-${{ github.run_id }}
+          path: lts305-scaffold
           if-no-files-found: error
           retention-days: 14
