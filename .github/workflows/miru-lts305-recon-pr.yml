@@ -1,6 +1,4 @@
-# Push-only helper; never target production through a pull request.
-# Launching corrected target-reachable virtio ID validation.
-name: Miru H.40 4.14.305 virtio ID resolution
+name: Miru H.40 4.14.305 character Kconfig resolution
 
 on:
   push:
@@ -12,84 +10,25 @@ permissions:
   statuses: write
 
 jobs:
-  resolve-virtio-id:
+  resolve-character-kconfig:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
-
     steps:
-      - name: Publish pending status
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -Eeuo pipefail
-          payload="$(python3 - <<'PY'
-          import json, os
-          print(json.dumps({
-              'state': 'pending',
-              'context': 'miru/lts305-virtio-id-resolution',
-              'description': f"run {os.environ['GITHUB_RUN_ID']} is validating",
-              'target_url': os.environ['RUN_URL'],
-          }))
-          PY
-          )"
-          curl --fail-with-body --silent --show-error \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
-            -d "${payload}"
-
       - name: Checkout exact integration head
         uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Resolve, probe, compile, reverse, document and guarded-push
+      - name: Resolve, validate, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_virtio_id_resolution_v3.sh
+        run: bash scripts/miru/lts305_apply_char_kconfig_resolution.sh
 
-      - name: Upload virtio ID resolution diagnostics
+      - name: Upload character Kconfig resolution diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-virtio-id-resolution-${{ github.run_id }}
-          path: lts305-virtio-id-resolution
+          name: miru-lts305-char-kconfig-resolution-${{ github.run_id }}
+          path: lts305-char-kconfig-resolution
           if-no-files-found: error
           retention-days: 14
-
-      - name: Publish final status
-        if: always()
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          JOB_STATUS: ${{ job.status }}
-          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -Eeuo pipefail
-          case "${JOB_STATUS}" in
-            success) state=success ;;
-            cancelled) state=error ;;
-            *) state=failure ;;
-          esac
-          export state
-          payload="$(python3 - <<'PY'
-          import json, os
-          print(json.dumps({
-              'state': os.environ['state'],
-              'context': 'miru/lts305-virtio-id-resolution',
-              'description': f"run {os.environ['GITHUB_RUN_ID']} finished: {os.environ['JOB_STATUS']}",
-              'target_url': os.environ['RUN_URL'],
-          }))
-          PY
-          )"
-          curl --fail-with-body --silent --show-error \
-            -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
-            -d "${payload}"
