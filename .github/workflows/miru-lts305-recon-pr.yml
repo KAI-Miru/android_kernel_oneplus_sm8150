@@ -1,4 +1,4 @@
-# Launch head is based on audited resolver and driver commits.
+# Relaunch uses the corrected merge-file conflict-count handling.
 name: Miru H.40 4.14.305 ARM64 resolution
 
 on:
