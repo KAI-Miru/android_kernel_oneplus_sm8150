@@ -1,4 +1,4 @@
-# Retry guarded xHCI validation after unique-signature correction.
+# Retry guarded xHCI validation through the xHCI Kbuild directory.
 name: Miru H.40 4.14.305 xHCI lifecycle and LPM resolution
 
 on:
