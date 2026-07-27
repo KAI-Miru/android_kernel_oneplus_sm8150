@@ -1,4 +1,4 @@
-# Trigger guarded USB quirk validation (retry 2).
+# Trigger guarded USB quirk validation (retry 3).
 name: Miru H.40 4.14.305 USB quirks resolution
 
 on:
