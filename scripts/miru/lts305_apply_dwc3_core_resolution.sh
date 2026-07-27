@@ -36,25 +36,21 @@ test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 305
 
 git log --format='%H%x09%s' "${PREVIOUS_COMMON_TARGET}..${TARGET_COMMIT}" -- "${OWNED_PATH}" \
   > "${DIAG}/target-history.tsv"
-TARGET_ULPI_COMMITS=()
-TARGET_PHY_COMMITS=()
-while IFS=$'\t' read -r sha subject; do
-  patch="$(git show --format= --unified=0 "${sha}" -- "${OWNED_PATH}")"
-  if printf '%s\n' "${patch}" | grep '^+' | grep -Fq $'\t\t\t\tret = -EPROBE_DEFER;' &&
-     printf '%s\n' "${patch}" | grep '^+' | grep -Fq $'\t\t\t\tdwc3_core_soft_reset(dwc);'; then
-    TARGET_ULPI_COMMITS+=("${sha}")
-  fi
-  if printf '%s\n' "${patch}" | grep -Fq -- $'-\tusb_phy_shutdown(dwc->usb2_phy);' &&
-     printf '%s\n' "${patch}" | grep -Fq $'+\tusb_phy_shutdown(dwc->usb2_phy);' &&
-     printf '%s\n' "${patch}" | grep -Fq -- $'-\tphy_power_off(dwc->usb2_generic_phy);' &&
-     printf '%s\n' "${patch}" | grep -Fq $'+\tphy_power_off(dwc->usb2_generic_phy);'; then
-    TARGET_PHY_COMMITS+=("${sha}")
-  fi
-done < "${DIAG}/target-history.tsv"
-test "${#TARGET_ULPI_COMMITS[@]}" = 1
-test "${#TARGET_PHY_COMMITS[@]}" = 1
-test "${TARGET_ULPI_COMMITS[0]}" != "${TARGET_PHY_COMMITS[0]}"
-TARGET_DWC3_COMMITS=("${TARGET_ULPI_COMMITS[0]}" "${TARGET_PHY_COMMITS[0]}")
+TARGET_ULPI_COMMIT=7c87f1a44a07becdb2439dc60e5551cedaf89ec4
+TARGET_PHY_COMMIT=967d57368d9a49af4f2150c8d9d3c3da865117da
+grep -Fq "${TARGET_ULPI_COMMIT}"$'\t' "${DIAG}/target-history.tsv"
+grep -Fq "${TARGET_PHY_COMMIT}"$'\t' "${DIAG}/target-history.tsv"
+git show --format= --unified=0 "${TARGET_ULPI_COMMIT}" -- "${OWNED_PATH}" \
+  > "${DIAG}/target-ulpi.patch"
+grep -Fq $'+\t\t\t\tret = -EPROBE_DEFER;' "${DIAG}/target-ulpi.patch"
+grep -Fq $'+\t\t\t\tdwc3_core_soft_reset(dwc);' "${DIAG}/target-ulpi.patch"
+git show --format= --unified=0 "${TARGET_PHY_COMMIT}" -- "${OWNED_PATH}" \
+  > "${DIAG}/target-phy-disable.patch"
+grep -Fq -- $'-\tusb_phy_shutdown(dwc->usb2_phy);' "${DIAG}/target-phy-disable.patch"
+grep -Fq $'+\tusb_phy_shutdown(dwc->usb2_phy);' "${DIAG}/target-phy-disable.patch"
+grep -Fq -- $'-\tphy_power_off(dwc->usb2_generic_phy);' "${DIAG}/target-phy-disable.patch"
+grep -Fq $'+\tphy_power_off(dwc->usb2_generic_phy);' "${DIAG}/target-phy-disable.patch"
+TARGET_DWC3_COMMITS=("${TARGET_ULPI_COMMIT}" "${TARGET_PHY_COMMIT}")
 for sha in "${TARGET_DWC3_COMMITS[@]}"; do
   git merge-base --is-ancestor "${sha}" "${TARGET_COMMIT}"
 done
