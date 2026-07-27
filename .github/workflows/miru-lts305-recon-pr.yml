@@ -1,4 +1,4 @@
-# Trigger guarded DWC3 core validation after helper installation.
+# Trigger guarded DWC3 core validation after preflight.
 name: Miru H.40 4.14.305 DWC3 core lifecycle resolution
 
 on:
