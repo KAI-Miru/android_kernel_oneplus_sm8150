@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **14**
-- Remaining semantic conflicts: **19**
+- Semantically resolved conflicts: **17**
+- Remaining semantic conflicts: **16**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -220,9 +220,9 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 9 | `drivers/clk/qcom/clk-rcg2.c` | Qualcomm clock RCG | index-resolved in scaffold | resolved | `512d47f08402bf130a78e05a92341d62ae04c120` | targeted compile PASS | clean reversal PASS |
 | 10 | `drivers/edac/edac_device.c` | EDAC polling/lifetime | index-resolved in scaffold | resolved | `e5e15c01d846b479836c7c8625c98794e9094302` | targeted compile PASS | clean reversal PASS |
 | 11 | `drivers/mailbox/mailbox.c` | mailbox core | index-resolved in scaffold | resolved | `8b9ea460afb7692145090c2d307f6695bed12b3c` | targeted compile PASS | clean reversal PASS |
-| 12 | `drivers/mmc/core/host.c` | MMC host core | index-resolved in scaffold | unresolved | — | — | — |
-| 13 | `drivers/mmc/core/mmc_ops.c` | MMC command operations | index-resolved in scaffold | unresolved | — | — | — |
-| 14 | `drivers/mmc/host/sdhci.c` | SDHCI host | index-resolved in scaffold | unresolved | — | — | — |
+| 12 | `drivers/mmc/core/host.c` | MMC host core | index-resolved in scaffold | resolved | `ee7b6bc5a208fa0afcdebb7bd18882e7d0a8326e` | targeted compile PASS | clean reversal PASS |
+| 13 | `drivers/mmc/core/mmc_ops.c` | MMC command operations | index-resolved in scaffold | resolved | `ee7b6bc5a208fa0afcdebb7bd18882e7d0a8326e` | targeted compile PASS | clean reversal PASS |
+| 14 | `drivers/mmc/host/sdhci.c` | SDHCI host | index-resolved in scaffold | resolved | `ee7b6bc5a208fa0afcdebb7bd18882e7d0a8326e` | targeted compile PASS | clean reversal PASS |
 | 15 | `drivers/net/ethernet/stmicro/stmmac/stmmac_hwtstamp.c` | Ethernet timestamping | index-resolved in scaffold | unresolved | — | — | — |
 | 16 | `drivers/rpmsg/qcom_glink_native.c` | Qualcomm GLINK | index-resolved in scaffold | resolved | `0986f57a7fed5bf69ca14f141666a648a1471350` | targeted compile PASS | clean reversal PASS |
 | 17 | `drivers/usb/core/quirks.c` | USB device quirks | index-resolved in scaffold | unresolved | — | — | — |
@@ -450,3 +450,19 @@ Kernel and module outputs:
 - Mailbox source-behavior and clean-header gates: **PASS**.
 - Clean reversal: **PASS**; reverting `8b9ea460afb7692145090c2d307f6695bed12b3c` restored the owned path exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` while preserving the cleanly merged header blob.
 - Validation workflow run: `30243978850`.
+- Validation artifact: run `30243978850`, artifact `8644384315`, digest `sha256:92bdd5562de50705ea27d7b4fe550a4c52d6af850e50c43da5602b36728e8829`, size `11031` bytes.
+
+### MMC host validation, eMMC timeouts, and SDHCI voltage switching
+
+- Owning source commit: `ee7b6bc5a208fa0afcdebb7bd18882e7d0a8326e`.
+- Owned paths: `drivers/mmc/core/host.c`, `drivers/mmc/core/mmc_ops.c`, and `drivers/mmc/host/sdhci.c`.
+- Cleanly merged dependency: `drivers/mmc/host/sdhci.h` already contains the target preset masks plus `drv_type` and `reinit_uhs`; scaffold blob `b3f0fb715b05dd1147fd3f97018c938fc90139f0` was preserved unchanged.
+- Relevant Android Common commits: `3fac2cb56ba5205547e296b193e52871f9dc3845` (upstream `d6c9219ca1139b74541b2a98cee47a3426d754a9`), `0aa3b6395fa30613368b0a34aa208c7ea9ad78f5` (upstream `24ed3bd01d6a844fd5e8a75f48d0a3d10ed71bf9`), `327b6689898baa9734ca607939598d78b3cc234b` (upstream `533a6cfe08f96a7b5c65e06d20916d552c11b256`), `99c3d73a7f1225222efe573a0e0b39c8280f4679` (upstream `fa0910107a9fea170b817f31da2a65463e00e80e`), and `f60b9ea221edd04b591916ccabf1733e0d060860` (upstream `c981cdfb9925f64a364f13c2b4f98f877308a408`).
+- Android behavior imported: reject an SDIO-IRQ-capable host lacking `enable_sdio_irq`; use 120-second BKOPS and 30-second cache-flush limits; default unspecified CMD6 timeouts to `generic_cmd6_time`; convert SDHCI preset extraction to `FIELD_GET`; and avoid redundant UHS/preset clock changes during voltage switching.
+- Downstream behavior retained: MMC clock-scaling and sysfs setup; the five-retry busy-poll diagnostic path; cache-disable handling and HPI recovery after cache-flush timeout; SDHCI controller-clock/power sequencing; spinlock coverage; and SDIO IRQ disable/restore bookkeeping.
+- Semantic decision: adapt the upstream SDHCI early-return case to jump through Miru's downstream `ios_done` cleanup tail, ensuring the temporarily disabled SDIO IRQ is restored before returning.
+- Audited source patch SHA-256: `3b5b1036f041f1f2d3d429746e378d59ec951e5c88fdb7956ead7cbbe5c15cfa` using `git diff --binary --full-index`.
+- Targeted compilation: **PASS** for `drivers/mmc/core/host.o`, `drivers/mmc/core/mmc_ops.o`, and `drivers/mmc/host/sdhci.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- MMC source-behavior and clean-header gates: **PASS**.
+- Clean reversal: **PASS**; reverting `ee7b6bc5a208fa0afcdebb7bd18882e7d0a8326e` restored all three owned paths exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`, restored the complete pre-resolution integration tree, and preserved the cleanly merged SDHCI header blob.
+- Validation workflow run: `30245581170`.
