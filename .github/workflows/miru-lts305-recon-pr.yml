@@ -1,4 +1,4 @@
-# Run scoped guarded xHCI audit through the xHCI Kbuild directory.
+# Re-run scoped guarded xHCI audit through the xHCI Kbuild directory.
 name: Miru H.40 4.14.305 xHCI lifecycle and LPM resolution
 
 on:
