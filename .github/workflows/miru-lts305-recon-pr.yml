@@ -1,10 +1,13 @@
-# Retry guarded xHCI validation through the xHCI Kbuild directory.
+# Run scoped guarded xHCI audit through the xHCI Kbuild directory.
 name: Miru H.40 4.14.305 xHCI lifecycle and LPM resolution
 
 on:
   push:
     branches:
       - miru-h40-lts305-integration
+    paths:
+      - scripts/miru/lts305_apply_xhci_resolution.sh
+      - .github/workflows/miru-lts305-recon-pr.yml
 
 permissions:
   contents: write
