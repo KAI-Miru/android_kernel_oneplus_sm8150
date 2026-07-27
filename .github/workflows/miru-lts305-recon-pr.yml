@@ -1,5 +1,5 @@
-# Trigger guarded netfilter queue header validation.
-name: Miru H.40 4.14.305 netfilter queue header resolution
+# Trigger guarded USB quirk validation after helper installation.
+name: Miru H.40 4.14.305 USB quirks resolution
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   statuses: write
 
 jobs:
-  resolve-nf-queue-header:
+  resolve-usb-quirks:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -23,13 +23,13 @@ jobs:
 
       - name: Resolve, validate, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_nf_queue_header_resolution.sh
+        run: bash scripts/miru/lts305_apply_usb_quirks_resolution.sh
 
-      - name: Upload netfilter queue header resolution diagnostics
+      - name: Upload USB quirks resolution diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-nf-queue-header-resolution-${{ github.run_id }}
-          path: lts305-nf-queue-header-resolution
+          name: miru-lts305-usb-quirks-resolution-${{ github.run_id }}
+          path: lts305-usb-quirks-resolution
           if-no-files-found: error
           retention-days: 14
