@@ -1,5 +1,6 @@
 # Push-only helper; never target production through a pull request.
-name: Miru H.40 4.14.305 exit and panic resolution
+# The job runs only from the explicit launch commit named below.
+name: Miru H.40 4.14.305 Qualcomm GLINK resolution
 
 on:
   push:
@@ -11,7 +12,8 @@ permissions:
   statuses: write
 
 jobs:
-  resolve-core-fatal-paths:
+  resolve-glink:
+    if: github.event.head_commit.message == 'ci: launch GLINK resolution'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
 
@@ -27,7 +29,7 @@ jobs:
           import json, os
           print(json.dumps({
               'state': 'pending',
-              'context': 'miru/lts305-core-fatal-resolution',
+              'context': 'miru/lts305-glink-resolution',
               'description': f"run {os.environ['GITHUB_RUN_ID']} is validating",
               'target_url': os.environ['RUN_URL'],
           }))
@@ -49,14 +51,14 @@ jobs:
 
       - name: Resolve, compile, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_core_fatal_resolution_v2.sh
+        run: bash scripts/miru/lts305_apply_glink_resolution.sh
 
-      - name: Upload exit and panic resolution diagnostics
+      - name: Upload GLINK resolution diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-core-fatal-resolution-${{ github.run_id }}
-          path: lts305-core-fatal-resolution
+          name: miru-lts305-glink-resolution-${{ github.run_id }}
+          path: lts305-glink-resolution
           if-no-files-found: error
           retention-days: 14
 
@@ -79,7 +81,7 @@ jobs:
           import json, os
           print(json.dumps({
               'state': os.environ['state'],
-              'context': 'miru/lts305-core-fatal-resolution',
+              'context': 'miru/lts305-glink-resolution',
               'description': f"run {os.environ['GITHUB_RUN_ID']} finished: {os.environ['JOB_STATUS']}",
               'target_url': os.environ['RUN_URL'],
           }))
