@@ -1,4 +1,4 @@
-# Trigger guarded RNDIS target-equivalence validation after helper installation.
+# Trigger guarded RNDIS target-equivalence validation after preflight.
 name: Miru H.40 4.14.305 RNDIS bounds equivalence
 
 on:
