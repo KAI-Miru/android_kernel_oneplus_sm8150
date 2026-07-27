@@ -1,4 +1,4 @@
-# Trigger guarded IRC DCC parser validation with exact target provenance.
+# Run guarded IRC DCC parser validation with exact target provenance.
 name: Miru H.40 4.14.305 IRC DCC parser resolution
 
 on:
