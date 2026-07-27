@@ -1,6 +1,6 @@
 # Push-only helper; never target production through a pull request.
-# Explicit guarded launch for pixel-clock parity validation.
-name: Miru H.40 4.14.305 pixel-clock parity
+# Staged for explicit FAT ratelimit parity validation.
+name: Miru H.40 4.14.305 FAT ratelimit parity
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   statuses: write
 
 jobs:
-  validate-pixel-clock-parity:
+  validate-fat-ratelimit-parity:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
 
@@ -28,7 +28,7 @@ jobs:
           import json, os
           print(json.dumps({
               'state': 'pending',
-              'context': 'miru/lts305-pixel-clock-parity',
+              'context': 'miru/lts305-fat-ratelimit-parity',
               'description': f"run {os.environ['GITHUB_RUN_ID']} is validating",
               'target_url': os.environ['RUN_URL'],
           }))
@@ -50,14 +50,14 @@ jobs:
 
       - name: Validate parity, compile, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_validate_pixel_clock_parity_v2.sh
+        run: bash scripts/miru/lts305_validate_fat_ratelimit_parity.sh
 
-      - name: Upload pixel-clock parity diagnostics
+      - name: Upload FAT ratelimit parity diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-pixel-clock-parity-${{ github.run_id }}
-          path: lts305-pixel-clock-parity
+          name: miru-lts305-fat-ratelimit-parity-${{ github.run_id }}
+          path: lts305-fat-ratelimit-parity
           if-no-files-found: error
           retention-days: 14
 
@@ -80,7 +80,7 @@ jobs:
           import json, os
           print(json.dumps({
               'state': os.environ['state'],
-              'context': 'miru/lts305-pixel-clock-parity',
+              'context': 'miru/lts305-fat-ratelimit-parity',
               'description': f"run {os.environ['GITHUB_RUN_ID']} finished: {os.environ['JOB_STATUS']}",
               'target_url': os.environ['RUN_URL'],
           }))
