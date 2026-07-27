@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **24**
-- Remaining semantic conflicts: **9**
+- Semantically resolved conflicts: **25**
+- Remaining semantic conflicts: **8**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -228,7 +228,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 17 | `drivers/usb/core/quirks.c` | USB device quirks | index-resolved in scaffold | resolved | `9a2b86edaa5e60488d29808a7fc89750f52213e5` | quirks.o PASS | clean reversal PASS |
 | 18 | `drivers/usb/dwc3/core.c` | DWC3 core / power | index-resolved in scaffold | unresolved | — | — | — |
 | 19 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | resolved | `300e597ea849222a807c47c4dcf8c324025a5ac8` | f_fs.o PASS | clean reversal PASS |
-| 20 | `drivers/usb/gadget/function/rndis.c` | USB RNDIS gadget | index-resolved in scaffold | unresolved | — | — | — |
+| 20 | `drivers/usb/gadget/function/rndis.c` | USB RNDIS gadget | index-resolved in scaffold | resolved | `73952d0d69d680a113768bf7ca0a64ec6b50312e` | rndis.o PASS | identity + reversal PASS |
 | 21 | `drivers/usb/host/xhci.c` | xHCI host lifecycle | index-resolved in scaffold | unresolved | — | — | — |
 | 22 | `drivers/usb/host/xhci.h` | xHCI interfaces | index-resolved in scaffold | unresolved | — | — | — |
 | 23 | `fs/fat/fatent.c` | FAT allocation table | index-resolved in scaffold | resolved | `f0a8bbd0f352fe031a519a32d8b7db7d15ac3853` | targeted compile PASS | clean reversal PASS |
@@ -583,3 +583,18 @@ Kernel and module outputs:
 
 - Owned path: `drivers/usb/gadget/function/rndis.c`.
 - This documentation-only anchor establishes explicit ownership for a target-equivalence validation. No kernel source change is made by this commit.
+
+### RNDIS set-request bounds equivalence
+
+- Owning no-source-delta validation commit: `73952d0d69d680a113768bf7ca0a64ec6b50312e`.
+- Owned path: `drivers/usb/gadget/function/rndis.c`.
+- Relevant Android Common commit: `c7953cf03a26876d676145ce5d2ae6d8c9630b90`, target-reachable from `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
+- Merge-base behavior: the original stage lacks the `BufOffset > RNDIS_MAX_TOTAL_SIZE` bounds check.
+- Android and retained Miru behavior: both contain exactly one canonical guard rejecting an oversize information-buffer offset before response allocation.
+- Downstream intent retained: Miru's RNDIS flow-control, negotiated transfer-size, packet aggregation, and locking extensions remain byte-for-byte at scaffold identity.
+- Semantic decision: make no whitespace-only source commit. The retained Miru guard is behaviorally identical to Android Common while preserving downstream coding style and all local RNDIS extensions.
+- Source identity: scaffold and resolution-head blobs are both `d1737f27147067ea9044027fbae5cedf8bab6e6c`; the target blob is `b6c707246dadd7f727e1855b32d927df28db40c9`. Source-identity manifest SHA-256: `40ec72085a91989d16f6ef0985504d113724375be0729f4ae69baa286f83584e`.
+- Targeted compilation: **PASS** for `drivers/usb/gadget/function/rndis.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Target-guard equivalence and downstream-extension preservation gates: **PASS**.
+- Clean reversal: **PASS**; reverting the validation and ownership documentation commits in reverse order restores the complete pre-resolution integration tree, while the owned RNDIS source path remains exactly at scaffold identity.
+- Validation workflow run: `30263767530`.
