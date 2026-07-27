@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **18**
-- Remaining semantic conflicts: **15**
+- Semantically resolved conflicts: **19**
+- Remaining semantic conflicts: **14**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -234,7 +234,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 23 | `fs/fat/fatent.c` | FAT allocation table | index-resolved in scaffold | resolved | `f0a8bbd0f352fe031a519a32d8b7db7d15ac3853` | targeted compile PASS | clean reversal PASS |
 | 24 | `include/net/netfilter/nf_queue.h` | netfilter queue API | index-resolved in scaffold | unresolved | — | — | — |
 | 25 | `include/net/sock.h` | socket core API | index-resolved in scaffold | unresolved | — | — | — |
-| 26 | `include/uapi/linux/virtio_ids.h` | Virtio UAPI IDs | index-resolved in scaffold | unresolved | — | — | — |
+| 26 | `include/uapi/linux/virtio_ids.h` | Virtio UAPI IDs | index-resolved in scaffold | resolved | `9dccbdfb6ec081b2ab47ab99556cdbed8d8ef13c` | consumer compile PASS | clean reversal PASS |
 | 27 | `kernel/exit.c` | task exit / oops handling | index-resolved in scaffold | resolved | `6f9a178101753ca7e5dab46d963609d34ea2cc23` | targeted compile PASS | clean reversal PASS |
 | 28 | `kernel/panic.c` | panic/warn accounting | index-resolved in scaffold | resolved | `6f9a178101753ca7e5dab46d963609d34ea2cc23` | targeted compile PASS | clean reversal PASS |
 | 29 | `lib/Makefile` | library build composition | index-resolved in scaffold | unresolved | — | — | — |
@@ -482,3 +482,20 @@ Kernel and module outputs:
 - STMMAC source-behavior and clean-header gates: **PASS**.
 - Clean reversal: **PASS**; reverting `0c2edde500e6c8f9c88e593c94731cdb6fe49cc5` restored the owned path exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`, restored the complete pre-resolution integration tree, and preserved the cleanly merged STMMAC header blob.
 - Validation workflow run: `30247407576`.
+- Validation artifact: run `30247407576`, artifact `8645678367`, digest `sha256:cdf4d4e7e9afe758f1185b39167ba554dd70788fbd7d539c4b212cadd11e389f`, size `10823` bytes.
+
+### Virtio mac80211-hwsim device ID
+
+- Owning source commit: `9dccbdfb6ec081b2ab47ab99556cdbed8d8ef13c`.
+- Owned path: `include/uapi/linux/virtio_ids.h`.
+- Cleanly merged consumer: `drivers/net/wireless/mac80211_hwsim.c` already contains the virtio device table using `VIRTIO_ID_MAC80211_HWSIM`; scaffold blob `39642c510d7740d54e4f6fd7287a631c6734d3e6` was preserved unchanged.
+- Relevant Android Common commit: `ccba0f9c1296e98b6c3b9933a8514868408d2278` (upstream `f5a37f36fd0fad8451b1a6dddd5cd1b5fac4704e`).
+- Android behavior imported: define virtio device ID 29 for mac80211-hwsim so the cleanly merged virtio driver has its matching UAPI identifier.
+- Downstream behavior retained: Miru's IDs 30 through 34 for clock, regulator, I2C, SPMI, and FastRPC remain present with their original values.
+- Semantic decision: form the union of the Android target's ID 29 and Miru's later downstream IDs instead of replacing the downstream header with the shorter target version.
+- Audited source patch SHA-256: `42801b08707a7cedf9f287ed0b2ac9fe4fe0a47aed4375b4e1fa7a311cad6864` using `git diff --binary --full-index`.
+- Header validation: **PASS** for a freestanding compile-time UAPI ID probe against the stock tree.
+- Consumer compilation: **PASS** for `drivers/net/wireless/mac80211_hwsim.o` using the pinned H.40 toolchain and a compile-only `CONFIG_VIRTIO_MMIO=y` transport overlay, which selects `CONFIG_VIRTIO=y`, derived from the stock configuration. The overlay was not committed. Diagnostics were clean.
+- Virtio ID source-behavior and clean-consumer gates: **PASS**.
+- Clean reversal: **PASS**; reverting `9dccbdfb6ec081b2ab47ab99556cdbed8d8ef13c` restored the owned header exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`, restored the complete pre-resolution integration tree, and preserved the cleanly merged consumer blob.
+- Validation workflow run: `30250061629`.
