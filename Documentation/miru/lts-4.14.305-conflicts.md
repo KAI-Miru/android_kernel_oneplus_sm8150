@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **9**
-- Remaining semantic conflicts: **24**
+- Semantically resolved conflicts: **10**
+- Remaining semantic conflicts: **23**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -224,7 +224,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 13 | `drivers/mmc/core/mmc_ops.c` | MMC command operations | index-resolved in scaffold | unresolved | — | — | — |
 | 14 | `drivers/mmc/host/sdhci.c` | SDHCI host | index-resolved in scaffold | unresolved | — | — | — |
 | 15 | `drivers/net/ethernet/stmicro/stmmac/stmmac_hwtstamp.c` | Ethernet timestamping | index-resolved in scaffold | unresolved | — | — | — |
-| 16 | `drivers/rpmsg/qcom_glink_native.c` | Qualcomm GLINK | index-resolved in scaffold | unresolved | — | — | — |
+| 16 | `drivers/rpmsg/qcom_glink_native.c` | Qualcomm GLINK | index-resolved in scaffold | resolved | `0986f57a7fed5bf69ca14f141666a648a1471350` | targeted compile PASS | clean reversal PASS |
 | 17 | `drivers/usb/core/quirks.c` | USB device quirks | index-resolved in scaffold | unresolved | — | — | — |
 | 18 | `drivers/usb/dwc3/core.c` | DWC3 core / power | index-resolved in scaffold | unresolved | — | — | — |
 | 19 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | unresolved | — | — | — |
@@ -375,3 +375,18 @@ Kernel and module outputs:
 - Targeted compilation: **PASS** for `kernel/exit.o` and `kernel/panic.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
 - Clean reversal: **PASS**; reverting `6f9a178101753ca7e5dab46d963609d34ea2cc23` restored both owned paths exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`.
 - Validation workflow run: `30238384152`.
+
+### Qualcomm GLINK channel teardown and RX error propagation
+
+- Owning source commit: `0986f57a7fed5bf69ca14f141666a648a1471350`
+- Owned path: `drivers/rpmsg/qcom_glink_native.c`.
+- Relevant Android Common commit: `12faed72cf1a7e32253cb7b839104e03a923cbff` (upstream `766279a8f85df32345dbda03b102ca1ee3d5ddea`).
+- Downstream commits retained: `0ba2ae45391418c93ab9af4f7a24acbcfa678a11`, `bdd4cc49080e8a0a56c844600c4e243aa1ad7b97`, and `935b66cf9efbcbd40063e830935744b35a3d5cf`.
+- Downstream intent retained: a missing channel intent advances the RX FIFO; a missing local intent drains the current payload before returning `-ENOENT`; and the native interrupt loop propagates all RX errors instead of suppressing `-ENOENT`.
+- Android behavior imported: `qcom_glink_rx_close()` now uses `strscpy_pad()` for the fixed-size channel name, preserving NUL termination and the original padding contract without deprecated `strncpy()` semantics.
+- Semantic decision: replace only the target-range `qcom_glink_rx_close()` copy. The downstream-only `qcom_glink_rx_close_ack()` teardown remains otherwise unchanged, and all Miru FIFO/error-propagation fixes are source-gated.
+- Audited source patch SHA-256: `d257d6330ea310935320023e090dfb59aff0cc92cdbb137d5620bac62632af4f` using `git diff --binary --full-index`.
+- Targeted compilation: **PASS** for `drivers/rpmsg/qcom_glink_native.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Protected GLINK source gates: **PASS**.
+- Clean reversal: **PASS**; reverting `0986f57a7fed5bf69ca14f141666a648a1471350` restored the owned path exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`.
+- Validation workflow run: `30240476056`.
