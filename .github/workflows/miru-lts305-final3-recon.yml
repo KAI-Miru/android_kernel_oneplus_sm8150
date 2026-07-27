@@ -61,11 +61,11 @@ jobs:
           for p in "${PATHS[@]}"; do
             safe="${p//\//__}"
             mkdir -p "$OUT/$safe"
-            git diff --binary --full-index "$BASE" "$SCAFFOLD" -- "$p" > "$OUT/$safe/base-to-miru.patch"
-            git diff --binary --full-index "$BASE" "$TARGET" -- "$p" > "$OUT/$safe/base-to-target.patch"
-            git diff --binary --full-index "$SCAFFOLD" "$TARGET" -- "$p" > "$OUT/$safe/miru-to-target.patch"
-            git diff --binary --full-index "$SCAFFOLD" HEAD -- "$p" > "$OUT/$safe/scaffold-to-head.patch"
-            git log --reverse --format='commit %H%nAuthor: %an <%ae>%nDate: %aI%nSubject: %s%n' -p "$PREVIOUS..$TARGET" -- "$p" > "$OUT/$safe/target-history.patch"
+            git diff --binary --full-index "$BASE" "$SCAFFOLD" -- "$p" > "$OUT/$safe/base-to-miru.diff.txt"
+            git diff --binary --full-index "$BASE" "$TARGET" -- "$p" > "$OUT/$safe/base-to-target.diff.txt"
+            git diff --binary --full-index "$SCAFFOLD" "$TARGET" -- "$p" > "$OUT/$safe/miru-to-target.diff.txt"
+            git diff --binary --full-index "$SCAFFOLD" HEAD -- "$p" > "$OUT/$safe/scaffold-to-head.diff.txt"
+            git log --reverse --format='commit %H%nAuthor: %an <%ae>%nDate: %aI%nSubject: %s%n' -p "$PREVIOUS..$TARGET" -- "$p" > "$OUT/$safe/target-history.diff.txt"
             git log --reverse --format='%H%x09%aI%x09%s' "$PREVIOUS..$TARGET" -- "$p" > "$OUT/$safe/target-history.tsv"
             {
               echo "base_blob=$(git rev-parse "$BASE:$p")"
@@ -74,7 +74,7 @@ jobs:
               echo "head_blob=$(git rev-parse "HEAD:$p")"
               echo "target_commit_count=$(git rev-list --count "$PREVIOUS..$TARGET" -- "$p")"
             } > "$OUT/$safe/blobs.txt"
-            test ! -s "$OUT/$safe/scaffold-to-head.patch"
+            test ! -s "$OUT/$safe/scaffold-to-head.diff.txt"
           done
 
           find "$OUT" -type f -print0 | sort -z | xargs -0 sha256sum > "$OUT/SHA256SUMS"
@@ -83,7 +83,7 @@ jobs:
           git config user.email 'miru-lts-integration@users.noreply.github.com'
           git add -- "$OUT"
           test -n "$(git diff --cached --name-only)"
-          git commit -m 'docs: record final 4.14.305 conflict evidence [skip ci]'
+          git commit -m 'docs: record readable final 4.14.305 conflict evidence [skip ci]'
           REMOTE_HEAD="$(git ls-remote origin "refs/heads/$BRANCH" | awk '{print $1}')"
           test "$REMOTE_HEAD" = "$START_HEAD"
           git push origin "HEAD:refs/heads/$BRANCH"
