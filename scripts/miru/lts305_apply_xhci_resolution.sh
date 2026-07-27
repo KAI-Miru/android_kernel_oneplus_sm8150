@@ -102,8 +102,8 @@ grep -Fq 'STS_HALT, STS_HALT, XHCI_MAX_HALT_USEC);' \
   "$DIAG/previous-common-xhci.c"
 
 if ! git diff --quiet "$SCAFFOLD" -- "$OWNED_C" "$OWNED_H"; then
-  grep -Fq -- '- Semantically resolved conflicts: **28**' "$LEDGER"
-  grep -Fq -- '- Remaining semantic conflicts: **5**' "$LEDGER"
+  grep -Fq '| 21 | `drivers/usb/host/xhci.c` | xHCI lifecycle | index-resolved in scaffold | resolved |' "$LEDGER"
+  grep -Fq '| 22 | `drivers/usb/host/xhci.h` | xHCI interfaces | index-resolved in scaffold | resolved |' "$LEDGER"
   grep -Fq '### xHCI lifecycle and LPM safety union' "$LEDGER"
   {
     echo 'status=already-resolved'
