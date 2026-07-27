@@ -37,7 +37,7 @@ test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 305
 git log --format='%H%x09%s' "${PREVIOUS_COMMON_TARGET}..${TARGET_COMMIT}" -- "${OWNED_PATH}" \
   > "${DIAG}/target-history.tsv"
 CPU_FIX="$(awk -F '\t' 'tolower($2) ~ /^random:.*trust.*cpu/ { print $1; exit }' "${DIAG}/target-history.tsv")"
-BOOTLOADER_FIX="$(awk -F '\t' 'tolower($2) ~ /^random:.*trust.*bootloader/ { print $1; exit }' "${DIAG}/target-history.tsv")"
+BOOTLOADER_FIX="$(awk -F '\t' 'tolower($2) ~ /^random:.*bootloader/ { print $1; exit }' "${DIAG}/target-history.tsv")"
 test -n "${CPU_FIX}"
 test -n "${BOOTLOADER_FIX}"
 git merge-base --is-ancestor "${CPU_FIX}" "${TARGET_COMMIT}"
