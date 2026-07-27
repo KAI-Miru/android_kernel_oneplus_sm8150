@@ -442,7 +442,9 @@ for marker in downstream_h:
 for needle, expected, label in [
     ("int xhci_handshake(void __iomem *ptr, u32 mask, u32 done, u64 timeout_us)", 1, "u64 handshake"),
     ("int xhci_handshake_check_state(struct xhci_hcd *xhci,", 1, "removal-aware helper retained"),
-    ("u32 done, u64 timeout_us)", 1, "removal-aware helper type"),
+    ("int xhci_handshake_check_state(struct xhci_hcd *xhci," + nl +
+     t * 2 + "void __iomem *ptr, u32 mask, u32 done, u64 timeout_us)",
+     1, "removal-aware helper type"),
     ("int xhci_reset(struct xhci_hcd *xhci, u64 timeout_us)", 1, "u64 reset"),
     ("xhci_reset(xhci, XHCI_RESET_SHORT_USEC);", 2, "short reset call sites"),
     ("xhci_reset(xhci, XHCI_RESET_LONG_USEC);", 2, "long reset call sites"),
