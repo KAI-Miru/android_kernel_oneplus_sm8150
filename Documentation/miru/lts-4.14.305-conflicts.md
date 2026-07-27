@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **13**
-- Remaining semantic conflicts: **20**
+- Semantically resolved conflicts: **14**
+- Remaining semantic conflicts: **19**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -219,7 +219,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 8 | `drivers/char/Kconfig` | character-driver configuration | index-resolved in scaffold | unresolved | — | — | — |
 | 9 | `drivers/clk/qcom/clk-rcg2.c` | Qualcomm clock RCG | index-resolved in scaffold | resolved | `512d47f08402bf130a78e05a92341d62ae04c120` | targeted compile PASS | clean reversal PASS |
 | 10 | `drivers/edac/edac_device.c` | EDAC polling/lifetime | index-resolved in scaffold | resolved | `e5e15c01d846b479836c7c8625c98794e9094302` | targeted compile PASS | clean reversal PASS |
-| 11 | `drivers/mailbox/mailbox.c` | mailbox core | index-resolved in scaffold | unresolved | — | — | — |
+| 11 | `drivers/mailbox/mailbox.c` | mailbox core | index-resolved in scaffold | resolved | `8b9ea460afb7692145090c2d307f6695bed12b3c` | targeted compile PASS | clean reversal PASS |
 | 12 | `drivers/mmc/core/host.c` | MMC host core | index-resolved in scaffold | unresolved | — | — | — |
 | 13 | `drivers/mmc/core/mmc_ops.c` | MMC command operations | index-resolved in scaffold | unresolved | — | — | — |
 | 14 | `drivers/mmc/host/sdhci.c` | SDHCI host | index-resolved in scaffold | unresolved | — | — | — |
@@ -434,3 +434,19 @@ Kernel and module outputs:
 - EDAC source-behavior gates: **PASS**.
 - Clean reversal: **PASS**; reverting `e5e15c01d846b479836c7c8625c98794e9094302` restored the owned path exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`.
 - Validation workflow run: `30242138170`.
+- Validation artifact: run `30242138170`, artifact `8643726041`, digest `sha256:88f9eed2aff39e90a5c0449315d622c004377d2a9f784b4bb921e923d46ec957`, size `8793` bytes.
+
+### Mailbox polling hrtimer serialization
+
+- Owning source commit: `8b9ea460afb7692145090c2d307f6695bed12b3c`.
+- Owned path: `drivers/mailbox/mailbox.c`.
+- Cleanly merged dependency: `include/linux/mailbox_controller.h` already contains `poll_hrt_lock`; scaffold blob `4868590fa0d52c9307f6afc9607b75720a1c063e` was preserved unchanged.
+- Relevant Android Common commit: `e75b5ea2d6b15ba769d7c00261506ba35f13143e` (upstream `bca1a1004615efe141fd78f360ecc48c60bc4ad5`).
+- Downstream behavior retained: Miru's split `__msg_submit()` helper and the retry loop for controller `-EAGAIN` responses remain intact.
+- Android behavior imported: polling-timer starts and forwards are serialized with `poll_hrt_lock`; the timer is forwarded only when it is not already queued; and rescheduling is requested only when an active transfer remains incomplete.
+- Semantic decision: apply the upstream timer-race fix around the downstream retrying submission path rather than replacing that path with the target's single-attempt implementation.
+- Audited source patch SHA-256: `d9028ee90f400fe1f9cfe6fe28ef09de6778fb989ccbbaa71eeb56123ba8a2b0` using `git diff --binary --full-index`.
+- Targeted compilation: **PASS** for `drivers/mailbox/mailbox.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Mailbox source-behavior and clean-header gates: **PASS**.
+- Clean reversal: **PASS**; reverting `8b9ea460afb7692145090c2d307f6695bed12b3c` restored the owned path exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` while preserving the cleanly merged header blob.
+- Validation workflow run: `30243978850`.
