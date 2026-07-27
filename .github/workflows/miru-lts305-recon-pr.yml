@@ -1,5 +1,4 @@
-# Scaffold launch is based on verified ledger ff5db9a60f5eedb4e6b1215ffd5e5e0f0e6c65d3.
-name: Miru H.40 4.14.305 scaffold
+name: Miru H.40 4.14.305 conflict history
 
 on:
   pull_request:
@@ -10,13 +9,13 @@ on:
       - synchronize
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  create-authentic-scaffold:
+  audit-conflict-history:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == true
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout exact integration head
@@ -25,15 +24,15 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Create and guarded-push authentic scaffold
+      - name: Collect target and downstream history
         shell: bash
-        run: bash scripts/miru/lts305_create_scaffold.sh
+        run: bash scripts/miru/lts305_conflict_history.sh
 
-      - name: Upload scaffold diagnostics
+      - name: Upload conflict-history artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-scaffold-${{ github.run_id }}
-          path: lts305-scaffold
+          name: miru-lts305-conflict-history-${{ github.run_id }}
+          path: lts305-conflict-history
           if-no-files-found: error
           retention-days: 14
