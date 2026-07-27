@@ -1,4 +1,4 @@
-# Trigger guarded FunctionFS validation after preflight.
+# Trigger guarded FunctionFS validation after corrected toolchain pin.
 name: Miru H.40 4.14.305 FunctionFS lifetime resolution
 
 on:
