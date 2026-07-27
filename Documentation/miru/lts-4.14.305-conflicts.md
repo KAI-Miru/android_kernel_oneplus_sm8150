@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **11**
-- Remaining semantic conflicts: **22**
+- Semantically resolved conflicts: **12**
+- Remaining semantic conflicts: **21**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -231,7 +231,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 20 | `drivers/usb/gadget/function/rndis.c` | USB RNDIS gadget | index-resolved in scaffold | unresolved | — | — | — |
 | 21 | `drivers/usb/host/xhci.c` | xHCI host lifecycle | index-resolved in scaffold | unresolved | — | — | — |
 | 22 | `drivers/usb/host/xhci.h` | xHCI interfaces | index-resolved in scaffold | unresolved | — | — | — |
-| 23 | `fs/fat/fatent.c` | FAT allocation table | index-resolved in scaffold | unresolved | — | — | — |
+| 23 | `fs/fat/fatent.c` | FAT allocation table | index-resolved in scaffold | resolved | `f0a8bbd0f352fe031a519a32d8b7db7d15ac3853` | targeted compile PASS | clean reversal PASS |
 | 24 | `include/net/netfilter/nf_queue.h` | netfilter queue API | index-resolved in scaffold | unresolved | — | — | — |
 | 25 | `include/net/sock.h` | socket core API | index-resolved in scaffold | unresolved | — | — | — |
 | 26 | `include/uapi/linux/virtio_ids.h` | Virtio UAPI IDs | index-resolved in scaffold | unresolved | — | — | — |
@@ -404,3 +404,18 @@ Kernel and module outputs:
 - Targeted compilation: **PASS** for `drivers/clk/qcom/clk-rcg2.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
 - Clean reversal: **PASS**; reverting the empty semantic commit in a disposable worktree preserved the complete integration tree, while the owned path remained byte-identical to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`.
 - Validation workflow run: `30241067412`.
+- Validation artifact: run `30241067412`, artifact `8643348682`, digest `sha256:956158e1b997af205636cfe77a71bd01f9f972926984203421396f75a767c31b`, size `7065` bytes.
+
+### FAT allocation-table read-error ratelimit parity
+
+- Owning semantic commit: `f0a8bbd0f352fe031a519a32d8b7db7d15ac3853` (empty source commit; tree identical to its parent).
+- Owned path: `fs/fat/fatent.c`.
+- Relevant Android Common commit: `4b5541035b59dfe77584e7fb5e283c4e00af5a25`.
+- Downstream commit retained: `f3dd33108513be195dfa294de94a6e4345698827`.
+- Target behavior: both FAT12 boundary-read failure and normal FAT entry-read failure use `fat_msg_ratelimit()` to prevent repeated I/O errors from flooding the kernel log.
+- Downstream behavior retained: the Miru scaffold already ratelimits both paths; its owned-path blob is `a552a9b80d17f2141886bfb80de7010fa58e17e3`.
+- Semantic decision: **no source delta**. The earlier Qualcomm implementation already contains the complete Android target behavior; formatting differences do not change semantics.
+- Canonical source delta SHA-256: `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` (empty `git diff --binary --full-index`).
+- Targeted compilation: **PASS** for `fs/fat/fatent.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Clean reversal: **PASS**; reverting the empty semantic commit preserved the complete integration tree, while the owned path remained byte-identical to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`.
+- Validation workflow run: `30241553608`.
