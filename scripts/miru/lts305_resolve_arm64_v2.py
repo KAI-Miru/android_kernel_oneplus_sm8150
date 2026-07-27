@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run the audited ARM64 resolver against an authentic recursive merge preview."""
+"""Run the audited ARM64 resolver against authentic recursive-merge stages."""
 
 from __future__ import annotations
 
@@ -21,9 +21,52 @@ def load_resolver():
     return module
 
 
+def git_output(worktree: Path, *args: str) -> bytes:
+    return subprocess.check_output(["git", "-C", str(worktree), *args])
+
+
+def stage_map(worktree: Path, path: str) -> dict[int, str]:
+    entries: dict[int, str] = {}
+    output = git_output(worktree, "ls-files", "-u", "--", path).decode()
+    for line in output.splitlines():
+        metadata, listed_path = line.split("\t", 1)
+        _mode, sha, stage_text = metadata.split()
+        if listed_path != path:
+            raise SystemExit(f"unexpected unmerged path for {path}: {listed_path}")
+        entries[int(stage_text)] = sha
+    if set(entries) != {1, 2, 3}:
+        raise SystemExit(f"missing authentic stages for {path}: {entries}")
+    return entries
+
+
+def diff3_preview(worktree: Path, path: str, stages: dict[int, str], temp_root: Path) -> str:
+    safe = path.replace("/", "__")
+    ours = temp_root / f"{safe}.stage2"
+    base = temp_root / f"{safe}.stage1"
+    theirs = temp_root / f"{safe}.stage3"
+    ours.write_bytes(git_output(worktree, "cat-file", "blob", stages[2]))
+    base.write_bytes(git_output(worktree, "cat-file", "blob", stages[1]))
+    theirs.write_bytes(git_output(worktree, "cat-file", "blob", stages[3]))
+    proc = subprocess.run(
+        ["git", "merge-file", "-p", "--diff3", str(ours), str(base), str(theirs)],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if proc.returncode < 0 or proc.returncode > 127:
+        raise SystemExit(
+            f"git merge-file failed for {path}: {proc.returncode}: "
+            f"{proc.stderr.decode(errors='replace')}"
+        )
+    return proc.stdout.decode()
+
+
 def reproduce_authentic_merge(module) -> dict[str, str]:
     with tempfile.TemporaryDirectory(prefix="lts305-arm64-authentic-") as tmp:
-        worktree = Path(tmp) / "worktree"
+        temp_root = Path(tmp)
+        worktree = temp_root / "worktree"
+        stages_root = temp_root / "stage-files"
+        stages_root.mkdir()
         subprocess.check_call(
             ["git", "worktree", "add", "--detach", str(worktree), module.PREPARATION_PARENT],
             stdout=subprocess.DEVNULL,
@@ -74,7 +117,17 @@ def reproduce_authentic_merge(module) -> dict[str, str]:
             missing = sorted(set(module.PATHS) - set(conflicts))
             if missing:
                 raise SystemExit(f"owned conflicts missing from authentic merge: {missing}")
-            previews = {path: (worktree / path).read_text() for path in module.PATHS}
+
+            previews: dict[str, str] = {}
+            manifest: list[str] = []
+            for path in module.PATHS:
+                stages = stage_map(worktree, path)
+                manifest.append(
+                    f"{path}\tstage1={stages[1]}\tstage2={stages[2]}\tstage3={stages[3]}\n"
+                )
+                previews[path] = diff3_preview(worktree, path, stages, stages_root)
+            (DIAG / "authentic-stage-manifest.txt").write_text("".join(manifest))
+
             subprocess.check_call(
                 ["git", "-C", str(worktree), "merge", "--abort"],
                 stdout=subprocess.DEVNULL,
@@ -92,7 +145,10 @@ def reproduce_authentic_merge(module) -> dict[str, str]:
             if tracked:
                 raise SystemExit("authentic preview worktree not restored after abort")
             (DIAG / "authentic-merge-summary.txt").write_text(
-                "authentic_conflict_count=33\ntracked_worktree_restored=yes\n"
+                "authentic_conflict_count=33\n"
+                "owned_stage_triplets=7\n"
+                "preview_style=exact-stage-diff3\n"
+                "tracked_worktree_restored=yes\n"
             )
             return previews
         finally:
