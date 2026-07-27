@@ -1,4 +1,4 @@
-name: Miru H.40 4.14.305 conflict history
+name: Miru H.40 4.14.305 ARM64 resolution
 
 on:
   pull_request:
@@ -9,13 +9,13 @@ on:
       - synchronize
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  audit-conflict-history:
+  resolve-arm64:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.draft == true
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 120
 
     steps:
       - name: Checkout exact integration head
@@ -24,15 +24,15 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Collect target and downstream history
+      - name: Resolve, compile, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_conflict_history.sh
+        run: bash scripts/miru/lts305_apply_arm64_resolution.sh
 
-      - name: Upload conflict-history artifact
+      - name: Upload ARM64 resolution diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-conflict-history-${{ github.run_id }}
-          path: lts305-conflict-history
+          name: miru-lts305-arm64-resolution-${{ github.run_id }}
+          path: lts305-arm64-resolution
           if-no-files-found: error
           retention-days: 14
