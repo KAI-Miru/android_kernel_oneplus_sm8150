@@ -53,7 +53,9 @@ def merge_preview(base: str, path: str) -> str:
             stderr=subprocess.PIPE,
             check=False,
         )
-        if proc.returncode not in (0, 1):
+        # git merge-file returns the number of conflict hunks (capped at 127),
+        # not merely a boolean conflict status.
+        if proc.returncode < 0 or proc.returncode > 127:
             raise SystemExit(
                 f"git merge-file failed for {path}: {proc.returncode}: "
                 f"{proc.stderr.decode(errors='replace')}"
@@ -288,4 +290,10 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except BaseException as exc:
+        diagnostic = Path("lts305-arm64-resolution")
+        diagnostic.mkdir(parents=True, exist_ok=True)
+        (diagnostic / "resolver-error.txt").write_text(f"{type(exc).__name__}: {exc}\n")
+        raise
