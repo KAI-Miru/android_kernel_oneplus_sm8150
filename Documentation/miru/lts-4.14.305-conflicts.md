@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **28**
-- Remaining semantic conflicts: **5**
+- Semantically resolved conflicts: **29**
+- Remaining semantic conflicts: **4**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -233,7 +233,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 22 | `drivers/usb/host/xhci.h` | xHCI interfaces | index-resolved in scaffold | resolved | `a7fbd76fc6643a2d1d3fdbe778d33c9447376889` | xhci-hcd.o PASS | clean reversal PASS |
 | 23 | `fs/fat/fatent.c` | FAT allocation table | index-resolved in scaffold | resolved | `f0a8bbd0f352fe031a519a32d8b7db7d15ac3853` | targeted compile PASS | clean reversal PASS |
 | 24 | `include/net/netfilter/nf_queue.h` | netfilter queue API | index-resolved in scaffold | resolved | `413ff863d871397a6bed7965f3700945daaaab76` | nf_queue.o PASS | clean reversal PASS |
-| 25 | `include/net/sock.h` | socket core API | index-resolved in scaffold | unresolved | — | — | — |
+| 25 | `include/net/sock.h` | socket core API | index-resolved in scaffold | resolved | `78cd6e970789a247c91e72c8505d06b384e0e207` | net/core/sock.o PASS | clean reversal PASS |
 | 26 | `include/uapi/linux/virtio_ids.h` | Virtio UAPI IDs | index-resolved in scaffold | resolved | `9dccbdfb6ec081b2ab47ab99556cdbed8d8ef13c` | consumer compile PASS | clean reversal PASS |
 | 27 | `kernel/exit.c` | task exit / oops handling | index-resolved in scaffold | resolved | `6f9a178101753ca7e5dab46d963609d34ea2cc23` | targeted compile PASS | clean reversal PASS |
 | 28 | `kernel/panic.c` | panic/warn accounting | index-resolved in scaffold | resolved | `6f9a178101753ca7e5dab46d963609d34ea2cc23` | targeted compile PASS | clean reversal PASS |
@@ -630,3 +630,19 @@ Kernel and module outputs:
 - Android lifecycle, LPM, source-preservation, and clean-companion gates: **PASS**.
 - Clean reversal: **PASS**; reverting `a7fbd76fc6643a2d1d3fdbe778d33c9447376889` restored both owned paths exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
 - Validation workflow run: `30273373592`.
+
+### Socket core RCU and TX timestamp API union
+
+- Owning source commit: `78cd6e970789a247c91e72c8505d06b384e0e207`.
+- Owned path: `include/net/sock.h`.
+- Relevant Android Common commits: `92e6e36ecd16808866ac6172b9491b5097cde449,f9324197f45924e2219b46311b79145e10a15612,add668be8f5e53f4471a075edaa70a7cb85fd036,2c8abafd6c72ef04bc972f40332c76c1dd04446d,0eec6f6001d15bb1108835a642ec4637d75eef19`, all target-reachable from `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
+- Provenance verification: rx-dst-rcu	92e6e36ecd16808866ac6172b9491b5097cde449;mem-limit-read-once	f9324197f45924e2219b46311b79145e10a15612;tx-timestamp-api	add668be8f5e53f4471a075edaa70a7cb85fd036;skb-frag-order	2c8abafd6c72ef04bc972f40332c76c1dd04446d;tskey-baseline	0eec6f6001d15bb1108835a642ec4637d75eef19; each imported marker was checked in its own target-reachable diff, with the pre-existing `sk_tskey` storage recorded as the Android Common baseline.
+- Android behavior imported: annotate the receive-route pointer for RCU, read protocol memory limits with `READ_ONCE()`, add the keyed TX-timestamp helper and skb setup wrapper, and define the 32-bit skb-fragment page order.
+- Downstream intent retained: Oplus modem socket fields and aliases, the pacing-shift helper, SOCKEV notifier APIs, and the downstream neighbour-confirm behavior are byte-preserved and compiled with the union.
+- Semantic decision: retain every downstream extension while importing the Android concurrency and timestamping API as an exact target-derived helper block.
+- Scaffold blob: `2271e669be9e73cbd3b1e6efa80b39c1ff17d70c`. Target blob: `4053eea6182addea78e34d684c72153dab6a4c53`.
+- Audited source patch SHA-256: `d5b7e4da8452929f946df41f2687d911fe0ffbdab0f41a677d33f8f4be794ade` using `git diff --binary --full-index`.
+- Targeted compilation: **PASS** for `net/core/sock.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Android socket-safety and downstream-preservation gates: **PASS**.
+- Clean reversal: **PASS**; reverting `78cd6e970789a247c91e72c8505d06b384e0e207` restored `include/net/sock.h` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
+- Validation workflow run: `30274749493`.
