@@ -1,4 +1,4 @@
-# Trigger guarded DWC3 core validation after provenance parsing correction.
+# Trigger guarded DWC3 core validation after pinned target provenance.
 name: Miru H.40 4.14.305 DWC3 core lifecycle resolution
 
 on:
