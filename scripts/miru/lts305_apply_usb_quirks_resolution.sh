@@ -189,7 +189,7 @@ owned.write_text(resolved)
 print("status=resolved")
 print("target_block_count=" + str(len(blocks)))
 print("downstream_quirks_preserved=yes")
-print("target_blocks_sha256=" + hashlib.sha256("".join(block for _, block, _ in blocks).encode()).hexdigest())
+print("target_blocks_sha256=" + hashlib.sha256("".join(block for _, _, block, _ in blocks).encode()).hexdigest())
 PY
 
 git diff --binary --full-index > "${DIAG}/source.patch"
