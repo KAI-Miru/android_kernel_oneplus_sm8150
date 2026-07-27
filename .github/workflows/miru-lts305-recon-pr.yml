@@ -1,3 +1,4 @@
+# Trigger guarded resolution after helper installation.
 name: Miru H.40 4.14.305 character Kconfig resolution
 
 on:
