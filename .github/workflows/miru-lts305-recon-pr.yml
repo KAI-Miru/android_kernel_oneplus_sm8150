@@ -1,4 +1,4 @@
-# Trigger guarded FunctionFS validation after helper installation.
+# Trigger guarded FunctionFS validation after preflight.
 name: Miru H.40 4.14.305 FunctionFS lifetime resolution
 
 on:
