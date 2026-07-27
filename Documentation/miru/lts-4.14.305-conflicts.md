@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **21**
-- Remaining semantic conflicts: **12**
+- Semantically resolved conflicts: **22**
+- Remaining semantic conflicts: **11**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -232,7 +232,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 21 | `drivers/usb/host/xhci.c` | xHCI host lifecycle | index-resolved in scaffold | unresolved | — | — | — |
 | 22 | `drivers/usb/host/xhci.h` | xHCI interfaces | index-resolved in scaffold | unresolved | — | — | — |
 | 23 | `fs/fat/fatent.c` | FAT allocation table | index-resolved in scaffold | resolved | `f0a8bbd0f352fe031a519a32d8b7db7d15ac3853` | targeted compile PASS | clean reversal PASS |
-| 24 | `include/net/netfilter/nf_queue.h` | netfilter queue API | index-resolved in scaffold | unresolved | — | — | — |
+| 24 | `include/net/netfilter/nf_queue.h` | netfilter queue API | index-resolved in scaffold | resolved | `413ff863d871397a6bed7965f3700945daaaab76` | nf_queue.o PASS | clean reversal PASS |
 | 25 | `include/net/sock.h` | socket core API | index-resolved in scaffold | unresolved | — | — | — |
 | 26 | `include/uapi/linux/virtio_ids.h` | Virtio UAPI IDs | index-resolved in scaffold | resolved | `9dccbdfb6ec081b2ab47ab99556cdbed8d8ef13c` | consumer compile PASS | clean reversal PASS |
 | 27 | `kernel/exit.c` | task exit / oops handling | index-resolved in scaffold | resolved | `6f9a178101753ca7e5dab46d963609d34ea2cc23` | targeted compile PASS | clean reversal PASS |
@@ -531,3 +531,18 @@ Kernel and module outputs:
 - Downstream instrumentation and crypto-directory identity gates: **PASS**.
 - Clean reversal: **PASS**; reverting `47a4987038f558d655dc83145d5e01ed1fd4f4ac` restored `lib/Makefile` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`, preserved the clean crypto Makefile blob and restored the complete pre-resolution integration tree.
 - Validation workflow run: `30257972136`.
+
+### Netfilter queue reference API UAF fix
+
+- Owning source commit: `413ff863d871397a6bed7965f3700945daaaab76`.
+- Owned path: `include/net/netfilter/nf_queue.h`.
+- Relevant Android Common commit: `ef97921ccdc243170fcef857ba2a17cf697aece5`, target-reachable from `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
+- Android behavior imported: the queue-reference helper returns `bool` so callers can abandon queueing when the socket refcount cannot be acquired.
+- Downstream intent retained: preserve the exact scaffold header layout outside the single declaration change.
+- Semantic decision: replace only the stale `void` prototype with Android Common's `bool` prototype. The cleanly merged `net/netfilter/nf_queue.c` already implements the failure path via `refcount_inc_not_zero`; Miru's clean scaffold implementation is preserved byte-for-byte.
+- Scaffold header blob: `6a8fe020a400075cdce731057b1ea85bfd88cc56`. Target header blob: `f38cc6092c5a5ac4e609a6c40892e280d5fd4bf6`. Scaffold implementation blob: `da89ded3c9ffd49318f7d1be9a8ef11e3539749a`. Target implementation blob: `46984cdee6581729c42442fb3908936d93312762`.
+- Audited source patch SHA-256: `713d9319ebe5399203c3054206954a83c7f1b226564829e6e5032779e4ca163e` using `git diff --binary --full-index`.
+- Targeted compilation: **PASS** for `net/netfilter/nf_queue.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Queue API identity and clean implementation-blob gates: **PASS**.
+- Clean reversal: **PASS**; reverting `413ff863d871397a6bed7965f3700945daaaab76` restored `include/net/netfilter/nf_queue.h` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`, preserved the clean implementation blob and restored the complete pre-resolution integration tree.
+- Validation workflow run: `30258863431`.
