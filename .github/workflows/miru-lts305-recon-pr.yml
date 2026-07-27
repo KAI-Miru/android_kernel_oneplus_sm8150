@@ -1,6 +1,6 @@
 # Push-only helper; never target production through a pull request.
-# Launching guarded three-path MMC resolution validation.
-name: Miru H.40 4.14.305 MMC resolution
+# Explicit guarded launch for STMMAC timestamp resolution validation.
+name: Miru H.40 4.14.305 STMMAC timestamp resolution
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
   statuses: write
 
 jobs:
-  resolve-mmc:
+  resolve-stmmac-hwtstamp:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
 
@@ -28,7 +28,7 @@ jobs:
           import json, os
           print(json.dumps({
               'state': 'pending',
-              'context': 'miru/lts305-mmc-resolution',
+              'context': 'miru/lts305-stmmac-hwtstamp-resolution',
               'description': f"run {os.environ['GITHUB_RUN_ID']} is validating",
               'target_url': os.environ['RUN_URL'],
           }))
@@ -50,14 +50,14 @@ jobs:
 
       - name: Resolve, compile, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_mmc_resolution.sh
+        run: bash scripts/miru/lts305_apply_stmmac_hwtstamp_resolution.sh
 
-      - name: Upload MMC resolution diagnostics
+      - name: Upload STMMAC timestamp resolution diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-mmc-resolution-${{ github.run_id }}
-          path: lts305-mmc-resolution
+          name: miru-lts305-stmmac-hwtstamp-resolution-${{ github.run_id }}
+          path: lts305-stmmac-hwtstamp-resolution
           if-no-files-found: error
           retention-days: 14
 
@@ -80,7 +80,7 @@ jobs:
           import json, os
           print(json.dumps({
               'state': os.environ['state'],
-              'context': 'miru/lts305-mmc-resolution',
+              'context': 'miru/lts305-stmmac-hwtstamp-resolution',
               'description': f"run {os.environ['GITHUB_RUN_ID']} finished: {os.environ['JOB_STATUS']}",
               'target_url': os.environ['RUN_URL'],
           }))
