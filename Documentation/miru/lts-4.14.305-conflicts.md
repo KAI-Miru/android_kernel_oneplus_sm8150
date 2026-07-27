@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **23**
-- Remaining semantic conflicts: **10**
+- Semantically resolved conflicts: **24**
+- Remaining semantic conflicts: **9**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -227,7 +227,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 16 | `drivers/rpmsg/qcom_glink_native.c` | Qualcomm GLINK | index-resolved in scaffold | resolved | `0986f57a7fed5bf69ca14f141666a648a1471350` | targeted compile PASS | clean reversal PASS |
 | 17 | `drivers/usb/core/quirks.c` | USB device quirks | index-resolved in scaffold | resolved | `9a2b86edaa5e60488d29808a7fc89750f52213e5` | quirks.o PASS | clean reversal PASS |
 | 18 | `drivers/usb/dwc3/core.c` | DWC3 core / power | index-resolved in scaffold | unresolved | — | — | — |
-| 19 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | unresolved | — | — | — |
+| 19 | `drivers/usb/gadget/function/f_fs.c` | FunctionFS / ADB | index-resolved in scaffold | resolved | `300e597ea849222a807c47c4dcf8c324025a5ac8` | f_fs.o PASS | clean reversal PASS |
 | 20 | `drivers/usb/gadget/function/rndis.c` | USB RNDIS gadget | index-resolved in scaffold | unresolved | — | — | — |
 | 21 | `drivers/usb/host/xhci.c` | xHCI host lifecycle | index-resolved in scaffold | unresolved | — | — | — |
 | 22 | `drivers/usb/host/xhci.h` | xHCI interfaces | index-resolved in scaffold | unresolved | — | — | — |
@@ -562,3 +562,19 @@ Kernel and module outputs:
 - Android block identity and downstream quirk-preservation gates: **PASS**.
 - Clean reversal: **PASS**; reverting `9a2b86edaa5e60488d29808a7fc89750f52213e5` restored `drivers/usb/core/quirks.c` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
 - Validation workflow run: `30260382522`.
+
+### FunctionFS EP0 lifetime safety
+
+- Owning source commit: `300e597ea849222a807c47c4dcf8c324025a5ac8`.
+- Owned path: `drivers/usb/gadget/function/f_fs.c`.
+- Relevant Android Common commits: `facf353c9e8d7885b686d9a4b173d4e0af6441d2,62484437578573a04d23a8ab6db5247a4fd35b92`, both target-reachable from `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
+- Provenance verification: each listed safety marker was checked as an added line in its own target-reachable commit.
+- Android behavior imported: guard the EP0 request before queueing it, dequeue it before freeing it, and serialize the unbind state transition with the FunctionFS mutex.
+- Downstream intent retained: Miru's three FunctionFS state diagnostics remain exactly once; the unbind diagnostic stays within the new mutex-protected state transition.
+- Semantic decision: apply the Android lifetime-safety sequence without removing Miru diagnostics or changing any unrelated FunctionFS behavior.
+- Scaffold blob: `30da2ae088d7796ffc4d2f6a35562be9426344fe`. Target blob: `946cf039edddb7d5cf4b144c61703218a24d6c41`.
+- Audited source patch SHA-256: `e4f8e83e16016981768eddd2990ae1c76c1adb72ac623f40c90b44861d52611c` using `git diff --binary --full-index`.
+- Targeted compilation: **PASS** for `drivers/usb/gadget/function/f_fs.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Android safety-sequence and downstream-diagnostic preservation gates: **PASS**.
+- Clean reversal: **PASS**; reverting `300e597ea849222a807c47c4dcf8c324025a5ac8` restored `drivers/usb/gadget/function/f_fs.c` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
+- Validation workflow run: `30262867644`.
