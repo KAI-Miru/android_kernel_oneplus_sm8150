@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **20**
-- Remaining semantic conflicts: **13**
+- Semantically resolved conflicts: **21**
+- Remaining semantic conflicts: **12**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -237,7 +237,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 26 | `include/uapi/linux/virtio_ids.h` | Virtio UAPI IDs | index-resolved in scaffold | resolved | `9dccbdfb6ec081b2ab47ab99556cdbed8d8ef13c` | consumer compile PASS | clean reversal PASS |
 | 27 | `kernel/exit.c` | task exit / oops handling | index-resolved in scaffold | resolved | `6f9a178101753ca7e5dab46d963609d34ea2cc23` | targeted compile PASS | clean reversal PASS |
 | 28 | `kernel/panic.c` | panic/warn accounting | index-resolved in scaffold | resolved | `6f9a178101753ca7e5dab46d963609d34ea2cc23` | targeted compile PASS | clean reversal PASS |
-| 29 | `lib/Makefile` | library build composition | index-resolved in scaffold | unresolved | — | — | — |
+| 29 | `lib/Makefile` | library build composition | index-resolved in scaffold | resolved | `47a4987038f558d655dc83145d5e01ed1fd4f4ac` | lib archive PASS | clean reversal PASS |
 | 30 | `mm/memory.c` | page fault / memory core | index-resolved in scaffold | unresolved | — | — | — |
 | 31 | `net/ipv4/tcp_output.c` | IPv4 TCP output | index-resolved in scaffold | unresolved | — | — | — |
 | 32 | `net/ipv6/ip6_output.c` | IPv6 output / fragmentation | index-resolved in scaffold | unresolved | — | — | — |
@@ -515,3 +515,19 @@ Kernel and module outputs:
 - Downstream menu-order and target-block identity gates: **PASS**.
 - Clean reversal: **PASS**; reverting `7727a2c3bade0f9d21aaab63a0d58dd13545949b` restored `drivers/char/Kconfig` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
 - Validation workflow run: `30255039831`.
+
+### Library Makefile crypto and Miru instrumentation union
+
+- Owning source commit: `47a4987038f558d655dc83145d5e01ed1fd4f4ac`.
+- Owned path: `lib/Makefile`.
+- Relevant Android Common commit: `6adb419f06ffd185cbca84781846fe6054cf3d8e`, target-reachable from `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
+- Android behavior imported: add the cleanly merged `lib/crypto/` directory to the parent library build so its BLAKE2s implementation is linked into the kernel.
+- Downstream intent retained: `KASAN_SANITIZE_find_bit.o := n` and the OPlus VMALLOC-debug stack-depot object under its original preprocessor guard.
+- Semantic decision: take an explicit three-way union. Insert only `obj-y += crypto/` after the common `PARMAN` entry; preserve all Miru instrumentation lines byte-for-byte and retain the cleanly merged `lib/crypto/Makefile` blob.
+- Scaffold blob: `f5125f285da3e82072c127cfe250abaadf5676e9`. Target blob: `4e3ae6a42dc38c57dc72a4d01d6ea797a14433ab`. Clean crypto Makefile blob: `d0bca68618f034c3b897a7604f11e4da41975395`.
+- Audited source patch SHA-256: `8eb9802159761c16d557541f34b3d259b24113e681112cd9a9eedca3b5b13bbb` using `git diff --binary --full-index`.
+- Build-graph validation: **PASS** via the pinned H.40 stock configuration and `lib/built-in.o`; the crypto child archive and `libblake2s.o` were produced.
+- Consumer compilation: **PASS** for `drivers/char/random.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Downstream instrumentation and crypto-directory identity gates: **PASS**.
+- Clean reversal: **PASS**; reverting `47a4987038f558d655dc83145d5e01ed1fd4f4ac` restored `lib/Makefile` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`, preserved the clean crypto Makefile blob and restored the complete pre-resolution integration tree.
+- Validation workflow run: `30257972136`.
