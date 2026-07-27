@@ -1,4 +1,3 @@
-# Relaunch uses the corrected merge-file conflict-count handling.
 name: Miru H.40 4.14.305 ARM64 resolution
 
 on:
@@ -27,7 +26,7 @@ jobs:
 
       - name: Resolve, compile, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_arm64_resolution.sh
+        run: bash scripts/miru/lts305_apply_arm64_resolution_v2.sh
 
       - name: Upload ARM64 resolution diagnostics
         if: always()
