@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **19**
-- Remaining semantic conflicts: **14**
+- Semantically resolved conflicts: **20**
+- Remaining semantic conflicts: **13**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -216,7 +216,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 5 | `arch/arm64/kernel/cpu_errata.c` | ARM64 CPU errata | index-resolved in scaffold | resolved | `8633007f8d97174821bd9f200aa675e50e4bd9f2` | targeted compile PASS | clean reversal PASS |
 | 6 | `arch/arm64/kernel/setup.c` | ARM64 boot/setup | index-resolved in scaffold | resolved | `8633007f8d97174821bd9f200aa675e50e4bd9f2` | targeted compile PASS | clean reversal PASS |
 | 7 | `arch/arm64/mm/mmu.c` | ARM64 MMU / mappings | index-resolved in scaffold | resolved | `8633007f8d97174821bd9f200aa675e50e4bd9f2` | targeted compile PASS | clean reversal PASS |
-| 8 | `drivers/char/Kconfig` | character-driver configuration | index-resolved in scaffold | unresolved | — | — | — |
+| 8 | `drivers/char/Kconfig` | character-driver configuration | index-resolved in scaffold | resolved | `7727a2c3bade0f9d21aaab63a0d58dd13545949b` | Kconfig + random.o PASS | clean reversal PASS |
 | 9 | `drivers/clk/qcom/clk-rcg2.c` | Qualcomm clock RCG | index-resolved in scaffold | resolved | `512d47f08402bf130a78e05a92341d62ae04c120` | targeted compile PASS | clean reversal PASS |
 | 10 | `drivers/edac/edac_device.c` | EDAC polling/lifetime | index-resolved in scaffold | resolved | `e5e15c01d846b479836c7c8625c98794e9094302` | targeted compile PASS | clean reversal PASS |
 | 11 | `drivers/mailbox/mailbox.c` | mailbox core | index-resolved in scaffold | resolved | `8b9ea460afb7692145090c2d307f6695bed12b3c` | targeted compile PASS | clean reversal PASS |
@@ -499,3 +499,19 @@ Kernel and module outputs:
 - Virtio ID source-behavior and clean-consumer gates: **PASS**.
 - Clean reversal: **PASS**; reverting `9dccbdfb6ec081b2ab47ab99556cdbed8d8ef13c` restored the owned header exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`, restored the complete pre-resolution integration tree, and preserved the cleanly merged consumer blob.
 - Validation workflow run: `30250061629`.
+
+### Character-device Kconfig RNG trust union
+
+- Owning source commit: `7727a2c3bade0f9d21aaab63a0d58dd13545949b`.
+- Owned path: `drivers/char/Kconfig`.
+- Relevant Android Common commits: CPU RNG trust configuration `eed01a6b3e563bcc6cbe27ab046dc3cd46febd22` and bootloader-seed trust configuration `7112098b69d5922b7d34c1f6088dad4b0507214e`, both target-reachable from `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
+- Android behavior imported: `RANDOM_TRUST_CPU` (conditionally on `ARCH_RANDOM`) and `RANDOM_TRUST_BOOTLOADER`, both defaulting to enabled so trusted early entropy can initialize the RNG under the target's documented policy.
+- Downstream intent retained: the SMD packet entry; Qualcomm diagnostic, FASTCVPD, ADSPRPC, Virtio FastRPC and remote-debug entries; and the OKL4/Virtual Services serial configuration remains in its original menu scope after the character-device menu.
+- Semantic decision: take an explicit textual union. The exact Android Common RNG block is inserted immediately before Miru's character-device `endmenu`; all downstream entries remain byte-for-byte in their scaffold order, including the `endmenu` boundary before `OKL4_PIPE`.
+- Scaffold blob: `b92228b9851d68c3d75cf5a8525d86a928978c65`. Target blob: `e329d1cc019ae7e3736d77e83690af17e6db7270`.
+- Audited source patch SHA-256: `736378a58e8578c44885d09b5972e8524fe26d8511395a4b8f382263ced18bcb` using `git diff --binary --full-index`.
+- Kconfig validation: **PASS** via the pinned H.40 stock configuration and `olddefconfig`; `CONFIG_RANDOM_TRUST_BOOTLOADER=y` was selected by the target default.
+- Targeted compilation: **PASS** for `drivers/char/random.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Downstream menu-order and target-block identity gates: **PASS**.
+- Clean reversal: **PASS**; reverting `7727a2c3bade0f9d21aaab63a0d58dd13545949b` restored `drivers/char/Kconfig` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
+- Validation workflow run: `30255039831`.
