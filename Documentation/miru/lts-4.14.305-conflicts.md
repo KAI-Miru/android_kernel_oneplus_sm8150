@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **12**
-- Remaining semantic conflicts: **21**
+- Semantically resolved conflicts: **13**
+- Remaining semantic conflicts: **20**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -218,7 +218,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 7 | `arch/arm64/mm/mmu.c` | ARM64 MMU / mappings | index-resolved in scaffold | resolved | `8633007f8d97174821bd9f200aa675e50e4bd9f2` | targeted compile PASS | clean reversal PASS |
 | 8 | `drivers/char/Kconfig` | character-driver configuration | index-resolved in scaffold | unresolved | — | — | — |
 | 9 | `drivers/clk/qcom/clk-rcg2.c` | Qualcomm clock RCG | index-resolved in scaffold | resolved | `512d47f08402bf130a78e05a92341d62ae04c120` | targeted compile PASS | clean reversal PASS |
-| 10 | `drivers/edac/edac_device.c` | EDAC polling/lifetime | index-resolved in scaffold | unresolved | — | — | — |
+| 10 | `drivers/edac/edac_device.c` | EDAC polling/lifetime | index-resolved in scaffold | resolved | `e5e15c01d846b479836c7c8625c98794e9094302` | targeted compile PASS | clean reversal PASS |
 | 11 | `drivers/mailbox/mailbox.c` | mailbox core | index-resolved in scaffold | unresolved | — | — | — |
 | 12 | `drivers/mmc/core/host.c` | MMC host core | index-resolved in scaffold | unresolved | — | — | — |
 | 13 | `drivers/mmc/core/mmc_ops.c` | MMC command operations | index-resolved in scaffold | unresolved | — | — | — |
@@ -419,3 +419,18 @@ Kernel and module outputs:
 - Targeted compilation: **PASS** for `fs/fat/fatent.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
 - Clean reversal: **PASS**; reverting the empty semantic commit preserved the complete integration tree, while the owned path remained byte-identical to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`.
 - Validation workflow run: `30241553608`.
+- Validation artifact: run `30241553608`, artifact `8643522343`, digest `sha256:4f5c2c7743e80e12f2c22fe1bc592b1eec4133427aea7082896bc6fbfee16e97`, size `7001` bytes.
+
+### EDAC polling interval and delayed-work lifetime
+
+- Owning source commit: `e5e15c01d846b479836c7c8625c98794e9094302`.
+- Owned path: `drivers/edac/edac_device.c`.
+- Relevant Android Common commits: `dd187d7e80c37ebc098e8cf7d370c58febabb8b7` and `49ac46598653f36100ce5594b0e3dbdc6e52bd54`.
+- Downstream behavior retained: driver-supplied `poll_msec` support from `623a16f3e9c6f73a688cffd56713deea5f81f035` and deferrable EDAC work from `b5537b9be757d0355cc757261405ba8f3c472540`.
+- Android behavior imported: a named 1000-ms default, correct rounding of converted jiffies in `edac_device_reset_delay_period()`, and use of the default only when a driver leaves `poll_msec` at zero.
+- Semantic decision: remove the downstream one-second minimum so nonzero driver-supplied intervals are honored, retain conditional `INIT_DEFERRABLE_WORK()`, and round only the default one-second delay using `edac_dev->delay`.
+- Audited source patch SHA-256: `af52570dcd8048a12a1576e55179da0a2610165d908b3299f2147967f0f4157b` using `git diff --binary --full-index`.
+- Targeted compilation: **PASS** for `drivers/edac/edac_device.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- EDAC source-behavior gates: **PASS**.
+- Clean reversal: **PASS**; reverting `e5e15c01d846b479836c7c8625c98794e9094302` restored the owned path exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`.
+- Validation workflow run: `30242138170`.
