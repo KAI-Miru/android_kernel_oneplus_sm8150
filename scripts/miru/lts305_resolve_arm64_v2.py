@@ -10,6 +10,7 @@ from pathlib import Path
 
 MODULE_PATH = Path(__file__).with_name("lts305_resolve_arm64.py")
 DIAG = Path("lts305-arm64-resolution")
+CANONICAL_PATCH_SHA256 = "9e81960bc6b5eff4b6ac9fa108f5ae96a3d22e862cfaa62bbc097746d440f2c6"
 
 
 def load_resolver():
@@ -148,6 +149,7 @@ def reproduce_authentic_merge(module) -> dict[str, str]:
                 "authentic_conflict_count=33\n"
                 "owned_stage_triplets=7\n"
                 "preview_style=exact-stage-diff3\n"
+                "patch_format=git-diff-binary-full-index\n"
                 "tracked_worktree_restored=yes\n"
             )
             return previews
@@ -164,6 +166,16 @@ def main() -> None:
     module = load_resolver()
     previews = reproduce_authentic_merge(module)
     module.merge_preview = lambda _base, path: previews[path]
+    module.EXPECTED_PATCH_SHA256 = CANONICAL_PATCH_SHA256
+    original_run = module.run
+
+    def canonical_run(*args: str, input_data: bytes | None = None) -> bytes:
+        canonical_args = args
+        if len(args) >= 3 and args[:3] == ("git", "diff", "--binary"):
+            canonical_args = (*args[:3], "--full-index", *args[3:])
+        return original_run(*canonical_args, input_data=input_data)
+
+    module.run = canonical_run
     module.main()
 
 
@@ -175,7 +187,15 @@ if __name__ == "__main__":
         try:
             module = load_resolver()
             patch = subprocess.check_output(
-                ["git", "diff", "--binary", module.SCAFFOLD, "--", *module.PATHS]
+                [
+                    "git",
+                    "diff",
+                    "--binary",
+                    "--full-index",
+                    module.SCAFFOLD,
+                    "--",
+                    *module.PATHS,
+                ]
             )
             (DIAG / "generated-source.patch").write_bytes(patch)
         except BaseException:
