@@ -1,5 +1,5 @@
 # Push-only helper; never target production through a pull request.
-# Staged for explicit pixel-clock parity validation.
+# Explicit guarded launch for pixel-clock parity validation.
 name: Miru H.40 4.14.305 pixel-clock parity
 
 on:
@@ -50,7 +50,7 @@ jobs:
 
       - name: Validate parity, compile, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_validate_pixel_clock_parity.sh
+        run: bash scripts/miru/lts305_validate_pixel_clock_parity_v2.sh
 
       - name: Upload pixel-clock parity diagnostics
         if: always()
