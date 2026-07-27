@@ -1,5 +1,5 @@
 # Push-only helper; never target production through a pull request.
-# Explicit guarded launch for STMMAC timestamp resolution validation.
+# Launching guarded STMMAC timestamp resolution validation.
 name: Miru H.40 4.14.305 STMMAC timestamp resolution
 
 on:
