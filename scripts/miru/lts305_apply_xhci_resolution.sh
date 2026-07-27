@@ -13,6 +13,10 @@ LEDGER=Documentation/miru/lts-4.14.305-conflicts.md
 OWNED_C=drivers/usb/host/xhci.c
 OWNED_H=drivers/usb/host/xhci.h
 HUB_PATH=drivers/usb/host/xhci-hub.c
+# xhci-hcd.o is a composite Kbuild object and is not a direct top-level
+# make target in this 4.14 tree.  Build its containing directory so Kbuild
+# compiles the real consumers and links the composite object.
+TARGET_DIRECTORY=drivers/usb/host/
 TARGET_OBJECT=drivers/usb/host/xhci-hcd.o
 VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
 EXPECTED_PREVIOUS_C_BLOB=98fbf396c10ec16cebc0ee6e3997f5bc0788bd15
@@ -617,7 +621,7 @@ make -C "$KERNEL_WORKTREE" "${make_args[@]}" olddefconfig \
 grep -Fq 'CONFIG_MODVERSIONS=y' "$OUT_DIR/.config"
 grep -Fq 'CONFIG_USB_XHCI_HCD=y' "$OUT_DIR/.config"
 cp "$OUT_DIR/.config" "$DIAG/resolved.config"
-make -C "$KERNEL_WORKTREE" -j4 V=0 "${make_args[@]}" "$TARGET_OBJECT" \
+make -C "$KERNEL_WORKTREE" -j4 V=0 "${make_args[@]}" "$TARGET_DIRECTORY" \
   2>&1 | tee "$DIAG/targeted-compile.log"
 test -s "$OUT_DIR/$TARGET_OBJECT"
 test -s "$OUT_DIR/drivers/usb/host/xhci.o"
@@ -633,6 +637,7 @@ fi
 {
   echo 'result=PASS'
   echo "source_commit=$SOURCE_COMMIT"
+  echo "target_directory=$TARGET_DIRECTORY"
   echo "target_object=$TARGET_OBJECT"
   echo 'xhci_enabled=yes'
   echo 'android_safety_sequences=7'
