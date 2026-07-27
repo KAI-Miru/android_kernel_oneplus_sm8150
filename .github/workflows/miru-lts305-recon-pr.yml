@@ -1,0 +1,45 @@
+name: Miru H.40 4.14.305 draft reconnaissance
+
+on:
+  pull_request:
+    branches:
+      - miru-h40
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: read
+
+jobs:
+  verify-and-preview:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout exact integration head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify objects and preserve authentic preview
+        shell: bash
+        env:
+          EXPECTED_PARENT: a6a68995ea4d5cfdb1ac1c65204e2b2797d53eaa
+        run: bash scripts/miru/lts305_recon_preview.sh
+
+      - name: Upload reconnaissance artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-lts305-recon-${{ github.run_id }}
+          path: |
+            lts305-recon
+            miru-lts305-recon.tar.gz
+            miru-lts305-recon.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 14
