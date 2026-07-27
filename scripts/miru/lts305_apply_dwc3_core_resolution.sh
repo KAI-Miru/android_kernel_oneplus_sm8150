@@ -48,8 +48,8 @@ git show --format= --unified=0 "${TARGET_PHY_COMMIT}" -- "${OWNED_PATH}" \
   > "${DIAG}/target-phy-disable.patch"
 grep -Fq -- $'-\tusb_phy_shutdown(dwc->usb2_phy);' "${DIAG}/target-phy-disable.patch"
 grep -Fq $'+\tusb_phy_shutdown(dwc->usb2_phy);' "${DIAG}/target-phy-disable.patch"
-grep -Fq -- $'-\tphy_power_off(dwc->usb2_generic_phy);' "${DIAG}/target-phy-disable.patch"
-grep -Fq $'+\tphy_power_off(dwc->usb2_generic_phy);' "${DIAG}/target-phy-disable.patch"
+grep -Fq -- $'-\tphy_exit(dwc->usb2_generic_phy);' "${DIAG}/target-phy-disable.patch"
+grep -Fq $'+\tphy_exit(dwc->usb2_generic_phy);' "${DIAG}/target-phy-disable.patch"
 TARGET_DWC3_COMMITS=("${TARGET_ULPI_COMMIT}" "${TARGET_PHY_COMMIT}")
 for sha in "${TARGET_DWC3_COMMITS[@]}"; do
   git merge-base --is-ancestor "${sha}" "${TARGET_COMMIT}"
