@@ -551,7 +551,8 @@ Kernel and module outputs:
 
 - Owning source commit: `9a2b86edaa5e60488d29808a7fc89750f52213e5`.
 - Owned path: `drivers/usb/core/quirks.c`.
-- Relevant Android Common commits: `a85bffde5c01d0eed902e5cd8f14b8f57876fbbd,6ae382fd0253557a4d8baffc40295a8dc7ea417b,97a1b90db590b509c8c77f94734c324789dc71bf,ff4f627eb1694a27443913879797deac8fb8ff6e,ff4f627eb1694a27443913879797deac8fb8ff6e`, all target-reachable from `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
+- Relevant Android Common commits: `a85bffde5c01d0eed902e5cd8f14b8f57876fbbd,6ae382fd0253557a4d8baffc40295a8dc7ea417b,97a1b90db590b509c8c77f94734c324789dc71bf,ff4f627eb1694a27443913879797deac8fb8ff6e,bf9c3fa38cc0e40584f9f85b3dc439ac5cb791d3`, all target-reachable from `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
+- Provenance verification: each listed device marker was checked as an added line in its own target-reachable commit.
 - Android behavior imported: add NO_LPM, RESET_RESUME, and CONFIG_INTF_STRINGS quirks for the Realforce keyboard, NVIDIA Jetson recovery devices, Realtek multicard reader, Dell Gen2 device, and VCOM device.
 - Downstream intent retained: Miru's duplicate Kingston DataTraveler entry remains twice and its Galaxy MTP no-LPM entry remains once, in their original scaffold order.
 - Semantic decision: take a non-overlapping union of all four Android insertion blocks; preserve all pre-existing Miru quirk-table entries byte-for-byte.
