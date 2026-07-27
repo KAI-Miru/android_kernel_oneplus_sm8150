@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **30**
-- Remaining semantic conflicts: **3**
+- Semantically resolved conflicts: **33**
+- Remaining semantic conflicts: **0**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -238,9 +238,9 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 27 | `kernel/exit.c` | task exit / oops handling | index-resolved in scaffold | resolved | `6f9a178101753ca7e5dab46d963609d34ea2cc23` | targeted compile PASS | clean reversal PASS |
 | 28 | `kernel/panic.c` | panic/warn accounting | index-resolved in scaffold | resolved | `6f9a178101753ca7e5dab46d963609d34ea2cc23` | targeted compile PASS | clean reversal PASS |
 | 29 | `lib/Makefile` | library build composition | index-resolved in scaffold | resolved | `47a4987038f558d655dc83145d5e01ed1fd4f4ac` | lib archive PASS | clean reversal PASS |
-| 30 | `mm/memory.c` | page fault / memory core | index-resolved in scaffold | unresolved | — | — | — |
-| 31 | `net/ipv4/tcp_output.c` | IPv4 TCP output | index-resolved in scaffold | unresolved | — | — | — |
-| 32 | `net/ipv6/ip6_output.c` | IPv6 output / fragmentation | index-resolved in scaffold | unresolved | — | — | — |
+| 30 | `mm/memory.c` | page fault / memory core | index-resolved in scaffold | resolved | `e524813ff07ae26098c1fe9ece87504aed28ffb7` | compile deferred by request | clean reversal PASS |
+| 31 | `net/ipv4/tcp_output.c` | IPv4 TCP output | index-resolved in scaffold | resolved | `ff5cddfef73c86f16decff679b8cb9f977ce2c13` | compile deferred by request | clean reversal PASS |
+| 32 | `net/ipv6/ip6_output.c` | IPv6 output / fragmentation | index-resolved in scaffold | resolved | `db132652ece797c45d368938ca127b6a8e3e366e` | compile deferred by request | clean reversal PASS |
 | 33 | `net/netfilter/nf_conntrack_irc.c` | IRC conntrack parsing | index-resolved in scaffold | resolved | `79cda4424b7fb203bfe57404eefd27392d1b5fcc` | nf_conntrack_irc.o PASS | clean reversal PASS |
 
 Clean merges and future clean-merge corrections do not increase this authentic
@@ -662,3 +662,41 @@ Kernel and module outputs:
 - Android IRC safety and downstream-preservation gates: **PASS**.
 - Clean reversal: **PASS**; reverting `79cda4424b7fb203bfe57404eefd27392d1b5fcc` restored `net/netfilter/nf_conntrack_irc.c` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
 - Validation workflow run: `30276715839`.
+
+
+### Memory-core fault, zap and page-table lifetime union
+
+- Owning source commit: `e524813ff07ae26098c1fe9ece87504aed28ffb7`.
+- Owned path: `mm/memory.c`.
+- Android behavior imported: page-table synchronization for khugepaged/GUP-fast safety; correct swap and migration-entry zapping; exclusive anonymous-page reuse checks with the page unlocked before PTE reuse; recoverable clean hwpoison-page invalidation; and huge-page destination cache flushing.
+- Downstream behavior retained: Miru speculative-page-fault VMA snapshots, `pte_map_lock()` validation, page-fault tracepoints, cooperative zap rescheduling and all Qualcomm/OPlus memory extensions outside the target changes.
+- Semantic decision: apply the Android safety rules to Miru's newer speculative-fault topology rather than replacing the downstream file with the shorter Android target.
+- Source behavior gates: **PASS**.
+- Clean reversal: **PASS** to the exact pre-resolution integration tree.
+- Audited source patch SHA-256: `95786b1030650a59b6d26f2b643936e60e234cceea1aff9c32de8dcaafba69dd`.
+- Compilation: **not performed at maintainer request**.
+
+### TCP output correctness and OPlus network-power union
+
+- Owning source commit: `ff5cddfef73c86f16decff679b8cb9f977ce2c13`.
+- Owned path: `net/ipv4/tcp_output.c`.
+- Android behavior imported: output-path `tcp_check_space()` notification, corrected cwnd-utilization tracking, race-safe PMTU sysctl reads, retransmission fitting to a shrunken receive window, correct forced-memory accounting, Fast Open MSS-cache synchronization and process-context-safe SYNACK statistics.
+- Downstream behavior retained: OPlus modem network-power output and SYN-retransmission hooks, socket PID/UID attribution and downstream pacing-shift behavior.
+- Semantic decision: insert each independent Android safety fix around the existing OPlus instrumentation without moving or weakening the instrumentation hooks.
+- Clean companion API gates: **PASS** for `tcp_check_space()` and `cwnd_usage_seq`.
+- Source behavior gates: **PASS**.
+- Clean reversal: **PASS** to the exact pre-resolution integration tree.
+- Audited source patch SHA-256: `03e1bd91168d4ce057f67967c7a8ebed9b10e4b79fce73642eafb9031f892430`.
+- Compilation: **not performed at maintainer request**.
+
+### IPv6 fragmentation, XFRM MTU and UDP GSO union
+
+- Owning source commit: `db132652ece797c45d368938ca127b6a8e3e366e`.
+- Owned path: `net/ipv6/ip6_output.c`.
+- Android behavior imported: hold RCU protection across fast-path fragment output and statistics, remove the blanket sub-1280 XFRM rejection, and reject fragment-size underflow/equality cases before calculating payload capacity.
+- Downstream behavior retained: Miru UDP GSO cork sizing, paged payload construction, reusable caller-owned cork object and XFRM route-MTU selection.
+- Semantic decision: use precise Android underflow guards while preserving Miru's GSO data path; the obsolete blanket MTU rejection is removed for both tunnel and non-tunnel routes.
+- Source behavior gates: **PASS**.
+- Clean reversal: **PASS** to the exact pre-resolution integration tree.
+- Audited source patch SHA-256: `96e49c8f5eb311d484f59e6b1853d16611ccf607d4c31b809ec575df6b670e57`.
+- Compilation: **not performed at maintainer request**.
