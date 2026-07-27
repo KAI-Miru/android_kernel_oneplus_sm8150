@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **7**
-- Remaining semantic conflicts: **26**
+- Semantically resolved conflicts: **9**
+- Remaining semantic conflicts: **24**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -235,8 +235,8 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 24 | `include/net/netfilter/nf_queue.h` | netfilter queue API | index-resolved in scaffold | unresolved | — | — | — |
 | 25 | `include/net/sock.h` | socket core API | index-resolved in scaffold | unresolved | — | — | — |
 | 26 | `include/uapi/linux/virtio_ids.h` | Virtio UAPI IDs | index-resolved in scaffold | unresolved | — | — | — |
-| 27 | `kernel/exit.c` | task exit / oops handling | index-resolved in scaffold | unresolved | — | — | — |
-| 28 | `kernel/panic.c` | panic/warn accounting | index-resolved in scaffold | unresolved | — | — | — |
+| 27 | `kernel/exit.c` | task exit / oops handling | index-resolved in scaffold | resolved | `6f9a178101753ca7e5dab46d963609d34ea2cc23` | targeted compile PASS | clean reversal PASS |
+| 28 | `kernel/panic.c` | panic/warn accounting | index-resolved in scaffold | resolved | `6f9a178101753ca7e5dab46d963609d34ea2cc23` | targeted compile PASS | clean reversal PASS |
 | 29 | `lib/Makefile` | library build composition | index-resolved in scaffold | unresolved | — | — | — |
 | 30 | `mm/memory.c` | page fault / memory core | index-resolved in scaffold | unresolved | — | — | — |
 | 31 | `net/ipv4/tcp_output.c` | IPv4 TCP output | index-resolved in scaffold | unresolved | — | — | — |
@@ -355,7 +355,23 @@ Kernel and module outputs:
 - Downstream intent retained: Cortex-A76 erratum 1286807; Qualcomm Kryo CPU identifiers and the Kryo-4G erratum 1188873 range; `arch_read_machine_name()`; boot-reason/cold-boot interfaces; the downstream early memblock reservation diagnostic; memory-hotplug and mapping behavior outside the conflict hunks.
 - Android behavior imported: the complete timer out-of-line workaround for erratum 1188873 with `COMPAT` dependency; Spectre-BHB capability numbering and mitigation registration; erratum 1742098 COMPAT AES masking; current ARM part identifiers; multi-page trampoline-compatible MMU layout; and the FDT read-write early scan followed by read-only remapping.
 - Semantic decision: take a strict union where identifiers and mitigations are independent, retain Qualcomm-specific ranges, and migrate downstream early-FDT users to the target `fixmap_remap_fdt(dt_phys, &size, prot)` API. The obsolete one-argument MMU wrapper is removed because all remaining callers use the cleanly merged size/protection interface.
-- Audited source patch SHA-256: `220fa976b3bbef9230ea690244b2900795516923398389bff5b8a0cf2fa06038`.
+- Audited source patch SHA-256: `9e81960bc6b5eff4b6ac9fa108f5ae96a3d22e862cfaa62bbc097746d440f2c6`.
 - Targeted compilation: **PASS** for `arch/arm64/kernel/setup.o`, `arch/arm64/kernel/cpu_errata.o`, `arch/arm64/kernel/cpufeature.o`, `arch/arm64/kernel/entry.o`, and `arch/arm64/mm/mmu.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
 - Clean reversal: **PASS**; reverting `8633007f8d97174821bd9f200aa675e50e4bd9f2` in a disposable worktree restored all seven owned paths exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`.
 - Validation workflow run: `30237605611`.
+
+- Validation artifact: run `30237605611`, artifact `8642205498`, digest `sha256:afae78d8aaed42e59eb08d92362b7f8740f609e9ce4903f85ce3e639c09b26f2`, size `20433` bytes.
+- Canonical patch serialization: `git diff --binary --full-index`; artifact patch SHA-256 `9e81960bc6b5eff4b6ac9fa108f5ae96a3d22e862cfaa62bbc097746d440f2c6`.
+
+### Task-exit and panic/warn hardening
+
+- Owning source commit: `6f9a178101753ca7e5dab46d963609d34ea2cc23`
+- Owned paths: `kernel/exit.c`, `kernel/panic.c`.
+- Relevant Android Common commits: `5eded74b4928860a7d75928c4842b103e02c0853`, `53aca559a2a58025012ea2d9ff69259a0ae582b2`, `784bf591aebdf26e3b08c03a48d6b91dd052e83b`, `2ba1ec154608abb51c4b588542f903ca51db6fe7`, `4ba2f65e6f48e08d8888efb2c14be1f315ee25e6`, `3bd9e479d3bd1a11a5b4f640627413ef6c0db30a`, `a83bcc5fc4e93b76d225981d83d22dbfe353dbd8`, `f86706f4580f141e5ad7812559cbd03b4618f9f1`, and `11bece14153cd05b9e823d6452f2483003150d0a`.
+- Downstream intent retained: virtual-reserve-memory task-exit integration; Qualcomm minidump and panic tracepoints; panic-time device-cache flush; download-mode gating; and OPlus aging-test dump-reason persistence.
+- Android behavior imported: `make_task_dead()`, bounded oops and warning counters, disable-able `oops_limit`, `warn_limit`, sysctl/sysfs exposure, `READ_ONCE()` limit reads, consolidated `check_panic_on_warn()`, and panic-path reset of `panic_on_warn`.
+- Semantic decision: strict union of independent platform diagnostics with the upstream repeated-oops/repeated-warning hardening. The generic counters and limits do not replace or bypass Miru crash collection.
+- Audited source patch SHA-256: `1c719cf6207dd2e93928710e6420b3d812ac7b124655151173ebcc1b63733446` using `git diff --binary --full-index`.
+- Targeted compilation: **PASS** for `kernel/exit.o` and `kernel/panic.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Clean reversal: **PASS**; reverting `6f9a178101753ca7e5dab46d963609d34ea2cc23` restored both owned paths exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515`.
+- Validation workflow run: `30238384152`.
