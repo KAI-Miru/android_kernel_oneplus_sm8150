@@ -14,7 +14,8 @@ OWNED_PATH=lib/Makefile
 # Top-level Kbuild exposes the lib directory as a build goal; its archive is
 # produced beneath that goal but is not itself a top-level make target.
 TARGET_GOAL=lib
-TARGET_ARCHIVE=lib/built-in.a
+TARGET_BUILTIN=lib/built-in.o
+CRYPTO_BUILTIN=lib/crypto/built-in.o
 VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
 EXPECTED_BASE_BLOB=e16cd469e5f379e9d18d8aa489d9082bbf24c762
 EXPECTED_SCAFFOLD_BLOB=f5125f285da3e82072c127cfe250abaadf5676e9
@@ -266,11 +267,11 @@ grep -Fq 'CONFIG_MODVERSIONS=y' "${OUT_DIR}/.config"
 cp "${OUT_DIR}/.config" "${DIAG}/resolved.config"
 make -C "${KERNEL_WORKTREE}" -j4 V=0 "${make_args[@]}" "${TARGET_GOAL}" drivers/char/random.o \
   2>&1 | tee "${DIAG}/targeted-compile.log"
-test -s "${OUT_DIR}/${TARGET_ARCHIVE}"
+test -s "${OUT_DIR}/${TARGET_BUILTIN}"
 test -s "${OUT_DIR}/lib/crypto/libblake2s.o"
-test -s "${OUT_DIR}/lib/crypto/built-in.a"
+test -s "${OUT_DIR}/${CRYPTO_BUILTIN}"
 test -s "${OUT_DIR}/drivers/char/random.o"
-ar t "${OUT_DIR}/lib/crypto/built-in.a" > "${DIAG}/crypto-built-in-members.txt"
+ar t "${OUT_DIR}/${CRYPTO_BUILTIN}" > "${DIAG}/crypto-built-in-members.txt"
 grep -Fq 'libblake2s.o' "${DIAG}/crypto-built-in-members.txt"
 if grep -nE '(^|[[:space:]])(warning|error):' \
     "${DIAG}/olddefconfig.log" "${DIAG}/targeted-compile.log" \
@@ -284,7 +285,8 @@ fi
   echo "result=PASS"
   echo "source_commit=${SOURCE_COMMIT}"
   echo "target_goal=${TARGET_GOAL}"
-  echo "target_archive=${TARGET_ARCHIVE}"
+  echo "target_builtin=${TARGET_BUILTIN}"
+  echo "crypto_builtin=${CRYPTO_BUILTIN}"
   echo "makefile_parse=olddefconfig PASS"
   echo "crypto_subdirectory_built=yes"
   echo "independent_consumer_object=drivers/char/random.o"
@@ -356,7 +358,7 @@ record = f"""
 - Semantic decision: take an explicit three-way union. Insert only `obj-y += crypto/` after the common `PARMAN` entry; preserve all Miru instrumentation lines byte-for-byte and retain the cleanly merged `lib/crypto/Makefile` blob.
 - Scaffold blob: `{os.environ['EXPECTED_SCAFFOLD_BLOB']}`. Target blob: `{os.environ['EXPECTED_TARGET_BLOB']}`. Clean crypto Makefile blob: `{os.environ['EXPECTED_CRYPTO_MAKEFILE_BLOB']}`.
 - Audited source patch SHA-256: `{os.environ['PATCH_SHA']}` using `git diff --binary --full-index`.
-- Build-graph validation: **PASS** via the pinned H.40 stock configuration and `lib/built-in.a`; the crypto child archive and `libblake2s.o` were produced.
+- Build-graph validation: **PASS** via the pinned H.40 stock configuration and `lib/built-in.o`; the crypto child archive and `libblake2s.o` were produced.
 - Consumer compilation: **PASS** for `drivers/char/random.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
 - Downstream instrumentation and crypto-directory identity gates: **PASS**.
 - Clean reversal: **PASS**; reverting `{source}` restored `lib/Makefile` exactly to scaffold `{os.environ['SCAFFOLD']}`, preserved the clean crypto Makefile blob and restored the complete pre-resolution integration tree.
