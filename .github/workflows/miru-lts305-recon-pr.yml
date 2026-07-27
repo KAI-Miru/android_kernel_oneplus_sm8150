@@ -1,5 +1,5 @@
-# Trigger guarded USB quirk validation (retry 3).
-name: Miru H.40 4.14.305 USB quirks resolution
+# Trigger guarded FunctionFS validation after helper installation.
+name: Miru H.40 4.14.305 FunctionFS lifetime resolution
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   statuses: write
 
 jobs:
-  resolve-usb-quirks:
+  resolve-functionfs:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
@@ -23,13 +23,13 @@ jobs:
 
       - name: Resolve, validate, reverse, document and guarded-push
         shell: bash
-        run: bash scripts/miru/lts305_apply_usb_quirks_resolution.sh
+        run: bash scripts/miru/lts305_apply_functionfs_resolution.sh
 
-      - name: Upload USB quirks resolution diagnostics
+      - name: Upload FunctionFS resolution diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-lts305-usb-quirks-resolution-${{ github.run_id }}
-          path: lts305-usb-quirks-resolution
+          name: miru-lts305-functionfs-resolution-${{ github.run_id }}
+          path: lts305-functionfs-resolution
           if-no-files-found: error
           retention-days: 14
