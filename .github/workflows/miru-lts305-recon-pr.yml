@@ -1,5 +1,5 @@
 # Push-only helper; never target production through a pull request.
-# Guarded virtio mac80211-hwsim ID validation is staged but not launched.
+# Launching guarded virtio mac80211-hwsim ID validation.
 name: Miru H.40 4.14.305 virtio ID resolution
 
 on:
