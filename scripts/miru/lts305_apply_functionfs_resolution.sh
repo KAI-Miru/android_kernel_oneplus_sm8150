@@ -318,7 +318,7 @@ printf '%s  %s\n' \
   6618ecab73b79a70b79263d2f477f669e564d81ca802112d2e5f93c74c6b22ca \
   "${CLANG_DIR}/bin/clang" | sha256sum -c -
 printf '%s  %s\n' \
-  2a663de4ce3d702fe3d2a0de48cac366be676f850c2f5732d9cc2e4acb9335e2 \
+  2a663de4ce3d702fe3f2a0de48cac366be676f850c2f5732d9cc2e4acb9335e2 \
   "${GCC64_DIR}/bin/aarch64-linux-android-ld" | sha256sum -c -
 printf '%s  %s\n' \
   2f78058a8549bc5c099dbea16d9f3dc571e072b1ade906c3539e419787b502dd \
