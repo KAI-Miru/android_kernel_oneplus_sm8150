@@ -1,4 +1,4 @@
-# Trigger guarded xHCI core/header validation after source helper installation.
+# Retry guarded xHCI core/header validation after baseline-provenance correction.
 name: Miru H.40 4.14.305 xHCI lifecycle and LPM resolution
 
 on:
