@@ -21,8 +21,8 @@ introduced by cleanly merged changes.
 - Authentic merge scaffold: **created and verified**
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
-- Semantically resolved conflicts: **29**
-- Remaining semantic conflicts: **4**
+- Semantically resolved conflicts: **30**
+- Remaining semantic conflicts: **3**
 - Cleanly merged paths in authentic preview: **2067**
 - Full kernel build: **not performed**
 - External-module build: **not performed**
@@ -241,7 +241,7 @@ Subsystem labels below are preliminary audit groupings, not final commit groups.
 | 30 | `mm/memory.c` | page fault / memory core | index-resolved in scaffold | unresolved | — | — | — |
 | 31 | `net/ipv4/tcp_output.c` | IPv4 TCP output | index-resolved in scaffold | unresolved | — | — | — |
 | 32 | `net/ipv6/ip6_output.c` | IPv6 output / fragmentation | index-resolved in scaffold | unresolved | — | — | — |
-| 33 | `net/netfilter/nf_conntrack_irc.c` | IRC conntrack parsing | index-resolved in scaffold | unresolved | — | — | — |
+| 33 | `net/netfilter/nf_conntrack_irc.c` | IRC conntrack parsing | index-resolved in scaffold | resolved | `79cda4424b7fb203bfe57404eefd27392d1b5fcc` | nf_conntrack_irc.o PASS | clean reversal PASS |
 
 Clean merges and future clean-merge corrections do not increase this authentic
 conflict count.
@@ -646,3 +646,19 @@ Kernel and module outputs:
 - Android socket-safety and downstream-preservation gates: **PASS**.
 - Clean reversal: **PASS**; reverting `78cd6e970789a247c91e72c8505d06b384e0e207` restored `include/net/sock.h` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
 - Validation workflow run: `30274749493`.
+
+### IRC DCC parser safety union
+
+- Owning source commit: `79cda4424b7fb203bfe57404eefd27392d1b5fcc`.
+- Owned path: `net/netfilter/nf_conntrack_irc.c`.
+- Relevant Android Common commits: `dbd64cf46c8a1fd1970e7ab3ac381981e82d26c6,6ce66e3442a5989cbe56a6884384bf0b7d1d0725`, all target-reachable from `4415bf5e08942aee6487946a3e0a50956ef68f1e`.
+- Provenance verification: dcc-message-framing	dbd64cf46c8a1fd1970e7ab3ac381981e82d26c6;dcc-tuple-port-validation	6ce66e3442a5989cbe56a6884384bf0b7d1d0725; each imported parser and validation marker was checked as an exact added line in its target-reachable diff.
+- Android behavior imported: restrict DCC recognition to the IRC message framing, skip leading whitespace, require the accepted `PRIVMSG` form when present, validate the peer tuple, and reject DCC port zero before creating an expectation.
+- Downstream intent retained: Miru's IRC client list, nickname and MOTD transitions, client disconnect handling, and NAT mangle policy remain present. The parser passes the already-validated nickname position to the unchanged downstream mangle helper.
+- Semantic decision: apply Android's DCC parsing safety checks before downstream expectation and NAT policy; all client-tracking helpers are byte-preserved.
+- Scaffold blob: `b637e37bb85f35224f1b3ef452c30fa378d5e64f`. Target blob: `27e2f9785e5f4f2cc6ba1459ab0e425811b96165`.
+- Audited source patch SHA-256: `8f7ba66abd60c72b014bf05d5acb12e0f9654e2209555c786850686a403163b9` using `git diff --binary --full-index`.
+- Targeted compilation: **PASS** for `net/netfilter/nf_conntrack_irc.o` using the pinned H.40 toolchain and stock configuration. Diagnostics were clean.
+- Android IRC safety and downstream-preservation gates: **PASS**.
+- Clean reversal: **PASS**; reverting `79cda4424b7fb203bfe57404eefd27392d1b5fcc` restored `net/netfilter/nf_conntrack_irc.c` exactly to scaffold `b92a77e96dd54fd30f8f39c7eef23e76f211c515` and restored the complete pre-resolution integration tree.
+- Validation workflow run: `30276715839`.
