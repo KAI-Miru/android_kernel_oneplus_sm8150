@@ -60,20 +60,119 @@ downgrade_rc=$?
 set -e
 git -C "${ref_wt}" diff --name-only --diff-filter=U | sort -u \
   > "${EVIDENCE}/source-downgrade-conflicts.txt"
-if [ "${downgrade_rc}" -ne 0 ] || [ -s "${EVIDENCE}/source-downgrade-conflicts.txt" ]; then
-  {
-    echo result=FAIL
-    echo stage=source-291-to-287-downgrade
-    echo "downgrade_rc=${downgrade_rc}"
-    echo "conflict_count=$(wc -l < "${EVIDENCE}/source-downgrade-conflicts.txt")"
-  } | tee "${EVIDENCE}/SUMMARY.txt"
-  cat "${EVIDENCE}/source-downgrade-conflicts.txt" >&2
-  exit 1
-fi
+cat > "${EVIDENCE}/expected-source-downgrade-conflicts.txt" <<'EOF'
+drivers/usb/host/xhci.c
+drivers/usb/host/xhci.h
+net/ipv4/tcp_output.c
+EOF
+test "${downgrade_rc}" = 1
+diff -u "${EVIDENCE}/expected-source-downgrade-conflicts.txt" \
+  "${EVIDENCE}/source-downgrade-conflicts.txt"
 
+# Retain Miru/Qualcomm vendor code in the three overlap files, then remove only
+# the Linux 4.14.288-4.14.291 semantic changes.
+git -C "${ref_wt}" checkout --ours -- \
+  drivers/usb/host/xhci.c drivers/usb/host/xhci.h net/ipv4/tcp_output.c
+
+python3 - "${ref_wt}/drivers/usb/host/xhci.c" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+
+def one(old, new):
+    global s
+    if s.count(old) != 1:
+        raise SystemExit(f'unexpected xhci.c replacement count {s.count(old)} for {old!r}')
+    s = s.replace(old, new, 1)
+
+one('int xhci_handshake(void __iomem *ptr, u32 mask, u32 done, u64 timeout_us)',
+    'int xhci_handshake(void __iomem *ptr, u32 mask, u32 done, int usec)')
+one('\t\t\t\t\t1, timeout_us);', '\t\t\t\t\t1, usec);')
+one('int xhci_reset(struct xhci_hcd *xhci, u64 timeout_us)',
+    'int xhci_reset(struct xhci_hcd *xhci)')
+one('\tret = xhci_handshake_check_state(xhci, &xhci->op_regs->command,\n\t\t\tCMD_RESET, 0, timeout_us);',
+    '\tret = xhci_handshake_check_state(xhci, &xhci->op_regs->command,\n\t\t\tCMD_RESET, 0, 10 * 1000 * 1000);')
+one('\tret = xhci_handshake(&xhci->op_regs->status,\n\t\t\tSTS_CNR, 0, timeout_us);',
+    '\tret = xhci_handshake(&xhci->op_regs->status,\n\t\t\tSTS_CNR, 0, 10 * 1000 * 1000);')
+if s.count('\txhci_reset(xhci, XHCI_RESET_SHORT_USEC);') != 2:
+    raise SystemExit('unexpected short-reset call count')
+s = s.replace('\txhci_reset(xhci, XHCI_RESET_SHORT_USEC);', '\txhci_reset(xhci);')
+if s.count('retval = xhci_reset(xhci, XHCI_RESET_LONG_USEC);') != 2:
+    raise SystemExit('unexpected long-reset call count')
+s = s.replace('retval = xhci_reset(xhci, XHCI_RESET_LONG_USEC);',
+              'retval = xhci_reset(xhci);')
+one('\t\tretval = xhci_reset(xhci);\n\t\tspin_unlock_irq(&xhci->lock);\n\t\tif (retval)\n\t\t\treturn retval;',
+    '\t\txhci_reset(xhci);\n\t\tspin_unlock_irq(&xhci->lock);')
+p.write_text(s)
+PY
+
+python3 - "${ref_wt}/drivers/usb/host/xhci.h" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+
+def one(old, new):
+    global s
+    if s.count(old) != 1:
+        raise SystemExit(f'unexpected xhci.h replacement count {s.count(old)} for {old!r}')
+    s = s.replace(old, new, 1)
+
+one('#define XHCI_RESET_LONG_USEC\t\t(10 * 1000 * 1000)\n#define XHCI_RESET_SHORT_USEC\t\t(250 * 1000)\n\n', '')
+one('int xhci_handshake(void __iomem *ptr, u32 mask, u32 done, u64 timeout_us);',
+    'int xhci_handshake(void __iomem *ptr, u32 mask, u32 done, int usec);')
+one('int xhci_reset(struct xhci_hcd *xhci, u64 timeout_us);',
+    'int xhci_reset(struct xhci_hcd *xhci);')
+p.write_text(s)
+PY
+
+python3 - "${ref_wt}/net/ipv4/tcp_output.c" <<'PY'
+from pathlib import Path
+import sys
+p = Path(sys.argv[1])
+s = p.read_text()
+
+def one(old, new):
+    global s
+    if s.count(old) != 1:
+        raise SystemExit(f'unexpected tcp_output.c replacement count {s.count(old)} for {old!r}')
+    s = s.replace(old, new, 1)
+
+one('interval = READ_ONCE(net->ipv4.sysctl_tcp_probe_interval);',
+    'interval = net->ipv4.sysctl_tcp_probe_interval;')
+one('interval < READ_ONCE(net->ipv4.sysctl_tcp_probe_threshold)',
+    'interval < net->ipv4.sysctl_tcp_probe_threshold')
+one('\tint avail_wnd;\n', '')
+one('\tavail_wnd = tcp_wnd_end(tp) - TCP_SKB_CB(skb)->seq;\n\n', '')
+one('our retransmit of one segment serves as a zero window probe.',
+    'our retransmit serves as a zero window probe.')
+one('\tif (avail_wnd <= 0) {\n\t\tif (TCP_SKB_CB(skb)->seq != tp->snd_una)\n\t\t\treturn -EAGAIN;\n\t\tavail_wnd = cur_mss;\n\t}\n',
+    '\tif (!before(TCP_SKB_CB(skb)->seq, tcp_wnd_end(tp)) &&\n\t    TCP_SKB_CB(skb)->seq != tp->snd_una)\n\t\treturn -EAGAIN;\n')
+one('\tlen = cur_mss * segs;\n\tif (len > avail_wnd) {\n\t\tlen = rounddown(avail_wnd, cur_mss);\n\t\tif (!len)\n\t\t\tlen = avail_wnd;\n\t}\n',
+    '\tlen = cur_mss * segs;\n')
+one('\t\tavail_wnd = min_t(int, avail_wnd, cur_mss);\n\t\tif (skb->len < avail_wnd)\n\t\t\ttcp_retrans_try_collapse(sk, skb, avail_wnd);',
+    '\t\tif (skb->len < cur_mss)\n\t\t\ttcp_retrans_try_collapse(sk, skb, cur_mss);')
+one('\tint delta, amt;\n\n\tdelta = size - sk->sk_forward_alloc;\n\tif (delta <= 0)\n\t\treturn;\n\tamt = sk_mem_pages(delta);',
+    '\tint amt;\n\n\tif (size <= sk->sk_forward_alloc)\n\t\treturn;\n\tamt = sk_mem_pages(size);')
+p.write_text(s)
+PY
+
+git -C "${ref_wt}" add -- \
+  drivers/usb/host/xhci.c drivers/usb/host/xhci.h net/ipv4/tcp_output.c
+
+test -z "$(git -C "${ref_wt}" diff --name-only --diff-filter=U)"
 test -z "$(git -C "${ref_wt}" ls-files -u)"
 git -C "${ref_wt}" diff --check --cached
 test "$(sed -n 's/^SUBLEVEL = //p' "${ref_wt}/Makefile" | head -n1)" = 287
+! grep -Fq 'XHCI_RESET_LONG_USEC' "${ref_wt}/drivers/usb/host/xhci.h"
+! grep -Fq 'XHCI_RESET_SHORT_USEC' "${ref_wt}/drivers/usb/host/xhci.h"
+grep -Fq 'xhci_handshake_check_state(xhci, &xhci->op_regs->command' \
+  "${ref_wt}/drivers/usb/host/xhci.c"
+! grep -Fq 'READ_ONCE(net->ipv4.sysctl_tcp_probe_' \
+  "${ref_wt}/net/ipv4/tcp_output.c"
+! grep -Fq 'avail_wnd' "${ref_wt}/net/ipv4/tcp_output.c"
+grep -Fq 'OPLUS_FEATURE_MODEM_DATA_NWPOWER' "${ref_wt}/net/ipv4/tcp_output.c"
 
 # Perform the real merge from the phone-confirmed 4.14.283 source scaffold.
 git worktree add --detach "${merge_wt}" "${SCAFFOLD_283_SHA}"
@@ -172,6 +271,9 @@ git -C "${merge_wt}" diff-tree --no-commit-id --name-only -r \
   echo "fdt_blob=$(git -C "${merge_wt}" hash-object drivers/of/fdt.c)"
   echo "vsprintf_blob=$(git -C "${merge_wt}" hash-object lib/vsprintf.c)"
   echo "chacha_header_blob=$(git -C "${merge_wt}" hash-object include/crypto/chacha.h)"
+  echo "xhci_c_blob=$(git -C "${merge_wt}" hash-object drivers/usb/host/xhci.c)"
+  echo "xhci_h_blob=$(git -C "${merge_wt}" hash-object drivers/usb/host/xhci.h)"
+  echo "tcp_output_blob=$(git -C "${merge_wt}" hash-object net/ipv4/tcp_output.c)"
   echo raw_extcon_blob=$(git -C "${merge_wt}" hash-object drivers/extcon/extcon.c)
   echo early_random_blob=$(git -C "${merge_wt}" hash-object drivers/soc/qcom/early_random.c)
 } | tee "${EVIDENCE}/SUMMARY.txt"
