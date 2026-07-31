@@ -80,3 +80,5 @@ jobs:
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git commit -m "ci: prevent duplicate diag27 PR builds"
           git push origin HEAD:miru-h40-lts287-rng-earlyboot-fix-diag27
+
+# idempotent repair retrigger
