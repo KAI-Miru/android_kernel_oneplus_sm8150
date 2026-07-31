@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Keep the already-reviewed module-only implementation immutable, then apply the
-# narrowly-scoped audit correction in the CI worktree before executing it.
+# Execute the already-reviewed module-only implementation while replacing only
+# its invalid post-modpost Module.symvers comparison. Individual module targets
+# rewrite Module.symvers, so the exact full-kernel ABI file must be restored
+# before external modules are built.
 BASE_SCRIPT_COMMIT=96f00c1339b5f4731f610f1dcde5b8f6639c3fb2
 SCRIPT_PATH=scripts/miru/ci_build_modules_4.14.283.sh
 PATCHED_SCRIPT="${RUNNER_TEMP:?RUNNER_TEMP is required}/ci_build_modules_4.14.283.patched.sh"
@@ -21,32 +23,11 @@ end_marker = '''\n\n"${KERNEL_DIR}/scripts/diffconfig"'''
 
 start = text.index(start_marker)
 end = text.index(end_marker, start)
-replacement = r'''python3 - "${REPORT_DIR}/Module.symvers.kernel-abi" "${OUT_DIR}/Module.symvers" \
-  "${REPORT_DIR}/Module.symvers-extension-report.txt" <<'PY'
-from pathlib import Path
-import hashlib
-import sys
-
-prior_path, current_path, report_path = map(Path, sys.argv[1:])
-prior = prior_path.read_text().splitlines()
-current = current_path.read_text().splitlines()
-missing = sorted(set(prior) - set(current))
-extra_count = len(set(current) - set(prior))
-if missing:
-    report_path.write_text(
-        f'prior_entries={len(prior)}\ncurrent_entries={len(current)}\n'
-        f'missing_entries={len(missing)}\nextra_entries={extra_count}\n'
-        + '\n[MISSING]\n' + '\n'.join(missing) + '\n'
-    )
-    raise SystemExit('original kernel ABI entries were removed or changed')
-report_path.write_text(
-    f'kernel_abi_sha256={hashlib.sha256(prior_path.read_bytes()).hexdigest()}\n'
-    f'extended_symvers_sha256={hashlib.sha256(current_path.read_bytes()).hexdigest()}\n'
-    f'prior_entries={len(prior)}\ncurrent_entries={len(current)}\n'
-    f'missing_entries=0\nextra_entries={extra_count}\n'
-    'result=PASS\n'
-)
-PY
+replacement = r'''# Building selected module targets causes modpost to rewrite Module.symvers.
+# Those six modules have no exports in the saved full-kernel ABI file, so keep
+# their .ko outputs but restore the exact verified ABI before vendor DLKMs.
+cp "${PRIOR_SYMVERS}" "${OUT_DIR}/Module.symvers"
+printf '%s  %s\n' "${EXPECTED_SYMVERS_SHA}" "${OUT_DIR}/Module.symvers" | sha256sum -c -
 
 cat > "${REPORT_DIR}/expected-in-tree-modules.txt" <<'EOF'
 drivers/char/rdbg.ko
@@ -60,6 +41,14 @@ find "${OUT_DIR}" -type f -name '*.ko' -printf '%P\n' | sort -u \
   > "${REPORT_DIR}/actual-in-tree-modules.txt"
 cmp -s "${REPORT_DIR}/expected-in-tree-modules.txt" \
   "${REPORT_DIR}/actual-in-tree-modules.txt"
+
+{
+  echo "kernel_abi_sha256=${EXPECTED_SYMVERS_SHA}"
+  echo post_module_symvers_restored=yes
+  echo selected_in_tree_modules=6
+  echo unexpected_in_tree_modules=0
+  echo result=PASS
+} > "${REPORT_DIR}/Module.symvers-extension-report.txt"
 '''
 
 patched = text[:start] + replacement + text[end:]
