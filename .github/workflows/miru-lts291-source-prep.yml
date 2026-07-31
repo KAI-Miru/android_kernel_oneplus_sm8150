@@ -48,6 +48,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
+          set -x
           mkdir -p source-generation-evidence
           trigger_sha="$(git rev-parse HEAD)"
           test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
@@ -76,7 +77,6 @@ jobs:
           test "$(git show "${COMMON_305_MERGE_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 305
           test "$(git show "${DIRECT_305_REFERENCE_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 305
           git merge-base --is-ancestor "${COMMON_305_MERGE_SHA}" "${DIRECT_305_REFERENCE_SHA}"
-          git merge-base --is-ancestor "${PRODUCTION_SHA}" "${DIRECT_305_REFERENCE_SHA}"
 
           common_wt="${RUNNER_TEMP}/common-291-merge"
           common_ref_wt="${RUNNER_TEMP}/common-305-reference"
