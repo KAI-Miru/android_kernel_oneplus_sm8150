@@ -1,245 +1,362 @@
-name: Miru H.40 4.14.269 kernel and external modules
+name: Miru H.40 complete 4.14.287 fully repaired diagnostic
 
 on:
-  push:
-    branches:
-      - miru-h40
   pull_request:
-    branches:
-      - miru-h40
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
-  workflow_dispatch:
+    branches: [miru-h40]
+    types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
   contents: read
 
+concurrency:
+  group: miru-h40-diag26-full287-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 env:
-  PRODUCTION_BASE: 4394ccbfa3805ce392b65b3ea148ff1eb084a974
-  ANDROID_STABLE_TARGET: 0eec6f6001d15bb1108835a642ec4637d75eef19
-  VENDOR_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
-  EXPECTED_RELEASE: 4.14.269-miru-h40-lts269-14d41d8-ci3+
-  MAKEFILE_BUILD_269_BLOB: ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3
+  PRODUCTION_SHA: 61371a1024e341f434deaf61b79a05f73827260a
+  SOURCE_SHA: 705dd8a9d1e74a896a28d1a3efd6ff30fcc4e3b4
+  SCAFFOLD_283_SHA: b581c659db87713eb2df1c29e4f28e337e5e908c
+  STABLE_287_SHA: 1048779a1d7dcf0b5c150188decafa21c19821e4
+  FDT_292_SHA: 3c2ae48eceaa40f1ecb18ba31dda3f6fe755796c
+  SOURCE_VSPRINTF_BLOB: ad1d198627f1c31e0e3135de8f2320a605a58a3f
+  SOURCE_FDT_BLOB: 5e96a55f73b725d0aaf17c1343d380b723238645
+  SOURCE_EXTCON_BLOB: 117da8393690b281f87680bc4ea81b3984f1c24c
+  FIXED_EXTCON_BLOB: 3643c82ca1532c62d5596cff8e05878a4d52543f
+  EARLY_RANDOM_BLOB: c498b09b1b36b6cc9d34a16b08422e9299bc4a02
+  EXPECTED_RELEASE: 4.14.287-miru-h40-diag26-full287-extconfix+
 
 jobs:
-  production-kernel-and-modules:
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.full_name == github.repository
+  kernel-only:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 180
-
     steps:
-      - name: Checkout requested 4.14.269 revision
+      - name: Checkout exact diagnostic head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Verify 4.14.269 source, ancestry, and device fixes
+      - name: Verify repaired source and exact diagnostic delta
         shell: bash
         run: |
           set -Eeuo pipefail
-          git fetch --no-tags --depth=1 origin "${PRODUCTION_BASE}"
-          git fetch --no-tags --depth=1 origin "${ANDROID_STABLE_TARGET}"
-          git merge-base --is-ancestor "${PRODUCTION_BASE}" HEAD
-          git merge-base --is-ancestor "${ANDROID_STABLE_TARGET}" HEAD
-          git diff --check "${PRODUCTION_BASE}" HEAD
+          test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
+          test "$(git ls-remote origin refs/heads/miru-h40-lts287-source-diag26 | awk '{print $1}')" = "${SOURCE_SHA}"
+          git fetch --no-tags origin "${PRODUCTION_SHA}" "${SOURCE_SHA}" "${SCAFFOLD_283_SHA}" "${STABLE_287_SHA}" "${FDT_292_SHA}"
+
+          git merge-base --is-ancestor "${PRODUCTION_SHA}" HEAD
+          git merge-base --is-ancestor "${SOURCE_SHA}" HEAD
+          git merge-base --is-ancestor "${STABLE_287_SHA}" HEAD
+          test "$(git rev-parse "${SOURCE_SHA}^1")" = "${SCAFFOLD_283_SHA}"
+          test "$(git rev-parse "${SOURCE_SHA}^2")" = "${STABLE_287_SHA}"
+          test "$(git show "${SOURCE_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 287
+          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 287
+          ! git merge-base --is-ancestor "${FDT_292_SHA}" "${SOURCE_SHA}"
+          ! git merge-base --is-ancestor "${FDT_292_SHA}" HEAD
+
+          test "$(git show "${SOURCE_SHA}:lib/vsprintf.c" | git hash-object --stdin)" = "${SOURCE_VSPRINTF_BLOB}"
+          test "$(git hash-object lib/vsprintf.c)" = "${SOURCE_VSPRINTF_BLOB}"
+          grep -Fq '#include <linux/random.h>' lib/vsprintf.c
+          grep -Fq '#include <linux/notifier.h>' lib/vsprintf.c
+          grep -Fq 'struct notifier_block random_ready' lib/vsprintf.c
+          grep -Fq 'register_random_ready_notifier(&random_ready)' lib/vsprintf.c
+          ! grep -Fq 'struct random_ready_callback' lib/vsprintf.c
+          ! grep -Fq 'add_random_ready_callback' lib/vsprintf.c
+
+          test "$(git show "${SOURCE_SHA}:drivers/of/fdt.c" | git hash-object --stdin)" = "${SOURCE_FDT_BLOB}"
+          test "$(git hash-object drivers/of/fdt.c)" = "${SOURCE_FDT_BLOB}"
+          grep -Fq 'int of_fdt_get_ddrtype(void)' drivers/of/fdt.c
+          grep -Fq '"ddr_device_type", &len' drivers/of/fdt.c
+          grep -Fq 'extern int of_fdt_get_ddrtype(void);' include/linux/of_fdt.h
+          grep -Fq 'of_fdt_get_ddrtype()' drivers/devfreq/arm-memlat-mon.c
+          grep -Fq 'of_fdt_get_ddrtype()' drivers/devfreq/devfreq_devbw.c
+          grep -Fq 'void *dt_virt = fixmap_remap_fdt(dt_phys);' arch/arm64/kernel/setup.c
+          ! grep -Fq 'fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL)' arch/arm64/kernel/setup.c
+
+          test "$(git show "${SOURCE_SHA}:include/crypto/chacha.h" | git hash-object --stdin)" = 84a04c0845a4b0d14469583b1a7f4f62a3fd157d
+          test "$(git show "${SOURCE_SHA}:drivers/extcon/extcon.c" | git hash-object --stdin)" = "${SOURCE_EXTCON_BLOB}"
+          test "$(git hash-object drivers/extcon/extcon.c)" = "${FIXED_EXTCON_BLOB}"
+          test "$(git hash-object drivers/soc/qcom/early_random.c)" = "${EARLY_RANDOM_BLOB}"
+          ! git show "${SOURCE_SHA}:drivers/soc/qcom/early_random.c" | grep -Fq '#include <linux/random.h>'
+          grep -Fq '#include <linux/random.h>' drivers/soc/qcom/early_random.c
+          grep -Fq 'edev->bnh = kcalloc(edev->max_supported, sizeof(*edev->bnh)' drivers/extcon/extcon.c
+          grep -Fq 'BLOCKING_INIT_NOTIFIER_HEAD(&edev->bnh[index])' drivers/extcon/extcon.c
+          grep -Fq 'kfree(edev->bnh)' drivers/extcon/extcon.c
+
           test -z "$(git ls-files -u)"
-          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = "269"
-          grep -Fq -- '- Semantically resolved conflicts: **22**' Documentation/miru/lts-4.14.269-conflicts.md
-          grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.269-conflicts.md
-          if git grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . \
-              ':!Documentation/miru/lts-4.14.269-conflicts.md' \
-              > source-conflict-markers.txt; then
+          git diff --check "${SOURCE_SHA}" HEAD
+          if git grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . ':!Documentation' ':!.github' ':!scripts/miru' > source-conflict-markers.txt; then
             cat source-conflict-markers.txt
             exit 1
-          else
-            : > source-conflict-markers.txt
           fi
-          qrtr_fn="$(sed -n '/int qrtr_endpoint_post(/,/EXPORT_SYMBOL_GPL(qrtr_endpoint_post);/p' net/qrtr/qrtr.c)"
-          test "$(printf '%s\n' "${qrtr_fn}" | grep -c 'alloc_skb_with_frags(')" = 1
-          test "$(printf '%s\n' "${qrtr_fn}" | grep -c 'qrtr_get_backup(len)')" = 1
-          ! printf '%s\n' "${qrtr_fn}" | grep -Fq '__netdev_alloc_skb(NULL, len'
-          grep -Fq 'qcom_glink_rx_advance(glink, ALIGN(msglen, 8));' drivers/rpmsg/qcom_glink_native.c
-          irq_fn="$(sed -n '/static irqreturn_t qcom_glink_native_intr/,/return IRQ_HANDLED;/p' drivers/rpmsg/qcom_glink_native.c)"
-          ! printf '%s\n' "${irq_fn}" | grep -Fq 'if (ret == -ENOENT)'
+          git diff --name-only "${SOURCE_SHA}" HEAD | sort -u > diagnostic-source-delta.txt
+          printf '%s\n' \
+            .github/workflows/miru-h40-build.yml \
+            drivers/extcon/extcon.c \
+            drivers/soc/qcom/early_random.c \
+            > expected-source-delta.txt
+          cmp -s expected-source-delta.txt diagnostic-source-delta.txt
+
           {
-            echo "result=PASS"
-            echo "source_head=$(git rev-parse HEAD)"
-            echo "production_base=${PRODUCTION_BASE}"
-            echo "android_stable_target=${ANDROID_STABLE_TARGET}"
-            echo "expected_release=${EXPECTED_RELEASE}"
-            echo "qrtr_second_allocation=absent"
-            echo "glink_missing_channel_fifo_advance=present"
-            echo "glink_enoent_normalization=absent"
+            echo result=PASS
+            echo "diagnostic_head=$(git rev-parse HEAD)"
+            echo "production_sha=${PRODUCTION_SHA}"
+            echo "corrected_4.14.287_source=${SOURCE_SHA}"
+            echo "stable_4.14.287=${STABLE_287_SHA}"
+            echo "excluded_4.14.292_fdt=${FDT_292_SHA}"
+            echo "source_vsprintf_blob=${SOURCE_VSPRINTF_BLOB}"
+            echo "source_fdt_blob=${SOURCE_FDT_BLOB}"
+            echo "fixed_extcon_blob=${FIXED_EXTCON_BLOB}"
+            echo "early_random_blob=${EARLY_RANDOM_BLOB}"
+            echo source_delta_files=3
           } | tee source-validation.txt
 
-      - name: Prepare pinned 4.14.269 build driver
+      - name: Prepare proven kernel-only build driver
         shell: bash
         run: |
           set -Eeuo pipefail
+          test "$(git hash-object scripts/Makefile.build)" = ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3
           python3 scripts/miru/prepare_vendor_v6_linewise.py
           python3 scripts/miru/inject_vendor_compat_v3_into_ci_build.py
-          sed -i 's/apply_vendor_lts190_compat_v3.py/apply_vendor_lts190_compat_v6.py/' \
-            scripts/miru/ci_build_4.14.190.sh
+          sed -i 's/apply_vendor_lts190_compat_v3.py/apply_vendor_lts190_compat_v6.py/' scripts/miru/ci_build_4.14.190.sh
           python3 scripts/miru/insert_vendor_format_fixer.py
+
           python3 - <<'PY'
           from pathlib import Path
+          from textwrap import dedent
 
           path = Path('scripts/miru/ci_build_4.14.190.sh')
           text = path.read_text()
-
-          def one(old, new):
-              global text
-              if old not in text:
-                  raise SystemExit(f'missing expected build-driver text: {old}')
+          replacements = [
+              ('BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e', 'BASE_SHA=61371a1024e341f434deaf61b79a05f73827260a'),
+              ('SCAFFOLD_SHA=5d8cba39fefb935c6feaf30ea1a57dfffa80273a', 'SCAFFOLD_SHA=705dd8a9d1e74a896a28d1a3efd6ff30fcc4e3b4'),
+              ('STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac', 'STABLE_SHA=1048779a1d7dcf0b5c150188decafa21c19821e4'),
+              ('git diff --check "${BASE_SHA}" HEAD > "${DIAG_DIR}/diff-check.txt" 2>&1', '''git diff --check "${SCAFFOLD_SHA}" HEAD -- . \\
+            ':!Documentation' ':!.github' ':!scripts/miru' > "${DIAG_DIR}/diff-check.txt" 2>&1'''),
+              ("':!Documentation/miru/lts-4.14.190-conflicts.md'", "':!Documentation' ':!.github' ':!scripts/miru'"),
+              ('test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "190"', 'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "287"'),
+              ("grep -Fq -- '- Resolved conflicts: 28' Documentation/miru/lts-4.14.190-conflicts.md", 'test "$(git hash-object drivers/extcon/extcon.c)" = 3643c82ca1532c62d5596cff8e05878a4d52543f'),
+              ("grep -Fq -- '- Remaining conflicts: 0' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq '#include <linux/random.h>' drivers/soc/qcom/early_random.c"),
+              ('echo "== Miru H.40 Android 4.14.190 CI build =="', 'echo "== Miru H.40 complete Linux 4.14.287 fully repaired diagnostic =="'),
+              ('echo "kernel_version=4.14.190"', 'echo "kernel_version=4.14.287"'),
+              ('echo "conflicts=28/28 resolved"', 'echo "compatibility_delta=notifier and DDR helper source repairs plus extcon and early_random"'),
+              ('export KERNEL_LOCALVERSION=-miru-h40-lts190-ci1', 'export KERNEL_LOCALVERSION=-miru-h40-diag26-full287-extconfix'),
+              ('CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"', 'CONFIG_LOCALVERSION="-miru-h40-diag26-full287-extconfix"'),
+              ("grep -m1 '^Linux version 4\\.14\\.190-'", "grep -m1 '^Linux version 4\\.14\\.287-miru-h40-diag26-full287-extconfix+'"),
+          ]
+          for old, new in replacements:
+              if text.count(old) != 1:
+                  raise SystemExit(f'unexpected build-driver replacement count for: {old}')
               text = text.replace(old, new, 1)
 
-          one('BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e', 'BASE_SHA=4394ccbfa3805ce392b65b3ea148ff1eb084a974')
-          one('STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac', 'STABLE_SHA=0eec6f6001d15bb1108835a642ec4637d75eef19')
-          one("':!Documentation/miru/lts-4.14.190-conflicts.md'", "':!Documentation/miru/lts-4.14.269-conflicts.md'")
-          one('test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "190"', 'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "269"')
-          one("grep -Fq -- '- Resolved conflicts: 28' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq -- '- Semantically resolved conflicts: **22**' Documentation/miru/lts-4.14.269-conflicts.md")
-          one("grep -Fq -- '- Remaining conflicts: 0' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.269-conflicts.md")
-          one('echo "== Miru H.40 Android 4.14.190 CI build =="', 'echo "== Miru H.40 Android 4.14.269 production candidate build =="')
-          one('echo "kernel_version=4.14.190"', 'echo "kernel_version=4.14.269"')
-          one('echo "conflicts=28/28 resolved"', 'echo "conflicts=22/22 resolved"')
-          one('export KERNEL_LOCALVERSION=-miru-h40-lts190-ci1', 'export KERNEL_LOCALVERSION=-miru-h40-lts269-14d41d8-ci3')
-          one("grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts190-ci1\"' \"${OUT_DIR}/.config\"", "grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts269-14d41d8-ci3\"' \"${OUT_DIR}/.config\"")
-          one("grep -m1 '^Linux version 4\\.14\\.190-'", "grep -m1 '^Linux version 4\\.14\\.269-'")
-          one('git fetch --no-tags --depth=1 origin "${SCAFFOLD_SHA}"\n', '')
-          one('rm -rf "${ANDROID_ROOT}" "${VENDOR_SOURCE}"', 'rm -rf "${ANDROID_ROOT}" "${VENDOR_SOURCE}"\ngit worktree prune')
-          old = '''git cat-file -p "${SCAFFOLD_SHA}" > "${DIAG_DIR}/merge-scaffold.txt"
-          test "$(grep -c '^parent ' "${DIAG_DIR}/merge-scaffold.txt")" = "2"
-          grep -Fq "parent ${STABLE_SHA}" "${DIAG_DIR}/merge-scaffold.txt"'''
-          new = '''git merge-base --is-ancestor "${BASE_SHA}" HEAD
-          git merge-base --is-ancestor "${STABLE_SHA}" HEAD
-          {
-            echo "integration_base=${BASE_SHA}"
-            echo "stable_parent=${STABLE_SHA}"
-            git log -1 --format='head=%H%nparents=%P%nsubject=%s' HEAD
-          } > "${DIAG_DIR}/merge-scaffold.txt"'''
-          one(old, new)
-          path.write_text(text)
-          PY
-          grep -Fq 'kernel_version=4.14.269' scripts/miru/ci_build_4.14.190.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-lts269-14d41d8-ci3' scripts/miru/ci_build_4.14.190.sh
-
-      - name: Build and validate the 4.14.269 kernel
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          bash scripts/miru/ci_build_4.14.190.sh
-          grep -Fq 'result=SUCCESS' build-diagnostics/build-summary.txt
-          grep -Fq "head=$(git rev-parse HEAD)" build-diagnostics/build-summary.txt
-          grep -Fq "banner=Linux version ${EXPECTED_RELEASE}" build-diagnostics/build-summary.txt
-
-      - name: Build and ABI-validate exactly 32 matching external modules
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python3 scripts/miru/prepare_external_modules_toolchain.py
-          python3 scripts/miru/prepare_external_pinctrl_headers.py
-          python3 scripts/miru/prepare_wlan_response_link.py
-          python3 - <<'PY'
+          anchor = 'git worktree add --detach "${KERNEL_WORKTREE}" HEAD\n'
+          patch = dedent(r'''
+          git worktree add --detach "${KERNEL_WORKTREE}" HEAD
+          python3 - "${KERNEL_WORKTREE}/h40-repro/build-h40.sh" <<'INNERPY'
           from pathlib import Path
-
-          path = Path('scripts/miru/build_external_modules_4.14.190.sh')
+          import sys
+          path = Path(sys.argv[1])
           text = path.read_text()
-          old_release = '4.14.190-miru-h40-lts190-ci1+'
-          new_release = '4.14.269-miru-h40-lts269-14d41d8-ci3+'
-          old_hash = 'expected = "74ce588c69513197a354ef0032c2145e91ee0641"'
-          new_hash = 'expected = "ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3"'
-          if old_release not in text:
-              raise SystemExit('missing old external-module release gate')
-          if old_hash not in text:
-              raise SystemExit('missing 4.14.190 Makefile.build integrity hash')
-          text = text.replace(old_release, new_release, 1)
-          text = text.replace(old_hash, new_hash, 1)
-          text = text.replace('4.14.190', '4.14.269').replace('lts190', 'lts269-14d41d8-ci3')
-          path.write_text(text)
+          old = 'Image Image.gz Image.gz-dtb dtbs modules'
+          if text.count(old) != 2:
+              raise SystemExit(f'unexpected kernel target count: {text.count(old)}')
+          path.write_text(text.replace(old, 'Image Image.gz Image.gz-dtb dtbs'))
+          INNERPY
+          ''').lstrip()
+          if text.count(anchor) != 1:
+              raise SystemExit('kernel worktree anchor changed')
+          path.write_text(text.replace(anchor, patch, 1))
           PY
-          test "$(git -C "${RUNNER_TEMP}/android-root/kernel/msm-4.14" hash-object scripts/Makefile.build)" = "${MAKEFILE_BUILD_269_BLOB}"
-          bash scripts/miru/build_external_modules_4.14.190.sh
-          test "$(find "${RUNNER_TEMP}/miru-external-modules/dropin" -maxdepth 1 -type f -name '*.ko' | wc -l)" = 32
-          grep -Fq 'errors=0' external-module-diagnostics/MODULE-ABI-REPORT.txt
-          test "$(grep -F ": ${EXPECTED_RELEASE} SMP preempt mod_unload modversions aarch64" external-module-diagnostics/vermagic.txt | wc -l)" = 32
 
-      - name: Assemble checksums and validation summary
+          bash -n scripts/miru/ci_build_4.14.190.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-diag26-full287-extconfix' scripts/miru/ci_build_4.14.190.sh
+          grep -Fq 'SCAFFOLD_SHA=705dd8a9d1e74a896a28d1a3efd6ff30fcc4e3b4' scripts/miru/ci_build_4.14.190.sh
+          grep -Fq 'STABLE_SHA=1048779a1d7dcf0b5c150188decafa21c19821e4' scripts/miru/ci_build_4.14.190.sh
+
+      - name: Run clean kernel-only build
+        id: compile
+        continue-on-error: true
         shell: bash
         run: |
-          set -Eeuo pipefail
-          KERNEL_DIR="${RUNNER_TEMP}/android-root/kernel/msm-4.14"
-          OUT_DIR="${RUNNER_TEMP}/android-root/out/h40-kernel"
-          MODULE_DIR="${RUNNER_TEMP}/miru-external-modules/dropin"
-          KERNEL_RELEASE="$(tr -d '\n' < "${OUT_DIR}/include/config/kernel.release")"
-          test "${KERNEL_RELEASE}" = "${EXPECTED_RELEASE}"
-          MODULE_COUNT="$(find "${MODULE_DIR}" -maxdepth 1 -type f -name '*.ko' | wc -l)"
-          test "${MODULE_COUNT}" = 32
-          grep -Fq 'errors=0' external-module-diagnostics/MODULE-ABI-REPORT.txt
-          mkdir -p final-report
+          set +e
+          export GITHUB_WORKSPACE="${PWD}"
+          bash scripts/miru/ci_build_4.14.190.sh
+          status=$?
+          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
+          exit 0
+
+      - name: Validate payload and package evidence
+        id: validate
+        if: always()
+        continue-on-error: true
+        env:
+          COMPILE_EXIT: ${{ steps.compile.outputs.exit_code }}
+        shell: bash
+        run: |
+          set +e
+          OUT="${RUNNER_TEMP}/android-root/out/h40-kernel"
+          RESULT=diagnostic-result
+          FULL=full-artifact
+          COMPACT_DIR="${RUNNER_TEMP}/diag26-compact"
+          COMPACT_ZIP="${RESULT}/miru-h40-4.14.287-diag26-full287-extconfix-kernel.zip"
+          status=0
+          mkdir -p "${RESULT}" "${FULL}/images" "${FULL}/dtbs" "${FULL}/logs" "${FULL}/validation" "${COMPACT_DIR}"
+
+          test "${COMPILE_EXIT:-1}" = 0 || status=1
+          for file in Image Image.gz Image.gz-dtb; do test -s "${OUT}/arch/arm64/boot/${file}" || status=1; done
+          for file in vmlinux System.map Module.symvers .config; do test -s "${OUT}/${file}" || status=1; done
+
+          release="$(tr -d '\n' < "${OUT}/include/config/kernel.release" 2>/dev/null)"
+          test "${release}" = "${EXPECTED_RELEASE}" || status=1
+          ko_count="$(find "${OUT}" -type f -name '*.ko' 2>/dev/null | wc -l)"
+          dtb_count="$(find "${OUT}/arch/arm64/boot/dts" -type f -name '*.dtb' 2>/dev/null | wc -l)"
+          test "${ko_count}" = 0 || status=1
+          test "${dtb_count}" = 5 || status=1
+          grep -Fq 'clang_path=clang-r377782c' build-diagnostics/toolchain-manifest.txt || status=1
+          grep -Fq 'clang version 10.0.5' build-diagnostics/toolchain-manifest.txt || status=1
+          test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}" || status=1
+
+          python3 - "${OUT}" "${FULL}/validation/IMAGE-STRUCTURE.txt" <<'PY' || status=1
+          from pathlib import Path
+          import gzip, hashlib, struct, sys
+
+          out = Path(sys.argv[1])
+          boot = out / 'arch/arm64/boot'
+          image = (boot / 'Image').read_bytes()
+          gz = (boot / 'Image.gz').read_bytes()
+          combo = (boot / 'Image.gz-dtb').read_bytes()
+          order = ['18821', '19801', '19863', '18865', '18857']
+          hashes = {
+              '18821': '6d8b05d573a066e1ed6ce7f5986c2976d1c663002c85fadaa187107bef04ef3e',
+              '19801': 'a5eded3b56c8f82a5daf6ec04474e701fbdcf9cd8a3a15d19cdedfee9c4700cc',
+              '19863': '1c2d7d697118855c01e875b4d44c602a5638a2bdc4b6c17365bf46fc44877b70',
+              '18865': 'fa9114713c9e74767f7ec2eedd06dcd1f9eb38eb3b8ab14162553cfded751f9a',
+              '18857': '9c56cb07b600a325fdccb3ca0dfe970c95e6700c8cefa50407ea75b411e53a81',
+          }
+          if gzip.decompress(gz) != image:
+              raise SystemExit('Image.gz mismatch')
+          dtbs = []
+          rows = []
+          for key in order:
+              hits = list((boot / 'dts').glob(f'{key}/sm8150-v2-mtp.dtb'))
+              if len(hits) != 1:
+                  raise SystemExit(f'unexpected DTB {key}: {hits}')
+              data = hits[0].read_bytes()
+              digest = hashlib.sha256(data).hexdigest()
+              if digest != hashes[key]:
+                  raise SystemExit(f'known-good DTB mismatch {key}')
+              dtbs.append(data)
+              rows += [f'{key}_size={len(data)}', f'{key}_sha256={digest}']
+          if combo != gz + b''.join(dtbs):
+              raise SystemExit('DTB order, padding, or payload mismatch')
+          text_offset = struct.unpack_from('<Q', image, 8)[0]
+          flags = struct.unpack_from('<Q', image, 24)[0]
+          if gz[:2] != b'\x1f\x8b' or text_offset != 524288 or flags != 10 or image[56:60] != b'ARMd':
+              raise SystemExit('ARM64 header mismatch')
+          Path(sys.argv[2]).write_text('\n'.join([
+              f'Image_size={len(image)}',
+              f'Image_sha256={hashlib.sha256(image).hexdigest()}',
+              f'Image.gz_size={len(gz)}',
+              f'Image.gz_sha256={hashlib.sha256(gz).hexdigest()}',
+              f'Image.gz-dtb_size={len(combo)}',
+              f'Image.gz-dtb_sha256={hashlib.sha256(combo).hexdigest()}',
+              f'dtb_tail_size={len(combo)-len(gz)}',
+              'gzip_matches_Image=True',
+              'gzip_magic=1f8b',
+              f'arm64_text_offset={text_offset}',
+              f'arm64_flags={flags}',
+              'arm64_magic=ARMd',
+              f'appended_dtb_order={",".join(order)}',
+              'dtb_bytes_match_known_good_269=True',
+              'appended_dtb_padding=none',
+              'extra_payload=none',
+              *rows,
+          ]) + '\n')
+          PY
+
+          cp -a source-validation.txt diagnostic-source-delta.txt expected-source-delta.txt "${FULL}/validation/" 2>/dev/null || true
+          cp -a build-diagnostics/. "${FULL}/logs/" 2>/dev/null || true
+          for file in Image Image.gz Image.gz-dtb; do
+            test -f "${OUT}/arch/arm64/boot/${file}" && cp -a "${OUT}/arch/arm64/boot/${file}" "${FULL}/images/"
+          done
+          for file in vmlinux System.map Module.symvers .config; do
+            test -f "${OUT}/${file}" && cp -a "${OUT}/${file}" "${FULL}/"
+          done
+          find "${OUT}/arch/arm64/boot/dts" -type f -name '*.dtb' -exec cp -a --parents {} "${FULL}/dtbs/" \; 2>/dev/null || true
+
+          image_path="${OUT}/arch/arm64/boot/Image.gz-dtb"
+          image_sha="$(sha256sum "${image_path}" 2>/dev/null | awk '{print $1}')"
+          image_size="$(stat -c %s "${image_path}" 2>/dev/null || echo 0)"
+          [ -n "${image_sha}" ] || image_sha=missing
+
           {
-            echo "result=SUCCESS"
-            echo "source_head=$(git rev-parse HEAD)"
-            echo "production_base=${PRODUCTION_BASE}"
-            echo "android_stable_target=${ANDROID_STABLE_TARGET}"
-            echo "vendor_source_commit=${VENDOR_SHA}"
-            echo "kernel_release=${KERNEL_RELEASE}"
-            echo "vermagic=${EXPECTED_RELEASE} SMP preempt mod_unload modversions aarch64"
-            echo "module_count=${MODULE_COUNT}"
-            echo "module_abi_errors=0"
-            echo "makefile_build_blob=${MAKEFILE_BUILD_269_BLOB}"
-            echo "run_id=${GITHUB_RUN_ID}"
-            echo "run_url=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          } | tee final-report/VALIDATION-SUMMARY.txt
-          cp source-validation.txt final-report/
-          cp build-diagnostics/build-summary.txt final-report/KERNEL-BUILD-SUMMARY.txt
-          cp external-module-diagnostics/MODULE-ABI-REPORT.txt final-report/
-          cp external-module-diagnostics/BUILD-MANIFEST.txt final-report/MODULE-BUILD-MANIFEST.txt
-          cp external-module-diagnostics/PACKAGE-SUMMARY.txt final-report/MODULE-PACKAGE-SUMMARY.txt
-          find "${RUNNER_TEMP}/android-root/out/h40-artifacts" -type f -print0 | sort -z | xargs -0 sha256sum > final-report/KERNEL-FILES-SHA256.txt
-          find "${MODULE_DIR}" -type f -print0 | sort -z | xargs -0 sha256sum > final-report/MODULE-FILES-SHA256.txt
-          sha256sum \
-            "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.269.7z" \
-            "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.269-audit.zip" \
-            > final-report/MODULE-PACKAGES-SHA256.txt
+            echo "result=$([ "${status}" = 0 ] && echo SUCCESS || echo FAILURE)"
+            echo "diagnostic_head=$(git rev-parse HEAD)"
+            echo "production_sha=${PRODUCTION_SHA}"
+            echo "corrected_4.14.287_source=${SOURCE_SHA}"
+            echo "stable_4.14.287=${STABLE_287_SHA}"
+            echo "excluded_4.14.292_fdt=${FDT_292_SHA}"
+            echo "source_vsprintf_blob=${SOURCE_VSPRINTF_BLOB}"
+            echo "source_fdt_blob=${SOURCE_FDT_BLOB}"
+            echo "fixed_extcon_blob=${FIXED_EXTCON_BLOB}"
+            echo "early_random_blob=${EARLY_RANDOM_BLOB}"
+            echo "kernel_release=${release:-missing}"
+            echo "compile_exit=${COMPILE_EXIT:-missing}"
+            echo "validation_exit=${status}"
+            echo "dtb_count=${dtb_count}"
+            echo "ko_count=${ko_count}"
+            echo "Image.gz-dtb_size=${image_size}"
+            echo "Image.gz-dtb_sha256=${image_sha}"
+            echo external_modules=not_built
+            echo installer_generated=no
+          } | tee "${RESULT}/SUMMARY.txt" "${FULL}/validation/SUMMARY.txt"
 
-      - name: Upload kernel output
-        if: always()
+          if [ "${status}" = 0 ]; then
+            cp -a "${image_path}" "${COMPACT_DIR}/4.14.287-miru-h40-diag26-full287-extconfix+.img"
+            cp -a "${RESULT}/SUMMARY.txt" "${COMPACT_DIR}/BUILD-INFO.txt"
+            cat > "${COMPACT_DIR}/README.txt" <<'EOF'
+          Miru H.40 Linux 4.14.287 physical diagnostic.
+          Kernel only; external modules were not rebuilt.
+          DO NOT merge the diagnostic PR.
+          GOOD: reaches the second boot logo.
+          BAD: hangs or reboots at the first OnePlus splash.
+          EOF
+            sed -i 's/^          //' "${COMPACT_DIR}/README.txt"
+            (cd "${COMPACT_DIR}" && sha256sum * > SHA256SUMS)
+            (cd "${COMPACT_DIR}" && zip -9 -q "${GITHUB_WORKSPACE}/${COMPACT_ZIP}" ./*)
+            test -s "${COMPACT_ZIP}" || status=1
+          fi
+
+          sha256sum "${FULL}/images/"* "${FULL}/"vmlinux "${FULL}/"System.map "${FULL}/"Module.symvers "${FULL}/".config \
+            > "${FULL}/validation/SHA256SUMS" 2>/dev/null || true
+          echo "result=$([ "${status}" = 0 ] && echo SUCCESS || echo FAILURE)" >> "${GITHUB_OUTPUT}"
+          exit 0
+
+      - name: Upload compact physical-test ZIP
+        if: always() && steps.validate.outputs.result == 'SUCCESS'
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-lts-4.14.269-ci3-build
-          path: ${{ runner.temp }}/android-root/out/h40-artifacts
-          if-no-files-found: warn
+          name: miru-h40-4.14.287-diag26-full287-extconfix-kernel
+          path: diagnostic-result/miru-h40-4.14.287-diag26-full287-extconfix-kernel.zip
+          if-no-files-found: error
           compression-level: 0
           retention-days: 30
 
-      - name: Upload matching external-module package
+      - name: Upload full kernel and validation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-v3-modules-dropin-4.14.269-ci3
-          path: |
-            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.269.7z
-            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.269-audit.zip
-          if-no-files-found: warn
+          name: miru-h40-4.14.287-diag26-full287-extconfix-full
+          path: full-artifact/
+          if-no-files-found: error
           compression-level: 0
           retention-days: 30
 
-      - name: Upload kernel, module, ABI, and checksum diagnostics
+      - name: Enforce diagnostic result
         if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: miru-h40-lts-4.14.269-ci3-diagnostics
-          path: |
-            build-diagnostics
-            external-module-diagnostics
-            final-report
-            source-conflict-markers.txt
-            source-validation.txt
-          if-no-files-found: warn
-          retention-days: 30
+        shell: bash
+        env:
+          RESULT: ${{ steps.validate.outputs.result }}
+        run: |
+          test "${RESULT}" = SUCCESS
