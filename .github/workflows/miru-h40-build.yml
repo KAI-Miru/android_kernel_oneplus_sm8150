@@ -36,7 +36,33 @@ jobs:
 
       - name: Materialize audited 4.14.287 midpoint source
         shell: bash
-        run: bash scripts/miru/materialize_4.14.287_diag26.sh
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/miru/materialize_4.14.287_diag26.sh')
+          text = path.read_text()
+          old = 'git -C "${ref_wt}" diff --check --cached\n'
+          new = '''git -C "${ref_wt}" diff --check --cached -- . ':!kernel/signal.c'
+          set +e
+          git -C "${ref_wt}" diff --check --cached -- kernel/signal.c \\
+            > "${EVIDENCE}/known-signal-whitespace.txt" 2>&1
+          signal_whitespace_rc=$?
+          set -e
+          test "${signal_whitespace_rc}" = 2
+          test "$(grep -c 'space before tab in indent.' \\
+            "${EVIDENCE}/known-signal-whitespace.txt")" = 2
+          grep -Fq 'kernel/signal.c:1703: space before tab in indent.' \\
+            "${EVIDENCE}/known-signal-whitespace.txt"
+          grep -Fq 'kernel/signal.c:1704: space before tab in indent.' \\
+            "${EVIDENCE}/known-signal-whitespace.txt"
+          '''
+          if text.count(old) != 1:
+              raise SystemExit(f'unexpected diff-check marker count: {text.count(old)}')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          bash scripts/miru/materialize_4.14.287_diag26.sh
 
       - name: Upload source materialization evidence
         if: always()
