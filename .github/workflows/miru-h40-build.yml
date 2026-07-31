@@ -37,7 +37,21 @@ jobs:
 
       - name: Materialize audited 4.14.287 candidate
         shell: bash
-        run: bash scripts/miru/materialize_4.14.287_diag26_candidate.sh
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/miru/materialize_4.14.287_diag26_candidate.sh')
+          s = p.read_text()
+          old = 'git -C "${wt}" add -- .github/workflows/miru-h40-build.yml drivers/extcon/extcon.c drivers/soc/qcom/early_random.c\n'
+          new = '''git -C "${wt}" add -- drivers/extcon/extcon.c drivers/soc/qcom/early_random.c
+          git -C "${wt}" add -f -- .github/workflows/miru-h40-build.yml
+          '''
+          if s.count(old) != 1:
+              raise SystemExit(f'unexpected candidate add marker count: {s.count(old)}')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          bash scripts/miru/materialize_4.14.287_diag26_candidate.sh
 
       - name: Upload candidate materialization evidence
         if: always()
