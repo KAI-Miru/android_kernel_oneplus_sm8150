@@ -27,6 +27,7 @@
 #include <linux/debugfs.h>
 #include <linux/serial_core.h>
 #include <linux/sysfs.h>
+#include <linux/random.h>
 
 #include <asm/setup.h>  /* for COMMAND_LINE_SIZE */
 #include <asm/page.h>
@@ -103,10 +104,8 @@ int of_fdt_get_ddrtype(void)
 		return -ENOENT;
 
 	ret = fdt32_to_cpu(*prop);
-
 	return ret;
 }
-
 /**
  * of_fdt_is_compatible - Return true if given node from the given blob has
  * compat in its compatible list
@@ -602,52 +601,6 @@ void *initial_boot_params;
 #ifdef CONFIG_OF_EARLY_FLATTREE
 
 static u32 of_fdt_crc32;
-
-/*
- * Reserve memory via command line if needed.
- */
-static int __init early_memory_reserve(char *p)
-{
-	phys_addr_t base, size;
-	int nomap;
-	char *endp = p;
-
-	while (1) {
-		base = memparse(endp, &endp);
-		if (base && (*endp == ',')) {
-			size = memparse(endp + 1, &endp);
-			if (size && (*endp == ',')) {
-				if (memcmp(endp + 1, "nomap", 5) == 0) {
-					nomap = 1;
-					endp += 6;
-				} else if (memcmp(endp + 1, "map", 3) == 0) {
-					nomap = 0;
-					endp += 4;
-				} else
-					break;
-
-				if (early_init_dt_reserve_memory_arch(base,
-					size, nomap) == 0)
-					pr_debug(
-					"Early reserved memory: region : base %pa, size %ld MiB\n",
-					&base, (unsigned long)size / SZ_1M);
-				else
-					pr_info(
-					"Early reserved memory: failed : base %pa, size %ld MiB\n",
-					&base, (unsigned long)size / SZ_1M);
-
-				if (*endp == ';')
-					endp++;
-				else
-					break;
-			} else
-				break;
-		} else
-			break;
-	}
-	return 0;
-}
-early_param("memrsv", early_memory_reserve);
 
 /**
  * res_mem_reserve_reg() - reserve all memory described in 'reg' property
@@ -1213,6 +1166,7 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 	int l = 0;
 	const char *p = NULL;
 	char *cmdline = data;
+	const void *rng_seed;
 
 	pr_debug("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
 
@@ -1246,6 +1200,18 @@ int __init early_init_dt_scan_chosen(unsigned long node, const char *uname,
 	}
 
 	pr_debug("Command line is: %s\n", (char*)data);
+
+	rng_seed = of_get_flat_dt_prop(node, "rng-seed", &l);
+	if (rng_seed && l > 0) {
+		add_bootloader_randomness(rng_seed, l);
+
+		/* try to clear seed so it won't be found. */
+		fdt_nop_property(initial_boot_params, node, "rng-seed");
+
+		/* update CRC check value */
+		of_fdt_crc32 = crc32_be(~0, initial_boot_params,
+				fdt_totalsize(initial_boot_params));
+	}
 
 	/* break now */
 	return 1;
