@@ -114,6 +114,17 @@ printf '%s  %s\n' \
   5630a485d7c597d137fa462626213007e8865cf549677e1f727d131695ec830c \
   "${AOSP_BUILD_TOOLS}/bin/py2-cmd" | sha256sum -c -
 
+printf '%s  %s\n' \
+  e42381e7111b3e9336895284a95b0a404479a45cfcd787e6431021d277ccbe44 \
+  "${AOSP_BUILD_TOOLS}/bin/gavinhoward-bc" | sha256sum -c -
+printf '%s  %s\n' \
+  c337f911c36e317e1fbbd9c3baa1cdb8457f591051f8f871eaa4964136f0dec5 \
+  "${AOSP_BUILD_TOOLS}/bin/toybox" | sha256sum -c -
+
+export H40_AOSP_BC="${AOSP_BUILD_TOOLS}/bin/gavinhoward-bc"
+export H40_AOSP_BASH="/usr/bin/bash"
+export H40_AOSP_PERL="/usr/bin/perl"
+export BASH_ENV=""
 export PATH="${KERNEL_DIR}/h40-repro/host-tools:${AOSP_BUILD_TOOLS}/bin:${CLANG_DIR}/bin:${GCC64_DIR}/bin:${GCC32_DIR}/bin:${PATH}"
 export ARCH=arm64 SUBARCH=arm64
 export KBUILD_BUILD_USER=miru
