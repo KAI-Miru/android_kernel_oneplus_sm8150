@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/hw_random.h>
 #include <linux/io.h>
+#include <linux/random.h>
 
 #include <soc/qcom/scm.h>
 
@@ -61,4 +62,3 @@ void __init init_random_pool(void)
 					   bytes_received << 3);
 	}
 }
-
