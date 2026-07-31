@@ -1,260 +1,199 @@
-name: Miru H.40 audited Linux 4.14.291 source materializer
+name: Miru H.40 Linux 4.14.291 notifier source repair
 
 on:
   pull_request:
     branches: [miru-h40]
     types: [opened, reopened, synchronize]
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: miru-h40-lts291-source-diag21-${{ github.event.pull_request.number || github.ref }}
+  group: miru-h40-lts291-source-diag24-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 env:
   PRODUCTION_SHA: 61371a1024e341f434deaf61b79a05f73827260a
+  SOURCE_SHA: 5add27b31f6c0ce4a20ae0834550266e3311f043
   SCAFFOLD_283_SHA: b581c659db87713eb2df1c29e4f28e337e5e908c
-  COMMON_283_SHA: bc1a5b8c02ae4f3f821f3b325bad7bf87e679450
-  COMMON_FIRST_PARENT_282_SHA: 21e1e64073ff320d8e6bda5ee964444327621b81
-  COMMON_305_MERGE_SHA: 4415bf5e08942aee6487946a3e0a50956ef68f1e
-  MIRU_305_REFERENCE_SHA: 09abbe312c55a13dd2bf0d652bb5d658a64ed781
   STABLE_291_SHA: e548869f356fead9fdcb3562f52d2226574f4f41
-  STABLE_305_SHA: a8ad60f2af5884921167e8cede5784c7849884b2
   FDT_292_SHA: 3c2ae48eceaa40f1ecb18ba31dda3f6fe755796c
-  TARGET_BRANCH: miru-h40-lts291-source-diag21
+  TARGET_BRANCH: miru-h40-lts291-source-diag24
 
 jobs:
-  materialize-source:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+  repair-source:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - name: Checkout exact preparation head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 1
           persist-credentials: true
 
-      - name: Reconstruct complete Linux 4.14.291 Miru source
+      - name: Repair the 4.14.291 notifier API conflict
         shell: bash
         run: |
           set -Eeuo pipefail
-          mkdir -p source-generation-evidence
+          mkdir -p source-repair-evidence
           trigger_sha="$(git rev-parse HEAD)"
           test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
           test -z "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}")"
+          git fetch --no-tags origin "${SOURCE_SHA}" "${SCAFFOLD_283_SHA}" "${STABLE_291_SHA}" "${FDT_292_SHA}"
 
-          git fetch --no-tags origin \
-            "${PRODUCTION_SHA}" "${SCAFFOLD_283_SHA}" "${COMMON_283_SHA}" \
-            "${COMMON_FIRST_PARENT_282_SHA}" "${COMMON_305_MERGE_SHA}" \
-            "${MIRU_305_REFERENCE_SHA}"
-          git remote add android-common https://github.com/aosp-mirror/kernel_common.git
-          git fetch --no-tags android-common "${STABLE_291_SHA}" "${STABLE_305_SHA}" "${FDT_292_SHA}"
+          wt="${RUNNER_TEMP}/miru-291-source-diag24"
+          rm -rf "${wt}"
+          git worktree add --detach "${wt}" "${SOURCE_SHA}"
+          git -C "${wt}" config user.name github-actions[bot]
+          git -C "${wt}" config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
-          test "$(git rev-parse "${SCAFFOLD_283_SHA}^1")" = "${PRODUCTION_SHA}"
-          test "$(git rev-parse "${SCAFFOLD_283_SHA}^2")" = "${COMMON_283_SHA}"
-          test "$(git rev-parse "${COMMON_305_MERGE_SHA}^2")" = "${STABLE_305_SHA}"
-          git merge-base --is-ancestor "${COMMON_305_MERGE_SHA}" "${MIRU_305_REFERENCE_SHA}"
-          git merge-base --is-ancestor "${STABLE_291_SHA}" "${STABLE_305_SHA}"
-          git merge-base --is-ancestor "${STABLE_291_SHA}" "${FDT_292_SHA}"
-          ! git merge-base --is-ancestor "${FDT_292_SHA}" "${STABLE_291_SHA}"
-          test "$(git show -s --format=%s "${STABLE_291_SHA}")" = 'Linux 4.14.291'
-          test "$(git show "${STABLE_291_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 291
-          test "$(git show "${COMMON_FIRST_PARENT_282_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 282
-          test "$(git rev-list --count "${STABLE_291_SHA}" --not b8f3be299d5176348b15cc59d55b85faa3dece68)" = 874
+          test "$(git -C "${wt}" rev-parse HEAD^1)" = "${SCAFFOLD_283_SHA}"
+          test "$(git -C "${wt}" rev-parse HEAD^2)" = "${STABLE_291_SHA}"
+          test "$(sed -n 's/^SUBLEVEL = //p' "${wt}/Makefile" | head -n1)" = 291
+          ! git -C "${wt}" merge-base --is-ancestor "${FDT_292_SHA}" HEAD
+          test "$(git -C "${wt}" hash-object include/crypto/chacha.h)" = 84a04c0845a4b0d14469583b1a7f4f62a3fd157d
+          test "$(git -C "${wt}" hash-object lib/vsprintf.c)" = fea85a576df628cccb2a664f93a7e5a594c29307
 
-          common_wt="${RUNNER_TEMP}/common-291"
-          common_ref_wt="${RUNNER_TEMP}/common-305-downgraded"
-          miru_ref_wt="${RUNNER_TEMP}/miru-305-downgraded"
-          source_wt="${RUNNER_TEMP}/miru-291-source"
-          rm -rf "${common_wt}" "${common_ref_wt}" "${miru_ref_wt}" "${source_wt}"
-
-          git worktree add --detach "${common_wt}" "${COMMON_FIRST_PARENT_282_SHA}"
-          git -C "${common_wt}" config user.name github-actions[bot]
-          git -C "${common_wt}" config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          set +e
-          git -C "${common_wt}" merge --no-commit --no-ff "${STABLE_291_SHA}" \
-            > source-generation-evidence/common-291-merge.log 2>&1
-          common_rc=$?
-          set -e
-          test "${common_rc}" = 1
-          git -C "${common_wt}" diff --name-only --diff-filter=U | sort -u \
-            > source-generation-evidence/common-conflicts.txt
-          cat > source-generation-evidence/expected-common-conflicts.txt <<'EOF'
-          crypto/chacha20_generic.c
-          drivers/char/random.c
-          drivers/nfc/st21nfca/se.c
-          drivers/of/fdt.c
-          fs/ext4/namei.c
-          include/crypto/chacha20.h
-          lib/chacha20.c
-          EOF
-          sed -i 's/^          //' source-generation-evidence/expected-common-conflicts.txt
-          diff -u source-generation-evidence/expected-common-conflicts.txt \
-            source-generation-evidence/common-conflicts.txt
-          mapfile -t common_conflicts < source-generation-evidence/common-conflicts.txt
-
-          git worktree add --detach "${common_ref_wt}" "${COMMON_305_MERGE_SHA}"
-          git diff --binary --full-index "${STABLE_305_SHA}" "${STABLE_291_SHA}" -- \
-            "${common_conflicts[@]}" > source-generation-evidence/common-305-to-291.patch
-          git -C "${common_ref_wt}" apply --3way --index \
-            "${GITHUB_WORKSPACE}/source-generation-evidence/common-305-to-291.patch" \
-            > source-generation-evidence/common-downgrade.log 2>&1
-          test -z "$(git -C "${common_ref_wt}" ls-files -u)"
-          for rel in "${common_conflicts[@]}"; do
-            if [ -e "${common_ref_wt}/${rel}" ] || [ -L "${common_ref_wt}/${rel}" ]; then
-              mkdir -p "$(dirname "${common_wt}/${rel}")"
-              rm -rf "${common_wt:?}/${rel}"
-              cp -a "${common_ref_wt}/${rel}" "${common_wt}/${rel}"
-              git -C "${common_wt}" add -- "${rel}"
-            else
-              git -C "${common_wt}" rm -f --ignore-unmatch -- "${rel}"
-            fi
-          done
-          test -z "$(git -C "${common_wt}" ls-files -u)"
-          test "$(sed -n 's/^SUBLEVEL = //p' "${common_wt}/Makefile" | head -n1)" = 291
-          GIT_AUTHOR_DATE='2026-07-31T07:50:00Z' GIT_COMMITTER_DATE='2026-07-31T07:50:00Z' \
-            git -C "${common_wt}" commit -m 'Merge Linux 4.14.291 stable endpoint for Miru diagnostic'
-          common_291_sha="$(git -C "${common_wt}" rev-parse HEAD)"
-          test "$(git -C "${common_wt}" rev-parse 'HEAD^1')" = "${COMMON_FIRST_PARENT_282_SHA}"
-          test "$(git -C "${common_wt}" rev-parse 'HEAD^2')" = "${STABLE_291_SHA}"
-
-          git worktree add --detach "${miru_ref_wt}" "${MIRU_305_REFERENCE_SHA}"
-          drift_paths=(drivers/usb/host/xhci.c drivers/usb/host/xhci.h net/ipv4/tcp_output.c)
-          git diff --binary --full-index "${STABLE_305_SHA}" "${STABLE_291_SHA}" -- \
-            "${drift_paths[@]}" > source-generation-evidence/miru-305-to-291.patch
-          set +e
-          git -C "${miru_ref_wt}" apply --3way --index \
-            "${GITHUB_WORKSPACE}/source-generation-evidence/miru-305-to-291.patch" \
-            > source-generation-evidence/miru-downgrade.log 2>&1
-          miru_apply_rc=$?
-          set -e
-          test "${miru_apply_rc}" = 1
-          git -C "${miru_ref_wt}" diff --name-only --diff-filter=U | sort -u \
-            > source-generation-evidence/miru-downgrade-conflicts.txt
-          printf '%s\n' drivers/usb/host/xhci.h \
-            > source-generation-evidence/expected-miru-downgrade-conflicts.txt
-          diff -u source-generation-evidence/expected-miru-downgrade-conflicts.txt \
-            source-generation-evidence/miru-downgrade-conflicts.txt
-          git -C "${miru_ref_wt}" checkout --ours -- drivers/usb/host/xhci.h
-          python3 - "${miru_ref_wt}/drivers/usb/host/xhci.h" <<'PY'
+          python3 - "${wt}/lib/vsprintf.c" <<'PY'
           from pathlib import Path
           import sys
+
           path = Path(sys.argv[1])
           text = path.read_text()
-          line = '\tunsigned long\t\trun_graceperiod;\n'
-          if text.count(line) != 1:
-              raise SystemExit(f'unexpected run_graceperiod count: {text.count(line)}')
-          path.write_text(text.replace(line, '', 1))
+
+          include_anchor = "#include <linux/compiler.h>\n"
+          include_replacement = (
+              "#include <linux/compiler.h>\n"
+              "#include <linux/random.h>\n"
+              "#include <linux/notifier.h>\n"
+          )
+          if text.count(include_anchor) != 1:
+              raise SystemExit(f"unexpected compiler include count: {text.count(include_anchor)}")
+          if "#include <linux/random.h>" in text or "#include <linux/notifier.h>" in text:
+              raise SystemExit("random/notifier include already present")
+          text = text.replace(include_anchor, include_replacement, 1)
+
+          old = '''static void fill_random_ptr_key(struct random_ready_callback *unused)
+          {
+          \tget_random_bytes(&ptr_key, sizeof(ptr_key));
+          \t/*
+          \t * have_filled_random_ptr_key==true is dependent on get_random_bytes().
+          \t * ptr_to_id() needs to see have_filled_random_ptr_key==true
+          \t * after get_random_bytes() returns.
+          \t */
+          \tsmp_mb();
+          \tWRITE_ONCE(have_filled_random_ptr_key, true);
+          }
+
+          static struct random_ready_callback random_ready = {
+          \t.func = fill_random_ptr_key
+          };
+
+          static int __init initialize_ptr_random(void)
+          {
+          \tint ret = add_random_ready_callback(&random_ready);
+
+          \tif (!ret) {
+          \t\treturn 0;
+          \t} else if (ret == -EALREADY) {
+          \t\tfill_random_ptr_key(&random_ready);
+          \t\treturn 0;
+          \t}
+
+          \treturn ret;
+          }
+          '''
+          old = "\n".join(line[10:] if line.startswith("          ") else line for line in old.splitlines()) + "\n"
+
+          new = '''static int fill_random_ptr_key(struct notifier_block *nb,
+          \t\t\t       unsigned long action, void *data)
+          {
+          \tget_random_bytes(&ptr_key, sizeof(ptr_key));
+          \t/*
+          \t * have_filled_random_ptr_key==true is dependent on get_random_bytes().
+          \t * ptr_to_id() needs to see have_filled_random_ptr_key==true
+          \t * after get_random_bytes() returns.
+          \t */
+          \tsmp_mb();
+          \tWRITE_ONCE(have_filled_random_ptr_key, true);
+          \treturn 0;
+          }
+
+          static struct notifier_block random_ready = {
+          \t.notifier_call = fill_random_ptr_key
+          };
+
+          static int __init initialize_ptr_random(void)
+          {
+          \tint ret = register_random_ready_notifier(&random_ready);
+
+          \tif (!ret) {
+          \t\treturn 0;
+          \t} else if (ret == -EALREADY) {
+          \t\tfill_random_ptr_key(&random_ready, 0, NULL);
+          \t\treturn 0;
+          \t}
+
+          \treturn ret;
+          }
+          '''
+          new = "\n".join(line[10:] if line.startswith("          ") else line for line in new.splitlines()) + "\n"
+
+          if text.count(old) != 1:
+              raise SystemExit(f"unexpected legacy callback block count: {text.count(old)}")
+          text = text.replace(old, new, 1)
+          path.write_text(text)
           PY
-          git -C "${miru_ref_wt}" add -- drivers/usb/host/xhci.h
-          test -z "$(git -C "${miru_ref_wt}" ls-files -u)"
-          ! grep -Fq 'run_graceperiod' "${miru_ref_wt}/drivers/usb/host/xhci.h"
-          ! grep -Fq 'run_graceperiod' "${miru_ref_wt}/drivers/usb/host/xhci.c"
 
-          git worktree add --detach "${source_wt}" "${SCAFFOLD_283_SHA}"
-          git -C "${source_wt}" config user.name github-actions[bot]
-          git -C "${source_wt}" config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          set +e
-          git -C "${source_wt}" merge --no-commit --no-ff "${STABLE_291_SHA}" \
-            > source-generation-evidence/miru-283-to-291-merge.log 2>&1
-          source_rc=$?
-          set -e
-          test "${source_rc}" = 1
-          git -C "${source_wt}" diff --name-only --diff-filter=U | sort -u \
-            > source-generation-evidence/miru-conflicts.txt
-          cat > source-generation-evidence/expected-miru-conflicts.txt <<'EOF'
-          crypto/chacha20_generic.c
-          drivers/char/Kconfig
-          drivers/char/random.c
-          drivers/of/fdt.c
-          drivers/usb/host/xhci.c
-          drivers/usb/host/xhci.h
-          fs/ext4/namei.c
-          include/crypto/chacha20.h
-          lib/Makefile
-          lib/chacha20.c
-          net/ipv4/tcp_output.c
-          EOF
-          sed -i 's/^          //' source-generation-evidence/expected-miru-conflicts.txt
-          diff -u source-generation-evidence/expected-miru-conflicts.txt \
-            source-generation-evidence/miru-conflicts.txt
+          git -C "${wt}" diff --check
+          test "$(git -C "${wt}" diff --name-only)" = lib/vsprintf.c
+          ! grep -Fq 'struct random_ready_callback' "${wt}/lib/vsprintf.c"
+          ! grep -Fq 'add_random_ready_callback' "${wt}/lib/vsprintf.c"
+          grep -Fq 'struct notifier_block random_ready' "${wt}/lib/vsprintf.c"
+          grep -Fq 'register_random_ready_notifier(&random_ready)' "${wt}/lib/vsprintf.c"
+          grep -Fq 'fill_random_ptr_key(&random_ready, 0, NULL)' "${wt}/lib/vsprintf.c"
+          grep -Fq '#include <linux/random.h>' "${wt}/lib/vsprintf.c"
+          grep -Fq '#include <linux/notifier.h>' "${wt}/lib/vsprintf.c"
 
-          for rel in crypto/chacha20_generic.c include/crypto/chacha20.h lib/chacha20.c; do
-            git -C "${source_wt}" rm -f --ignore-unmatch -- "${rel}"
-          done
-          for rel in drivers/char/random.c drivers/of/fdt.c fs/ext4/namei.c; do
-            mkdir -p "$(dirname "${source_wt}/${rel}")"
-            rm -rf "${source_wt:?}/${rel}"
-            cp -a "${common_wt}/${rel}" "${source_wt}/${rel}"
-            git -C "${source_wt}" add -- "${rel}"
-          done
-          for rel in drivers/char/Kconfig lib/Makefile "${drift_paths[@]}"; do
-            mkdir -p "$(dirname "${source_wt}/${rel}")"
-            rm -rf "${source_wt:?}/${rel}"
-            cp -a "${miru_ref_wt}/${rel}" "${source_wt}/${rel}"
-            git -C "${source_wt}" add -- "${rel}"
-          done
+          git -C "${wt}" add -- lib/vsprintf.c
+          GIT_COMMITTER_DATE='2026-07-31T09:35:00Z' git -C "${wt}" commit --amend --no-edit
+          repaired_sha="$(git -C "${wt}" rev-parse HEAD)"
+          repaired_tree="$(git -C "${wt}" rev-parse HEAD^{tree})"
+          repaired_blob="$(git -C "${wt}" hash-object lib/vsprintf.c)"
 
-          test -z "$(git -C "${source_wt}" ls-files -u)"
-          git -C "${source_wt}" diff --check
-          test "$(sed -n 's/^SUBLEVEL = //p' "${source_wt}/Makefile" | head -n1)" = 291
-          test "$(git -C "${source_wt}" hash-object drivers/extcon/extcon.c)" = \
-            117da8393690b281f87680bc4ea81b3984f1c24c
-          ! grep -Fq '#include <linux/random.h>' "${source_wt}/drivers/soc/qcom/early_random.c"
-          grep -Fq 'void *dt_virt = fixmap_remap_fdt(dt_phys);' "${source_wt}/arch/arm64/kernel/setup.c"
-          ! grep -Fq 'fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL)' "${source_wt}/arch/arm64/kernel/setup.c"
-          ! grep -RFn 'run_graceperiod' "${source_wt}/drivers/usb/host"
-          if git -C "${source_wt}" grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . \
-              ':!Documentation' > source-generation-evidence/source-conflict-markers.txt; then
-            cat source-generation-evidence/source-conflict-markers.txt
-            exit 1
-          fi
-
-          GIT_AUTHOR_DATE='2026-07-31T08:20:00Z' GIT_COMMITTER_DATE='2026-07-31T08:20:00Z' \
-            git -C "${source_wt}" commit -m 'Merge complete Linux 4.14.291 after proven 4.14.283 diagnostic'
-          source_sha="$(git -C "${source_wt}" rev-parse HEAD)"
-          source_tree="$(git -C "${source_wt}" rev-parse 'HEAD^{tree}')"
-          test "$(git -C "${source_wt}" rev-parse 'HEAD^1')" = "${SCAFFOLD_283_SHA}"
-          test "$(git -C "${source_wt}" rev-parse 'HEAD^2')" = "${STABLE_291_SHA}"
-          git -C "${source_wt}" merge-base --is-ancestor "${PRODUCTION_SHA}" HEAD
-          ! git -C "${source_wt}" merge-base --is-ancestor "${FDT_292_SHA}" HEAD
+          test "${repaired_sha}" != "${SOURCE_SHA}"
+          test "$(git -C "${wt}" rev-parse HEAD^1)" = "${SCAFFOLD_283_SHA}"
+          test "$(git -C "${wt}" rev-parse HEAD^2)" = "${STABLE_291_SHA}"
+          test "$(git -C "${wt}" diff-tree --no-commit-id --name-only -r "${SOURCE_SHA}^{tree}" "${repaired_tree}")" = lib/vsprintf.c
+          ! git -C "${wt}" merge-base --is-ancestor "${FDT_292_SHA}" HEAD
 
           {
             echo result=PASS
             echo "trigger_sha=${trigger_sha}"
             echo "production_sha=${PRODUCTION_SHA}"
-            echo "proven_283_scaffold=${SCAFFOLD_283_SHA}"
-            echo "stable_291_sha=${STABLE_291_SHA}"
-            echo "excluded_fdt_292_sha=${FDT_292_SHA}"
-            echo "common_291_merge_sha=${common_291_sha}"
-            echo "source_sha=${source_sha}"
-            echo "source_tree=${source_tree}"
-            echo source_sublevel=291
-            echo source_extcon_blob=117da8393690b281f87680bc4ea81b3984f1c24c
-            echo early_random_include=absent_requires_compatibility_repair
-            echo unresolved_conflicts=0
-            echo common_conflict_count=7
-            echo miru_conflict_count=11
-            echo xhci_post_291_field_removed=run_graceperiod
-          } | tee source-generation-evidence/SOURCE-SUMMARY.txt
-          find source-generation-evidence -maxdepth 1 -type f ! -name SHA256SUMS.txt -print0 \
-            | sort -z | xargs -0 sha256sum > source-generation-evidence/SHA256SUMS.txt
+            echo "old_source_sha=${SOURCE_SHA}"
+            echo "repaired_source_sha=${repaired_sha}"
+            echo "repaired_source_tree=${repaired_tree}"
+            echo "repaired_vsprintf_blob=${repaired_blob}"
+            echo "first_parent=${SCAFFOLD_283_SHA}"
+            echo "second_parent=${STABLE_291_SHA}"
+            echo "excluded_fdt_292=${FDT_292_SHA}"
+            echo changed_paths=lib/vsprintf.c
+          } | tee source-repair-evidence/SUMMARY.txt
+          git -C "${wt}" diff "${SOURCE_SHA}" HEAD -- lib/vsprintf.c > source-repair-evidence/vsprintf-notifier-repair.patch
+          sha256sum source-repair-evidence/* > source-repair-evidence/SHA256SUMS
 
-          test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
-          test -z "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}")"
-          git -C "${source_wt}" push origin "${source_sha}:refs/heads/${TARGET_BRANCH}"
-          test "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${source_sha}"
+          git -C "${wt}" push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${repaired_sha}"
 
-      - name: Upload source-generation evidence
+      - name: Upload source repair evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-4.14.291-source-diag21-evidence
-          path: source-generation-evidence
+          name: miru-h40-lts291-source-diag24-evidence
+          path: source-repair-evidence/
           if-no-files-found: warn
           compression-level: 0
           retention-days: 30
