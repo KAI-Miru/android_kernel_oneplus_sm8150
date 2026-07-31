@@ -1,4 +1,4 @@
-name: Miru H.40 complete 4.14.287 fully repaired diagnostic
+name: Miru H.40 4.14.287 RNG early-boot sleep diagnostic
 
 on:
   pull_request:
@@ -9,10 +9,13 @@ permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-diag26-full287-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  group: miru-h40-diag27-rng-earlyboot-fix-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 env:
+  BASE_DIAG26_SHA: 61535bdfee183ea82d3fe4a49b4b05ea710831f0
+  BASE_DIAG26_WORKFLOW_BLOB: 8b443f4001a426590a8ef0449dcd3ca873d15512
+  BASE_RANDOM_BLOB: 14f3be1f49d6d97ea21d05160f5c4fa693a7857e
   PRODUCTION_SHA: 61371a1024e341f434deaf61b79a05f73827260a
   SOURCE_SHA: 705dd8a9d1e74a896a28d1a3efd6ff30fcc4e3b4
   SCAFFOLD_283_SHA: b581c659db87713eb2df1c29e4f28e337e5e908c
@@ -23,7 +26,7 @@ env:
   SOURCE_EXTCON_BLOB: 117da8393690b281f87680bc4ea81b3984f1c24c
   FIXED_EXTCON_BLOB: 3643c82ca1532c62d5596cff8e05878a4d52543f
   EARLY_RANDOM_BLOB: c498b09b1b36b6cc9d34a16b08422e9299bc4a02
-  EXPECTED_RELEASE: 4.14.287-miru-h40-diag26-full287-extconfix+
+  EXPECTED_RELEASE: 4.14.287-miru-h40-diag27-rng-earlyboot-fix+
 
 jobs:
   kernel-only:
@@ -34,7 +37,7 @@ jobs:
       - name: Checkout exact diagnostic head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Verify repaired source and exact diagnostic delta
@@ -43,8 +46,12 @@ jobs:
           set -Eeuo pipefail
           test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
           test "$(git ls-remote origin refs/heads/miru-h40-lts287-source-diag26 | awk '{print $1}')" = "${SOURCE_SHA}"
-          git fetch --no-tags origin "${PRODUCTION_SHA}" "${SOURCE_SHA}" "${SCAFFOLD_283_SHA}" "${STABLE_287_SHA}" "${FDT_292_SHA}"
+          git fetch --no-tags origin "${BASE_DIAG26_SHA}" "${PRODUCTION_SHA}" "${SOURCE_SHA}" "${SCAFFOLD_283_SHA}" "${STABLE_287_SHA}" "${FDT_292_SHA}"
 
+          git merge-base --is-ancestor "${BASE_DIAG26_SHA}" HEAD
+          test "$(git merge-base "${BASE_DIAG26_SHA}" HEAD)" = "${BASE_DIAG26_SHA}"
+          test "$(git show "${BASE_DIAG26_SHA}:.github/workflows/miru-h40-build.yml" | git hash-object --stdin)" = "${BASE_DIAG26_WORKFLOW_BLOB}"
+          test "$(git show "${BASE_DIAG26_SHA}:drivers/char/random.c" | git hash-object --stdin)" = "${BASE_RANDOM_BLOB}"
           git merge-base --is-ancestor "${PRODUCTION_SHA}" HEAD
           git merge-base --is-ancestor "${SOURCE_SHA}" HEAD
           git merge-base --is-ancestor "${STABLE_287_SHA}" HEAD
@@ -84,15 +91,31 @@ jobs:
           grep -Fq 'BLOCKING_INIT_NOTIFIER_HEAD(&edev->bnh[index])' drivers/extcon/extcon.c
           grep -Fq 'kfree(edev->bnh)' drivers/extcon/extcon.c
 
+          ! grep -Fq 'if (!kthread_should_stop() && crng_ready())' drivers/char/random.c
+          test "$(grep -Fc 'if (system_wq && !kthread_should_stop() && crng_ready())' drivers/char/random.c)" = 1
+          test "$(git diff --numstat "${BASE_DIAG26_SHA}" HEAD -- drivers/char/random.c)" = $'1\t1\tdrivers/char/random.c'
+          grep -Fq 'desc.args[1] = data.out_buf_sz = SZ_512;' drivers/soc/qcom/early_random.c
+          grep -Fq 'if (bytes_received != SZ_512)' drivers/soc/qcom/early_random.c
+          test "$(grep -Fc 'add_hwgenerator_randomness(random_buffer, bytes_received,' drivers/soc/qcom/early_random.c)" = 1
+          grep -Fq 'bytes_received << 3);' drivers/soc/qcom/early_random.c
+
           test -z "$(git ls-files -u)"
           git diff --check "${SOURCE_SHA}" HEAD
           if git grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . ':!Documentation' ':!.github' ':!scripts/miru' > source-conflict-markers.txt; then
             cat source-conflict-markers.txt
             exit 1
           fi
+          git diff --name-only "${BASE_DIAG26_SHA}" HEAD | sort -u > diag26-candidate-delta.txt
+          printf '%s\n' \
+            .github/workflows/miru-h40-build.yml \
+            drivers/char/random.c \
+            > expected-diag26-candidate-delta.txt
+          cmp -s expected-diag26-candidate-delta.txt diag26-candidate-delta.txt
+
           git diff --name-only "${SOURCE_SHA}" HEAD | sort -u > diagnostic-source-delta.txt
           printf '%s\n' \
             .github/workflows/miru-h40-build.yml \
+            drivers/char/random.c \
             drivers/extcon/extcon.c \
             drivers/soc/qcom/early_random.c \
             > expected-source-delta.txt
@@ -109,7 +132,11 @@ jobs:
             echo "source_fdt_blob=${SOURCE_FDT_BLOB}"
             echo "fixed_extcon_blob=${FIXED_EXTCON_BLOB}"
             echo "early_random_blob=${EARLY_RANDOM_BLOB}"
-            echo source_delta_files=3
+            echo "base_diag26_sha=${BASE_DIAG26_SHA}"
+            echo "base_random_blob=${BASE_RANDOM_BLOB}"
+            echo rng_earlyboot_guard=system_wq
+            echo diag26_candidate_delta_files=2
+            echo source_delta_files=4
           } | tee source-validation.txt
 
       - name: Prepare proven kernel-only build driver
@@ -132,18 +159,18 @@ jobs:
               ('BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e', 'BASE_SHA=61371a1024e341f434deaf61b79a05f73827260a'),
               ('SCAFFOLD_SHA=5d8cba39fefb935c6feaf30ea1a57dfffa80273a', 'SCAFFOLD_SHA=705dd8a9d1e74a896a28d1a3efd6ff30fcc4e3b4'),
               ('STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac', 'STABLE_SHA=1048779a1d7dcf0b5c150188decafa21c19821e4'),
-              ('git diff --check "${BASE_SHA}" HEAD > "${DIAG_DIR}/diff-check.txt" 2>&1', '''git diff --check "${SCAFFOLD_SHA}" HEAD -- . \\
+              ('git diff --check "${BASE_SHA}" HEAD > "${DIAG_DIR}/diff-check.txt" 2>&1', '''git diff --check "${SCAFFOLD_SHA}" HEAD -- . \
             ':!Documentation' ':!.github' ':!scripts/miru' > "${DIAG_DIR}/diff-check.txt" 2>&1'''),
               ("':!Documentation/miru/lts-4.14.190-conflicts.md'", "':!Documentation' ':!.github' ':!scripts/miru'"),
               ('test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "190"', 'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "287"'),
               ("grep -Fq -- '- Resolved conflicts: 28' Documentation/miru/lts-4.14.190-conflicts.md", 'test "$(git hash-object drivers/extcon/extcon.c)" = 3643c82ca1532c62d5596cff8e05878a4d52543f'),
               ("grep -Fq -- '- Remaining conflicts: 0' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq '#include <linux/random.h>' drivers/soc/qcom/early_random.c"),
-              ('echo "== Miru H.40 Android 4.14.190 CI build =="', 'echo "== Miru H.40 complete Linux 4.14.287 fully repaired diagnostic =="'),
+              ('echo "== Miru H.40 Android 4.14.190 CI build =="', 'echo "== Miru H.40 Linux 4.14.287 RNG early-boot sleep diagnostic =="'),
               ('echo "kernel_version=4.14.190"', 'echo "kernel_version=4.14.287"'),
               ('echo "conflicts=28/28 resolved"', 'echo "compatibility_delta=notifier and DDR helper source repairs plus extcon and early_random"'),
-              ('export KERNEL_LOCALVERSION=-miru-h40-lts190-ci1', 'export KERNEL_LOCALVERSION=-miru-h40-diag26-full287-extconfix'),
-              ('CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"', 'CONFIG_LOCALVERSION="-miru-h40-diag26-full287-extconfix"'),
-              ("grep -m1 '^Linux version 4\\.14\\.190-'", "grep -m1 '^Linux version 4\\.14\\.287-miru-h40-diag26-full287-extconfix+'"),
+              ('export KERNEL_LOCALVERSION=-miru-h40-lts190-ci1', 'export KERNEL_LOCALVERSION=-miru-h40-diag27-rng-earlyboot-fix'),
+              ('CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"', 'CONFIG_LOCALVERSION="-miru-h40-diag27-rng-earlyboot-fix"'),
+              ("grep -m1 '^Linux version 4\\.14\\.190-'", "grep -m1 '^Linux version 4\\.14\\.287-miru-h40-diag27-rng-earlyboot-fix+'"),
           ]
           for old, new in replacements:
               if text.count(old) != 1:
@@ -170,7 +197,7 @@ jobs:
           PY
 
           bash -n scripts/miru/ci_build_4.14.190.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-diag26-full287-extconfix' scripts/miru/ci_build_4.14.190.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-diag27-rng-earlyboot-fix' scripts/miru/ci_build_4.14.190.sh
           grep -Fq 'SCAFFOLD_SHA=705dd8a9d1e74a896a28d1a3efd6ff30fcc4e3b4' scripts/miru/ci_build_4.14.190.sh
           grep -Fq 'STABLE_SHA=1048779a1d7dcf0b5c150188decafa21c19821e4' scripts/miru/ci_build_4.14.190.sh
 
@@ -198,8 +225,8 @@ jobs:
           OUT="${RUNNER_TEMP}/android-root/out/h40-kernel"
           RESULT=diagnostic-result
           FULL=full-artifact
-          COMPACT_DIR="${RUNNER_TEMP}/diag26-compact"
-          COMPACT_ZIP="${RESULT}/miru-h40-4.14.287-diag26-full287-extconfix-kernel.zip"
+          COMPACT_DIR="${RUNNER_TEMP}/diag27-compact"
+          COMPACT_ZIP="${RESULT}/miru-h40-4.14.287-diag27-rng-earlyboot-fix-kernel.zip"
           status=0
           mkdir -p "${RESULT}" "${FULL}/images" "${FULL}/dtbs" "${FULL}/logs" "${FULL}/validation" "${COMPACT_DIR}"
 
@@ -275,7 +302,9 @@ jobs:
           ]) + '\n')
           PY
 
-          cp -a source-validation.txt diagnostic-source-delta.txt expected-source-delta.txt "${FULL}/validation/" 2>/dev/null || true
+          cp -a source-validation.txt diagnostic-source-delta.txt expected-source-delta.txt \
+            diag26-candidate-delta.txt expected-diag26-candidate-delta.txt \
+            "${FULL}/validation/" 2>/dev/null || true
           cp -a build-diagnostics/. "${FULL}/logs/" 2>/dev/null || true
           for file in Image Image.gz Image.gz-dtb; do
             test -f "${OUT}/arch/arm64/boot/${file}" && cp -a "${OUT}/arch/arm64/boot/${file}" "${FULL}/images/"
@@ -301,6 +330,8 @@ jobs:
             echo "source_fdt_blob=${SOURCE_FDT_BLOB}"
             echo "fixed_extcon_blob=${FIXED_EXTCON_BLOB}"
             echo "early_random_blob=${EARLY_RANDOM_BLOB}"
+            echo "base_diag26_sha=${BASE_DIAG26_SHA}"
+            echo rng_earlyboot_guard=system_wq
             echo "kernel_release=${release:-missing}"
             echo "compile_exit=${COMPILE_EXIT:-missing}"
             echo "validation_exit=${status}"
@@ -313,10 +344,11 @@ jobs:
           } | tee "${RESULT}/SUMMARY.txt" "${FULL}/validation/SUMMARY.txt"
 
           if [ "${status}" = 0 ]; then
-            cp -a "${image_path}" "${COMPACT_DIR}/4.14.287-miru-h40-diag26-full287-extconfix+.img"
+            cp -a "${image_path}" "${COMPACT_DIR}/4.14.287-miru-h40-diag27-rng-earlyboot-fix+.img"
             cp -a "${RESULT}/SUMMARY.txt" "${COMPACT_DIR}/BUILD-INFO.txt"
             cat > "${COMPACT_DIR}/README.txt" <<'EOF'
-          Miru H.40 Linux 4.14.287 physical diagnostic.
+          Miru H.40 Linux 4.14.287 RNG early-boot physical diagnostic.
+          One-variable test: defer the hardware-RNG throttle sleep until system_wq exists.
           Kernel only; external modules were not rebuilt.
           DO NOT merge the diagnostic PR.
           GOOD: reaches the second boot logo.
@@ -337,8 +369,8 @@ jobs:
         if: always() && steps.validate.outputs.result == 'SUCCESS'
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-4.14.287-diag26-full287-extconfix-kernel
-          path: diagnostic-result/miru-h40-4.14.287-diag26-full287-extconfix-kernel.zip
+          name: miru-h40-4.14.287-diag27-rng-earlyboot-fix-kernel
+          path: diagnostic-result/miru-h40-4.14.287-diag27-rng-earlyboot-fix-kernel.zip
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
@@ -347,7 +379,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-4.14.287-diag26-full287-extconfix-full
+          name: miru-h40-4.14.287-diag27-rng-earlyboot-fix-full
           path: full-artifact/
           if-no-files-found: error
           compression-level: 0
