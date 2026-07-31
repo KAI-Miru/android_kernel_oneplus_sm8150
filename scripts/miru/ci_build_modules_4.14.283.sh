@@ -156,6 +156,7 @@ make -C "${KERNEL_DIR}" "${MAKE_COMMON[@]}" olddefconfig
 make -C "${KERNEL_DIR}" -j4 V=0 "${MAKE_COMMON[@]}" modules_prepare
 
 cp "${PRIOR_SYMVERS}" "${OUT_DIR}/Module.symvers"
+cp "${PRIOR_SYMVERS}" "${REPORT_DIR}/Module.symvers.kernel-abi"
 printf '%s  %s\n' "${EXPECTED_SYMVERS_SHA}" "${OUT_DIR}/Module.symvers" | sha256sum -c -
 
 test "$(make -s -C "${KERNEL_DIR}" "${MAKE_COMMON[@]}" kernelrelease)" = "${EXPECTED_RELEASE}"
@@ -181,7 +182,51 @@ for rel in \
   drivers/net/wireless/ath/wil6210/wil6210.ko; do
   test -s "${OUT_DIR}/${rel}"
 done
-printf '%s  %s\n' "${EXPECTED_SYMVERS_SHA}" "${OUT_DIR}/Module.symvers" | sha256sum -c -
+python3 - "${REPORT_DIR}/Module.symvers.kernel-abi" "${OUT_DIR}/Module.symvers" \
+  "${REPORT_DIR}/Module.symvers-extension-report.txt" <<'PY'
+from pathlib import Path
+import hashlib
+import sys
+
+prior_path, current_path, report_path = map(Path, sys.argv[1:])
+prior = prior_path.read_text().splitlines()
+current = current_path.read_text().splitlines()
+prior_set = set(prior)
+current_set = set(current)
+missing = sorted(prior_set - current_set)
+extra = sorted(current_set - prior_set)
+allowed = (
+    'drivers/media/platform/msm/dvb/adapter/mpq-adapter',
+    'drivers/media/platform/msm/dvb/demux/mpq-dmx-hw-plugin',
+    'drivers/platform/msm/msm_11ad/msm_11ad_proxy',
+    'drivers/char/rdbg',
+    'drivers/media/platform/msm/broadcast/tspp',
+    'drivers/net/wireless/ath/wil6210/wil6210',
+)
+invalid = []
+for line in extra:
+    fields = line.split('\t')
+    module = fields[2] if len(fields) >= 3 else ''
+    if not module.startswith(allowed):
+        invalid.append(line)
+if missing or invalid:
+    report_path.write_text(
+        f'prior_entries={len(prior)}\ncurrent_entries={len(current)}\n'
+        f'missing_entries={len(missing)}\nextra_entries={len(extra)}\n'
+        f'invalid_extra_entries={len(invalid)}\n'
+        + ('\n[MISSING]\n' + '\n'.join(missing) if missing else '')
+        + ('\n[INVALID EXTRA]\n' + '\n'.join(invalid) if invalid else '')
+        + '\n'
+    )
+    raise SystemExit('Module.symvers changed outside the six selected modules')
+report_path.write_text(
+    f'kernel_abi_sha256={hashlib.sha256(prior_path.read_bytes()).hexdigest()}\n'
+    f'extended_symvers_sha256={hashlib.sha256(current_path.read_bytes()).hexdigest()}\n'
+    f'prior_entries={len(prior)}\ncurrent_entries={len(current)}\n'
+    f'missing_entries=0\nextra_entries={len(extra)}\ninvalid_extra_entries=0\n'
+    'result=PASS\n'
+)
+PY
 
 "${KERNEL_DIR}/scripts/diffconfig" \
   "${KERNEL_DIR}/h40-repro/config/GM1911_11_H.40.config" "${OUT_DIR}/.config" \
@@ -238,6 +283,7 @@ test "$(grep -F ": ${EXPECTED_RELEASE} SMP preempt mod_unload modversions aarch6
 } | tee "${FINAL_DIR}/VALIDATION-SUMMARY.txt"
 cp "${REPORT_DIR}/module-preparation-summary.txt" "${FINAL_DIR}/"
 cp "${REPORT_DIR}/config-diff.txt" "${FINAL_DIR}/CONFIG-DELTA.txt"
+cp "${REPORT_DIR}/Module.symvers-extension-report.txt" "${FINAL_DIR}/"
 cp external-module-diagnostics/MODULE-ABI-REPORT.txt "${FINAL_DIR}/"
 cp external-module-diagnostics/BUILD-MANIFEST.txt "${FINAL_DIR}/MODULE-BUILD-MANIFEST.txt"
 cp external-module-diagnostics/PACKAGE-SUMMARY.txt "${FINAL_DIR}/MODULE-PACKAGE-SUMMARY.txt"
