@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-diag26-full287-${{ github.event.pull_request.number }}
+  group: miru-h40-diag27-rng-earlyboot-fix-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: false
 
 env:
