@@ -60,9 +60,9 @@ jobs:
           if s.count(' = "291"') != 1:
               raise SystemExit(f'unexpected quoted sublevel count: {s.count(chr(32) + "= \\\"291\\\"")}')
           s = s.replace(' = "291"', ' = "287"')
-          if s.count(r'4\\.14\\.291') != 1:
-              raise SystemExit(f'unexpected escaped release count: {s.count(r"4\\.14\\.291")}')
-          s = s.replace(r'4\\.14\\.291', r'4\\.14\\.287')
+          if s.count('291-miru-h40-diag26') != 1:
+              raise SystemExit(f'unexpected release-token count: {s.count("291-miru-h40-diag26")}')
+          s = s.replace('291-miru-h40-diag26', '287-miru-h40-diag26')
           '''
           if s.count(marker) != 1:
               raise SystemExit(f'unexpected stale-token marker count: {s.count(marker)}')
