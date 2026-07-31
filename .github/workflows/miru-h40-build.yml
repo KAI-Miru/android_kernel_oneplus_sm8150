@@ -1,4 +1,4 @@
-name: Miru H.40 Linux 4.14.287 midpoint source materialization
+name: Miru H.40 Linux 4.14.287 diagnostic candidate materialization
 
 on:
   pull_request:
@@ -9,23 +9,24 @@ permissions:
   contents: write
 
 concurrency:
-  group: miru-h40-lts287-source-diag26-${{ github.event.pull_request.number }}
+  group: miru-h40-lts287-candidate-diag26-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 env:
   PRODUCTION_SHA: 61371a1024e341f434deaf61b79a05f73827260a
-  SCAFFOLD_283_SHA: b581c659db87713eb2df1c29e4f28e337e5e908c
-  SOURCE_291_SHA: a79859d15ae0025897791a77654bcebeedc708ab
+  SOURCE_SHA: 705dd8a9d1e74a896a28d1a3efd6ff30fcc4e3b4
+  SOURCE_BRANCH: miru-h40-lts287-source-diag26
   STABLE_287_SHA: 1048779a1d7dcf0b5c150188decafa21c19821e4
-  STABLE_291_SHA: e548869f356fead9fdcb3562f52d2226574f4f41
-  FDT_292_SHA: 3c2ae48eceaa40f1ecb18ba31dda3f6fe755796c
-  TARGET_BRANCH: miru-h40-lts287-source-diag26
+  DIAG25_HEAD: eb04d54f581da4257a331a816444bd6fe88b1ae1
+  TARGET_BRANCH: miru-h40-lts287-full287-extconfix-diag26
+  FIXED_EXTCON_BLOB: 3643c82ca1532c62d5596cff8e05878a4d52543f
+  EARLY_RANDOM_BLOB: c498b09b1b36b6cc9d34a16b08422e9299bc4a02
 
 jobs:
-  materialize-source:
+  materialize-candidate:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - name: Checkout exact preparation head
         uses: actions/checkout@v4
@@ -34,117 +35,16 @@ jobs:
           fetch-depth: 1
           persist-credentials: true
 
-      - name: Materialize audited 4.14.287 midpoint source
+      - name: Materialize audited 4.14.287 candidate
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
+        run: bash scripts/miru/materialize_4.14.287_diag26_candidate.sh
 
-          path = Path('scripts/miru/materialize_4.14.287_diag26.sh')
-          text = path.read_text()
-
-          old_check = 'git -C "${ref_wt}" diff --check --cached\n'
-          new_check = '''git -C "${ref_wt}" diff --check --cached -- . ':!kernel/signal.c'
-          set +e
-          git -C "${ref_wt}" diff --check --cached -- kernel/signal.c \\
-            > "${EVIDENCE}/known-signal-whitespace.txt" 2>&1
-          signal_whitespace_rc=$?
-          set -e
-          test "${signal_whitespace_rc}" = 2
-          test "$(grep -c 'space before tab in indent.' \\
-            "${EVIDENCE}/known-signal-whitespace.txt")" = 2
-          grep -Fq 'kernel/signal.c:1703: space before tab in indent.' \\
-            "${EVIDENCE}/known-signal-whitespace.txt"
-          grep -Fq 'kernel/signal.c:1704: space before tab in indent.' \\
-            "${EVIDENCE}/known-signal-whitespace.txt"
-          '''
-          if text.count(old_check) != 1:
-              raise SystemExit(f'unexpected diff-check marker count: {text.count(old_check)}')
-          text = text.replace(old_check, new_check, 1)
-
-          old_tree = '''if ! cmp -s "${EVIDENCE}/downgraded-reference-tree.txt" "${EVIDENCE}/actual-merge-tree.txt"; then
-            git diff --name-status \\
-              "$(cat "${EVIDENCE}/downgraded-reference-tree.txt")" \\
-              "$(cat "${EVIDENCE}/actual-merge-tree.txt")" \\
-              > "${EVIDENCE}/tree-mismatch.txt"
-            {
-              echo result=FAIL
-              echo stage=tree-equivalence
-              echo "mismatch_count=$(wc -l < "${EVIDENCE}/tree-mismatch.txt")"
-            } | tee "${EVIDENCE}/SUMMARY.txt"
-            cat "${EVIDENCE}/tree-mismatch.txt" >&2
-            exit 1
-          fi
-          '''
-          new_tree = '''if ! cmp -s "${EVIDENCE}/downgraded-reference-tree.txt" "${EVIDENCE}/actual-merge-tree.txt"; then
-            git diff --name-only \\
-              "$(cat "${EVIDENCE}/downgraded-reference-tree.txt")" \\
-              "$(cat "${EVIDENCE}/actual-merge-tree.txt")" | sort -u \\
-              > "${EVIDENCE}/tree-mismatch.txt"
-            cat > "${EVIDENCE}/expected-tree-mismatch.txt" <<'EOF'
-          arch/arm64/kernel/armv8_deprecated.c
-          drivers/usb/host/xhci.c
-          drivers/usb/host/xhci.h
-          fs/ext4/namei.c
-          include/crypto/chacha.h
-          lib/vsprintf.c
-          net/ipv4/tcp_output.c
-          EOF
-            diff -u "${EVIDENCE}/expected-tree-mismatch.txt" \\
-              "${EVIDENCE}/tree-mismatch.txt"
-
-            # Proven compile corrections are source-owned; all other listed
-            # paths remain owned by the real 4.14.283 -> 4.14.287 merge.
-            for rel in include/crypto/chacha.h lib/vsprintf.c; do
-              cp -a "${ref_wt}/${rel}" "${merge_wt}/${rel}"
-              git -C "${merge_wt}" add -- "${rel}"
-            done
-            git -C "${merge_wt}" diff --check --cached -- \\
-              include/crypto/chacha.h lib/vsprintf.c
-            git -C "${merge_wt}" write-tree \\
-              > "${EVIDENCE}/corrected-merge-tree.txt"
-            git diff --name-only \\
-              "$(cat "${EVIDENCE}/downgraded-reference-tree.txt")" \\
-              "$(cat "${EVIDENCE}/corrected-merge-tree.txt")" | sort -u \\
-              > "${EVIDENCE}/real-merge-owned-paths.txt"
-            cat > "${EVIDENCE}/expected-real-merge-owned-paths.txt" <<'EOF'
-          arch/arm64/kernel/armv8_deprecated.c
-          drivers/usb/host/xhci.c
-          drivers/usb/host/xhci.h
-          fs/ext4/namei.c
-          net/ipv4/tcp_output.c
-          EOF
-            diff -u "${EVIDENCE}/expected-real-merge-owned-paths.txt" \\
-              "${EVIDENCE}/real-merge-owned-paths.txt"
-
-            grep -Fq 'int xhci_handshake(void __iomem *ptr, u32 mask, u32 done, int usec)' \\
-              "${merge_wt}/drivers/usb/host/xhci.c"
-            grep -Fq 'int xhci_reset(struct xhci_hcd *xhci)' \\
-              "${merge_wt}/drivers/usb/host/xhci.c"
-            grep -Fq 'xhci_handshake_check_state(xhci, &xhci->op_regs->command' \\
-              "${merge_wt}/drivers/usb/host/xhci.c"
-            ! grep -Fq 'XHCI_RESET_LONG_USEC' "${merge_wt}/drivers/usb/host/xhci.h"
-            ! grep -Fq 'XHCI_RESET_SHORT_USEC' "${merge_wt}/drivers/usb/host/xhci.h"
-            ! grep -Fq 'READ_ONCE(net->ipv4.sysctl_tcp_probe_' \\
-              "${merge_wt}/net/ipv4/tcp_output.c"
-            ! grep -Fq 'avail_wnd' "${merge_wt}/net/ipv4/tcp_output.c"
-            grep -Fq 'OPLUS_FEATURE_MODEM_DATA_NWPOWER' \\
-              "${merge_wt}/net/ipv4/tcp_output.c"
-          fi
-          '''
-          if text.count(old_tree) != 1:
-              raise SystemExit(f'unexpected tree-policy marker count: {text.count(old_tree)}')
-          path.write_text(text.replace(old_tree, new_tree, 1))
-          PY
-          bash scripts/miru/materialize_4.14.287_diag26.sh
-
-      - name: Upload source materialization evidence
+      - name: Upload candidate materialization evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-lts287-source-diag26-evidence
-          path: source-287-evidence/
+          name: miru-h40-lts287-candidate-diag26-evidence
+          path: candidate-287-evidence/
           if-no-files-found: warn
           compression-level: 0
           retention-days: 30
