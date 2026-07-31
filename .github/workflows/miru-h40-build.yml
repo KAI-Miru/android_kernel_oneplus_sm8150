@@ -15,18 +15,16 @@ concurrency:
 env:
   PRODUCTION_SHA: 61371a1024e341f434deaf61b79a05f73827260a
   OLD_SOURCE_SHA: 915805d7d8e369e271b9206d19f8f0d7baffaf35
-  DIAG24_HEAD: 736d5832302d34d70ca7aa87d30ff614c8e1237a
   SCAFFOLD_283_SHA: b581c659db87713eb2df1c29e4f28e337e5e908c
   STABLE_291_SHA: e548869f356fead9fdcb3562f52d2226574f4f41
   FDT_292_SHA: 3c2ae48eceaa40f1ecb18ba31dda3f6fe755796c
-  SOURCE_BRANCH: miru-h40-lts291-source-diag25
-  FINAL_BRANCH: miru-h40-lts291-full291-extconfix-diag25
+  TARGET_BRANCH: miru-h40-lts291-source-diag25
 
 jobs:
-  repair-and-materialize:
+  repair-source:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 25
     steps:
       - name: Checkout exact preparation head
         uses: actions/checkout@v4
@@ -35,46 +33,45 @@ jobs:
           fetch-depth: 1
           persist-credentials: true
 
-      - name: Restore vendor DDR helper and materialize diagnostic
+      - name: Restore vendor DDR helper
         shell: bash
         run: |
           set -Eeuo pipefail
           mkdir -p source-repair-evidence
           trigger_sha="$(git rev-parse HEAD)"
           test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
-          test -z "$(git ls-remote origin "refs/heads/${SOURCE_BRANCH}")"
-          test -z "$(git ls-remote origin "refs/heads/${FINAL_BRANCH}")"
+          test -z "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}")"
           git fetch --no-tags origin \
-            "${OLD_SOURCE_SHA}" "${DIAG24_HEAD}" "${SCAFFOLD_283_SHA}" \
+            "${OLD_SOURCE_SHA}" "${SCAFFOLD_283_SHA}" \
             "${STABLE_291_SHA}" "${FDT_292_SHA}"
 
-          source_wt="${RUNNER_TEMP}/miru-291-source-diag25"
-          final_wt="${RUNNER_TEMP}/miru-291-final-diag25"
-          rm -rf "${source_wt}" "${final_wt}"
-          git worktree add --detach "${source_wt}" "${OLD_SOURCE_SHA}"
-          git -C "${source_wt}" config user.name github-actions[bot]
-          git -C "${source_wt}" config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          wt="${RUNNER_TEMP}/miru-291-source-diag25"
+          rm -rf "${wt}"
+          git worktree add --detach "${wt}" "${OLD_SOURCE_SHA}"
+          git -C "${wt}" config user.name github-actions[bot]
+          git -C "${wt}" config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
-          test "$(git -C "${source_wt}" rev-parse HEAD^1)" = "${SCAFFOLD_283_SHA}"
-          test "$(git -C "${source_wt}" rev-parse HEAD^2)" = "${STABLE_291_SHA}"
-          test "$(git -C "${source_wt}" hash-object lib/vsprintf.c)" = ad1d198627f1c31e0e3135de8f2320a605a58a3f
-          test "$(git -C "${source_wt}" hash-object drivers/of/fdt.c)" = 95660d835566c22cb936455ca481ad4b3b1f98c7
-          grep -Fq 'extern int of_fdt_get_ddrtype(void);' "${source_wt}/include/linux/of_fdt.h"
-          ! grep -Fq 'int of_fdt_get_ddrtype(void)' "${source_wt}/drivers/of/fdt.c"
-          grep -Fq 'of_fdt_get_ddrtype()' "${source_wt}/drivers/devfreq/arm-memlat-mon.c"
-          grep -Fq 'of_fdt_get_ddrtype()' "${source_wt}/drivers/devfreq/devfreq_devbw.c"
+          test "$(git -C "${wt}" rev-parse HEAD^1)" = "${SCAFFOLD_283_SHA}"
+          test "$(git -C "${wt}" rev-parse HEAD^2)" = "${STABLE_291_SHA}"
+          test "$(sed -n 's/^SUBLEVEL = //p' "${wt}/Makefile" | head -n1)" = 291
+          test "$(git -C "${wt}" hash-object lib/vsprintf.c)" = ad1d198627f1c31e0e3135de8f2320a605a58a3f
+          test "$(git -C "${wt}" hash-object drivers/of/fdt.c)" = 95660d835566c22cb936455ca481ad4b3b1f98c7
+          grep -Fq 'extern int of_fdt_get_ddrtype(void);' "${wt}/include/linux/of_fdt.h"
+          ! grep -Fq 'int of_fdt_get_ddrtype(void)' "${wt}/drivers/of/fdt.c"
+          grep -Fq 'of_fdt_get_ddrtype()' "${wt}/drivers/devfreq/arm-memlat-mon.c"
+          grep -Fq 'of_fdt_get_ddrtype()' "${wt}/drivers/devfreq/devfreq_devbw.c"
 
-          python3 - "${source_wt}/drivers/of/fdt.c" <<'PY'
+          python3 - "${wt}/drivers/of/fdt.c" <<'PY'
           from pathlib import Path
           import sys
 
           path = Path(sys.argv[1])
           text = path.read_text()
-          marker = '''/**
+          marker = """/**
            * of_fdt_is_compatible - Return true if given node from the given blob has
-          '''
+          """
           marker = "\n".join(line[10:] if line.startswith("          ") else line for line in marker.splitlines())
-          helper = '''/**
+          helper = """/**
            * of_fdt_get_ddrtype - Return the type of ddr (4/5) on the current device
            *
            * On match, returns a non-zero positive value which matches the ddr type.
@@ -96,11 +93,10 @@ jobs:
           \t\treturn -ENOENT;
 
           \tret = fdt32_to_cpu(*prop);
-
           \treturn ret;
           }
 
-          '''
+          """
           helper = "\n".join(line[10:] if line.startswith("          ") else line for line in helper.splitlines())
           if text.count(marker) != 1:
               raise SystemExit(f"unexpected insertion marker count: {text.count(marker)}")
@@ -109,133 +105,51 @@ jobs:
           path.write_text(text.replace(marker, helper + marker, 1))
           PY
 
-          git -C "${source_wt}" diff --check
-          test "$(git -C "${source_wt}" diff --name-only)" = drivers/of/fdt.c
-          grep -Fq 'int of_fdt_get_ddrtype(void)' "${source_wt}/drivers/of/fdt.c"
-          grep -Fq '"ddr_device_type", &len' "${source_wt}/drivers/of/fdt.c"
-          grep -Fq 'return -ENOENT;' "${source_wt}/drivers/of/fdt.c"
-          grep -Fq 'void *dt_virt = fixmap_remap_fdt(dt_phys);' "${source_wt}/arch/arm64/kernel/setup.c"
-          ! grep -Fq 'fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL)' "${source_wt}/arch/arm64/kernel/setup.c"
+          git -C "${wt}" diff --check
+          test "$(git -C "${wt}" diff --name-only)" = drivers/of/fdt.c
+          grep -Fq 'int of_fdt_get_ddrtype(void)' "${wt}/drivers/of/fdt.c"
+          grep -Fq '"ddr_device_type", &len' "${wt}/drivers/of/fdt.c"
+          grep -Fq 'return -ENOENT;' "${wt}/drivers/of/fdt.c"
+          grep -Fq 'void *dt_virt = fixmap_remap_fdt(dt_phys);' "${wt}/arch/arm64/kernel/setup.c"
+          ! grep -Fq 'fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL)' "${wt}/arch/arm64/kernel/setup.c"
 
-          git -C "${source_wt}" add -- drivers/of/fdt.c
-          GIT_COMMITTER_DATE='2026-07-31T10:20:00Z' git -C "${source_wt}" commit --amend --no-edit
-          source_sha="$(git -C "${source_wt}" rev-parse HEAD)"
-          source_tree="$(git -C "${source_wt}" rev-parse HEAD^{tree})"
-          source_fdt_blob="$(git -C "${source_wt}" hash-object drivers/of/fdt.c)"
+          git -C "${wt}" add -- drivers/of/fdt.c
+          GIT_COMMITTER_DATE='2026-07-31T10:20:00Z' git -C "${wt}" commit --amend --no-edit
+          repaired_sha="$(git -C "${wt}" rev-parse HEAD)"
+          repaired_tree="$(git -C "${wt}" rev-parse HEAD^{tree})"
+          repaired_fdt_blob="$(git -C "${wt}" hash-object drivers/of/fdt.c)"
 
-          test "${source_sha}" != "${OLD_SOURCE_SHA}"
-          test "$(git -C "${source_wt}" rev-parse HEAD^1)" = "${SCAFFOLD_283_SHA}"
-          test "$(git -C "${source_wt}" rev-parse HEAD^2)" = "${STABLE_291_SHA}"
-          test "$(git -C "${source_wt}" diff-tree --no-commit-id --name-only -r "${OLD_SOURCE_SHA}^{tree}" "${source_tree}")" = drivers/of/fdt.c
-          ! git -C "${source_wt}" merge-base --is-ancestor "${FDT_292_SHA}" HEAD
-
-          git worktree add --detach "${final_wt}" "${source_sha}"
-          git -C "${final_wt}" config user.name github-actions[bot]
-          git -C "${final_wt}" config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git -C "${final_wt}" checkout "${DIAG24_HEAD}" -- \
-            .github/workflows/miru-h40-build.yml \
-            drivers/extcon/extcon.c \
-            drivers/soc/qcom/early_random.c
-
-          python3 - "${final_wt}/.github/workflows/miru-h40-build.yml" "${source_sha}" "${source_fdt_blob}" <<'PY'
-          from pathlib import Path
-          import sys
-
-          path = Path(sys.argv[1])
-          source_sha = sys.argv[2]
-          fdt_blob = sys.argv[3]
-          old_source = '915805d7d8e369e271b9206d19f8f0d7baffaf35'
-          text = path.read_text()
-          if old_source not in text:
-              raise SystemExit('old source SHA missing from diagnostic workflow')
-          text = text.replace(old_source, source_sha)
-          if 'diag24' not in text:
-              raise SystemExit('diag24 identity missing from diagnostic workflow')
-          text = text.replace('diag24', 'diag25')
-
-          env_anchor = '  SOURCE_VSPRINTF_BLOB: ad1d198627f1c31e0e3135de8f2320a605a58a3f\n'
-          if text.count(env_anchor) != 1:
-              raise SystemExit('unexpected SOURCE_VSPRINTF_BLOB anchor')
-          text = text.replace(env_anchor, env_anchor + f'  SOURCE_FDT_BLOB: {fdt_blob}\n', 1)
-
-          check_anchor = "          ! grep -Fq 'add_random_ready_callback' lib/vsprintf.c\n"
-          checks = (
-              check_anchor +
-              '          test "$(git show "${SOURCE_SHA}:drivers/of/fdt.c" | git hash-object --stdin)" = "${SOURCE_FDT_BLOB}"\n'
-              "          grep -Fq 'int of_fdt_get_ddrtype(void)' drivers/of/fdt.c\n"
-              "          grep -Fq '\"ddr_device_type\", &len' drivers/of/fdt.c\n"
-              "          grep -Fq 'extern int of_fdt_get_ddrtype(void);' include/linux/of_fdt.h\n"
-          )
-          if text.count(check_anchor) != 1:
-              raise SystemExit('unexpected notifier check anchor')
-          text = text.replace(check_anchor, checks, 1)
-
-          summary_anchor = '            echo "source_vsprintf_blob=${SOURCE_VSPRINTF_BLOB}"\n'
-          if text.count(summary_anchor) != 1:
-              raise SystemExit('unexpected validation summary anchor')
-          text = text.replace(summary_anchor, summary_anchor + '            echo "source_fdt_blob=${SOURCE_FDT_BLOB}"\n', 1)
-          text = text.replace(
-              'compatibility_delta=notifier source repair plus extcon and early_random',
-              'compatibility_delta=notifier and DDR helper source repairs plus extcon and early_random',
-          )
-          path.write_text(text)
-          PY
-
-          test "$(git -C "${final_wt}" hash-object drivers/extcon/extcon.c)" = 3643c82ca1532c62d5596cff8e05878a4d52543f
-          test "$(git -C "${final_wt}" hash-object drivers/soc/qcom/early_random.c)" = c498b09b1b36b6cc9d34a16b08422e9299bc4a02
-          grep -Fq "SOURCE_SHA: ${source_sha}" "${final_wt}/.github/workflows/miru-h40-build.yml"
-          grep -Fq "SOURCE_FDT_BLOB: ${source_fdt_blob}" "${final_wt}/.github/workflows/miru-h40-build.yml"
-          grep -Fq 'diag25' "${final_wt}/.github/workflows/miru-h40-build.yml"
-          ! grep -Fq 'diag24' "${final_wt}/.github/workflows/miru-h40-build.yml"
-          ! grep -Fq "${OLD_SOURCE_SHA}" "${final_wt}/.github/workflows/miru-h40-build.yml"
-          git -C "${final_wt}" diff --check
-          git -C "${final_wt}" diff --name-only "${source_sha}" | sort -u > source-repair-evidence/final-delta.txt
-          printf '%s\n' \
-            .github/workflows/miru-h40-build.yml \
-            drivers/extcon/extcon.c \
-            drivers/soc/qcom/early_random.c \
-            > source-repair-evidence/expected-final-delta.txt
-          cmp -s source-repair-evidence/expected-final-delta.txt source-repair-evidence/final-delta.txt
-
-          git -C "${final_wt}" add -- \
-            .github/workflows/miru-h40-build.yml \
-            drivers/extcon/extcon.c \
-            drivers/soc/qcom/early_random.c
-          GIT_AUTHOR_DATE='2026-07-31T10:21:00Z' GIT_COMMITTER_DATE='2026-07-31T10:21:00Z' \
-            git -C "${final_wt}" commit -m 'diag: build complete 4.14.291 with notifier and DDR helper repairs'
-          final_sha="$(git -C "${final_wt}" rev-parse HEAD)"
-          test "$(git -C "${final_wt}" rev-parse HEAD^1)" = "${source_sha}"
-          test "$(git -C "${final_wt}" diff --name-only "${source_sha}" HEAD | sort -u)" = "$(cat source-repair-evidence/expected-final-delta.txt)"
+          test "${repaired_sha}" != "${OLD_SOURCE_SHA}"
+          test "$(git -C "${wt}" rev-parse HEAD^1)" = "${SCAFFOLD_283_SHA}"
+          test "$(git -C "${wt}" rev-parse HEAD^2)" = "${STABLE_291_SHA}"
+          test "$(git -C "${wt}" diff-tree --no-commit-id --name-only -r "${OLD_SOURCE_SHA}^{tree}" "${repaired_tree}")" = drivers/of/fdt.c
+          ! git -C "${wt}" merge-base --is-ancestor "${FDT_292_SHA}" HEAD
 
           {
             echo result=PASS
             echo "trigger_sha=${trigger_sha}"
             echo "production_sha=${PRODUCTION_SHA}"
             echo "old_source_sha=${OLD_SOURCE_SHA}"
-            echo "repaired_source_sha=${source_sha}"
-            echo "repaired_source_tree=${source_tree}"
-            echo "repaired_fdt_blob=${source_fdt_blob}"
+            echo "repaired_source_sha=${repaired_sha}"
+            echo "repaired_source_tree=${repaired_tree}"
+            echo "repaired_fdt_blob=${repaired_fdt_blob}"
             echo "source_first_parent=${SCAFFOLD_283_SHA}"
             echo "source_second_parent=${STABLE_291_SHA}"
             echo "excluded_fdt_292=${FDT_292_SHA}"
-            echo "final_diagnostic_sha=${final_sha}"
-            echo source_changed_paths=drivers/of/fdt.c
-            echo final_delta_files=3
+            echo changed_paths=drivers/of/fdt.c
           } | tee source-repair-evidence/SUMMARY.txt
-          git -C "${source_wt}" diff "${OLD_SOURCE_SHA}" HEAD -- drivers/of/fdt.c \
+          git -C "${wt}" diff "${OLD_SOURCE_SHA}" HEAD -- drivers/of/fdt.c \
             > source-repair-evidence/fdt-ddrtype-repair.patch
           sha256sum source-repair-evidence/* > source-repair-evidence/SHA256SUMS
 
-          git -C "${source_wt}" push origin "HEAD:refs/heads/${SOURCE_BRANCH}"
-          git -C "${final_wt}" push origin "HEAD:refs/heads/${FINAL_BRANCH}"
-          test "$(git ls-remote origin "refs/heads/${SOURCE_BRANCH}" | awk '{print $1}')" = "${source_sha}"
-          test "$(git ls-remote origin "refs/heads/${FINAL_BRANCH}" | awk '{print $1}')" = "${final_sha}"
+          git -C "${wt}" push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${repaired_sha}"
 
       - name: Upload source repair evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-lts291-diag25-source-evidence
+          name: miru-h40-lts291-source-diag25-evidence
           path: source-repair-evidence/
           if-no-files-found: warn
           compression-level: 0
