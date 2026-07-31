@@ -269,6 +269,8 @@ obj-$(CONFIG_SBITMAP) += sbitmap.o
 
 obj-$(CONFIG_PARMAN) += parman.o
 
+obj-y += crypto/
+
 # ifdef OPLUS_FEATURE_MEMLEAK_DETECT
 obj-$(CONFIG_VMALLOC_DEBUG) += memleak_debug_stackdepot.o
 # endif
