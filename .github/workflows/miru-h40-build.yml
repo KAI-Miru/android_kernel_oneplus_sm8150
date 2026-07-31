@@ -41,15 +41,33 @@ jobs:
           set -Eeuo pipefail
           python3 - <<'PY'
           from pathlib import Path
+
           p = Path('scripts/miru/materialize_4.14.287_diag26_candidate.sh')
           s = p.read_text()
-          old = 'git -C "${wt}" add -- .github/workflows/miru-h40-build.yml drivers/extcon/extcon.c drivers/soc/qcom/early_random.c\n'
-          new = '''git -C "${wt}" add -- drivers/extcon/extcon.c drivers/soc/qcom/early_random.c
+
+          old_add = 'git -C "${wt}" add -- .github/workflows/miru-h40-build.yml drivers/extcon/extcon.c drivers/soc/qcom/early_random.c\n'
+          new_add = '''git -C "${wt}" add -- drivers/extcon/extcon.c drivers/soc/qcom/early_random.c
           git -C "${wt}" add -f -- .github/workflows/miru-h40-build.yml
           '''
-          if s.count(old) != 1:
-              raise SystemExit(f'unexpected candidate add marker count: {s.count(old)}')
-          p.write_text(s.replace(old, new, 1))
+          if s.count(old_add) != 1:
+              raise SystemExit(f'unexpected candidate add marker count: {s.count(old_add)}')
+          s = s.replace(old_add, new_add, 1)
+
+          marker = "for stale in ('a79859d15ae0025897791a77654bcebeedc708ab',"
+          identity_fix = '''if s.count(' = 291') != 2:
+              raise SystemExit(f'unexpected bare sublevel count: {s.count(" = 291")}')
+          s = s.replace(' = 291', ' = 287')
+          if s.count(' = "291"') != 1:
+              raise SystemExit(f'unexpected quoted sublevel count: {s.count(chr(32) + "= \\\"291\\\"")}')
+          s = s.replace(' = "291"', ' = "287"')
+          if s.count(r'4\\.14\\.291') != 1:
+              raise SystemExit(f'unexpected escaped release count: {s.count(r"4\\.14\\.291")}')
+          s = s.replace(r'4\\.14\\.291', r'4\\.14\\.287')
+          '''
+          if s.count(marker) != 1:
+              raise SystemExit(f'unexpected stale-token marker count: {s.count(marker)}')
+          s = s.replace(marker, identity_fix + marker, 1)
+          p.write_text(s)
           PY
           bash scripts/miru/materialize_4.14.287_diag26_candidate.sh
 
