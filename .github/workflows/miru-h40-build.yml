@@ -1,9 +1,6 @@
-name: Miru H.40 4.14.269 kernel and external modules
+name: Miru H.40 Linux 4.14.291 source from proven 4.14.283 scaffold
 
 on:
-  push:
-    branches:
-      - miru-h40
   pull_request:
     branches:
       - miru-h40
@@ -11,235 +8,151 @@ on:
       - opened
       - reopened
       - synchronize
-      - ready_for_review
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: miru-h40-lts291-from-proven-283-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
 
 env:
-  PRODUCTION_BASE: 4394ccbfa3805ce392b65b3ea148ff1eb084a974
-  ANDROID_STABLE_TARGET: 0eec6f6001d15bb1108835a642ec4637d75eef19
-  VENDOR_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
-  EXPECTED_RELEASE: 4.14.269-miru-h40-lts269-14d41d8-ci3+
-  MAKEFILE_BUILD_269_BLOB: ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3
+  PRODUCTION_SHA: 61371a1024e341f434deaf61b79a05f73827260a
+  SCAFFOLD_283_SHA: b581c659db87713eb2df1c29e4f28e337e5e908c
+  COMMON_283_SHA: bc1a5b8c02ae4f3f821f3b325bad7bf87e679450
+  STABLE_291_SHA: e548869f356fead9fdcb3562f52d2226574f4f41
+  FDT_292_SHA: 3c2ae48eceaa40f1ecb18ba31dda3f6fe755796c
+  TARGET_BRANCH: miru-h40-lts291-source-diag21
 
 jobs:
-  production-kernel-and-modules:
+  materialize-source:
     if: >-
       github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 45
 
     steps:
-      - name: Checkout requested 4.14.269 revision
+      - name: Checkout exact preparation head
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
+          fetch-depth: 1
+          persist-credentials: true
 
-      - name: Verify 4.14.269 source, ancestry, and device fixes
+      - name: Advance proven 4.14.283 scaffold to complete 4.14.291
+        id: source
         shell: bash
         run: |
           set -Eeuo pipefail
-          git fetch --no-tags --depth=1 origin "${PRODUCTION_BASE}"
-          git fetch --no-tags --depth=1 origin "${ANDROID_STABLE_TARGET}"
-          git merge-base --is-ancestor "${PRODUCTION_BASE}" HEAD
-          git merge-base --is-ancestor "${ANDROID_STABLE_TARGET}" HEAD
-          git diff --check "${PRODUCTION_BASE}" HEAD
-          test -z "$(git ls-files -u)"
-          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = "269"
-          grep -Fq -- '- Semantically resolved conflicts: **22**' Documentation/miru/lts-4.14.269-conflicts.md
-          grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.269-conflicts.md
-          if git grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . \
-              ':!Documentation/miru/lts-4.14.269-conflicts.md' \
-              > source-conflict-markers.txt; then
-            cat source-conflict-markers.txt
-            exit 1
-          else
-            : > source-conflict-markers.txt
+          set -x
+          mkdir -p source-generation-evidence
+          trigger_sha="$(git rev-parse HEAD)"
+
+          test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
+          test -z "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}")"
+          git fetch --no-tags origin "${PRODUCTION_SHA}" "${SCAFFOLD_283_SHA}" "${COMMON_283_SHA}"
+
+          if ! git remote get-url android-common >/dev/null 2>&1; then
+            git remote add android-common https://github.com/aosp-mirror/kernel_common.git
           fi
-          qrtr_fn="$(sed -n '/int qrtr_endpoint_post(/,/EXPORT_SYMBOL_GPL(qrtr_endpoint_post);/p' net/qrtr/qrtr.c)"
-          test "$(printf '%s\n' "${qrtr_fn}" | grep -c 'alloc_skb_with_frags(')" = 1
-          test "$(printf '%s\n' "${qrtr_fn}" | grep -c 'qrtr_get_backup(len)')" = 1
-          ! printf '%s\n' "${qrtr_fn}" | grep -Fq '__netdev_alloc_skb(NULL, len'
-          grep -Fq 'qcom_glink_rx_advance(glink, ALIGN(msglen, 8));' drivers/rpmsg/qcom_glink_native.c
-          irq_fn="$(sed -n '/static irqreturn_t qcom_glink_native_intr/,/return IRQ_HANDLED;/p' drivers/rpmsg/qcom_glink_native.c)"
-          ! printf '%s\n' "${irq_fn}" | grep -Fq 'if (ret == -ENOENT)'
+          git fetch --no-tags android-common "${STABLE_291_SHA}" "${FDT_292_SHA}"
+
+          test "$(git rev-parse "${SCAFFOLD_283_SHA}^1")" = "${PRODUCTION_SHA}"
+          test "$(git rev-parse "${SCAFFOLD_283_SHA}^2")" = "${COMMON_283_SHA}"
+          git merge-base --is-ancestor "${PRODUCTION_SHA}" "${SCAFFOLD_283_SHA}"
+          test "$(git show "${SCAFFOLD_283_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 283
+          test "$(git show "${COMMON_283_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 283
+
+          stable_283_sha="$(git rev-parse "${COMMON_283_SHA}^2")"
+          test "$(git show -s --format=%s "${stable_283_sha}")" = 'Linux 4.14.283'
+          test "$(git show -s --format=%s "${STABLE_291_SHA}")" = 'Linux 4.14.291'
+          test "$(git show "${STABLE_291_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 291
+          git merge-base --is-ancestor "${stable_283_sha}" "${STABLE_291_SHA}"
+          git merge-base --is-ancestor "${STABLE_291_SHA}" "${FDT_292_SHA}"
+          if git merge-base --is-ancestor "${FDT_292_SHA}" "${STABLE_291_SHA}"; then
+            echo '4.14.292 FDT transition is present in the 4.14.291 endpoint' >&2
+            exit 1
+          fi
+
+          source_wt="${RUNNER_TEMP}/miru-291-from-proven-283"
+          rm -rf "${source_wt}"
+          git worktree add --detach "${source_wt}" "${SCAFFOLD_283_SHA}"
+          git -C "${source_wt}" config user.name github-actions[bot]
+          git -C "${source_wt}" config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+          set +e
+          git -C "${source_wt}" merge --no-commit --no-ff "${STABLE_291_SHA}" \
+            > source-generation-evidence/stable-283-to-291-merge.log 2>&1
+          merge_rc=$?
+          set -e
+          printf '%s\n' "${merge_rc}" > source-generation-evidence/merge-exit-code.txt
+          git -C "${source_wt}" diff --name-only --diff-filter=U | sort -u \
+            > source-generation-evidence/conflicts.txt
+          git -C "${source_wt}" ls-files -u \
+            > source-generation-evidence/unmerged-index.txt
+          git -C "${source_wt}" status --short \
+            > source-generation-evidence/status.txt
+
+          if [ "${merge_rc}" -ne 0 ]; then
+            echo 'Stable 4.14.291 did not merge cleanly into the proven 4.14.283 scaffold.' >&2
+            cat source-generation-evidence/conflicts.txt >&2
+            exit 1
+          fi
+          test ! -s source-generation-evidence/conflicts.txt
+          test ! -s source-generation-evidence/unmerged-index.txt
+          test "$(sed -n 's/^SUBLEVEL = //p' "${source_wt}/Makefile" | head -n1)" = 291
+          grep -Fq 'void *dt_virt = fixmap_remap_fdt(dt_phys);' "${source_wt}/arch/arm64/kernel/setup.c"
+          ! grep -Fq 'fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL)' "${source_wt}/arch/arm64/kernel/setup.c"
+          if git -C "${source_wt}" grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . \
+              ':!Documentation' > source-generation-evidence/source-conflict-markers.txt; then
+            cat source-generation-evidence/source-conflict-markers.txt >&2
+            exit 1
+          fi
+          git -C "${source_wt}" diff --check
+
+          export GIT_AUTHOR_DATE='2026-07-31T07:30:00Z'
+          export GIT_COMMITTER_DATE='2026-07-31T07:30:00Z'
+          git -C "${source_wt}" commit -m 'Merge complete Linux 4.14.291 after proven 4.14.283 diagnostic'
+          source_sha="$(git -C "${source_wt}" rev-parse HEAD)"
+          source_tree="$(git -C "${source_wt}" rev-parse 'HEAD^{tree}')"
+          test "$(git -C "${source_wt}" rev-parse 'HEAD^1')" = "${SCAFFOLD_283_SHA}"
+          test "$(git -C "${source_wt}" rev-parse 'HEAD^2')" = "${STABLE_291_SHA}"
+          git -C "${source_wt}" merge-base --is-ancestor "${PRODUCTION_SHA}" HEAD
+          git -C "${source_wt}" merge-base --is-ancestor "${STABLE_291_SHA}" HEAD
+          if git -C "${source_wt}" merge-base --is-ancestor "${FDT_292_SHA}" HEAD; then
+            echo '4.14.292 FDT transition unexpectedly entered final source' >&2
+            exit 1
+          fi
+
           {
-            echo "result=PASS"
-            echo "source_head=$(git rev-parse HEAD)"
-            echo "production_base=${PRODUCTION_BASE}"
-            echo "android_stable_target=${ANDROID_STABLE_TARGET}"
-            echo "expected_release=${EXPECTED_RELEASE}"
-            echo "qrtr_second_allocation=absent"
-            echo "glink_missing_channel_fifo_advance=present"
-            echo "glink_enoent_normalization=absent"
-          } | tee source-validation.txt
+            echo result=PASS
+            echo "trigger_sha=${trigger_sha}"
+            echo "production_sha=${PRODUCTION_SHA}"
+            echo "proven_283_scaffold=${SCAFFOLD_283_SHA}"
+            echo "android_common_283=${COMMON_283_SHA}"
+            echo "stable_283_sha=${stable_283_sha}"
+            echo "stable_291_sha=${STABLE_291_SHA}"
+            echo "excluded_fdt_292_sha=${FDT_292_SHA}"
+            echo "source_sha=${source_sha}"
+            echo "source_tree=${source_tree}"
+            echo source_sublevel=291
+            echo unresolved_conflicts=0
+          } | tee source-generation-evidence/SOURCE-SUMMARY.txt
 
-      - name: Prepare pinned 4.14.269 build driver
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python3 scripts/miru/prepare_vendor_v6_linewise.py
-          python3 scripts/miru/inject_vendor_compat_v3_into_ci_build.py
-          sed -i 's/apply_vendor_lts190_compat_v3.py/apply_vendor_lts190_compat_v6.py/' \
-            scripts/miru/ci_build_4.14.190.sh
-          python3 scripts/miru/insert_vendor_format_fixer.py
-          python3 - <<'PY'
-          from pathlib import Path
+          test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
+          test -z "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}")"
+          git -C "${source_wt}" push origin "${source_sha}:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${source_sha}"
+          echo "source_sha=${source_sha}" >> "${GITHUB_OUTPUT}"
 
-          path = Path('scripts/miru/ci_build_4.14.190.sh')
-          text = path.read_text()
-
-          def one(old, new):
-              global text
-              if old not in text:
-                  raise SystemExit(f'missing expected build-driver text: {old}')
-              text = text.replace(old, new, 1)
-
-          one('BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e', 'BASE_SHA=4394ccbfa3805ce392b65b3ea148ff1eb084a974')
-          one('STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac', 'STABLE_SHA=0eec6f6001d15bb1108835a642ec4637d75eef19')
-          one("':!Documentation/miru/lts-4.14.190-conflicts.md'", "':!Documentation/miru/lts-4.14.269-conflicts.md'")
-          one('test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "190"', 'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = "269"')
-          one("grep -Fq -- '- Resolved conflicts: 28' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq -- '- Semantically resolved conflicts: **22**' Documentation/miru/lts-4.14.269-conflicts.md")
-          one("grep -Fq -- '- Remaining conflicts: 0' Documentation/miru/lts-4.14.190-conflicts.md", "grep -Fq -- '- Remaining semantic conflicts: **0**' Documentation/miru/lts-4.14.269-conflicts.md")
-          one('echo "== Miru H.40 Android 4.14.190 CI build =="', 'echo "== Miru H.40 Android 4.14.269 production candidate build =="')
-          one('echo "kernel_version=4.14.190"', 'echo "kernel_version=4.14.269"')
-          one('echo "conflicts=28/28 resolved"', 'echo "conflicts=22/22 resolved"')
-          one('export KERNEL_LOCALVERSION=-miru-h40-lts190-ci1', 'export KERNEL_LOCALVERSION=-miru-h40-lts269-14d41d8-ci3')
-          one("grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts190-ci1\"' \"${OUT_DIR}/.config\"", "grep -Fq 'CONFIG_LOCALVERSION=\"-miru-h40-lts269-14d41d8-ci3\"' \"${OUT_DIR}/.config\"")
-          one("grep -m1 '^Linux version 4\\.14\\.190-'", "grep -m1 '^Linux version 4\\.14\\.269-'")
-          one('git fetch --no-tags --depth=1 origin "${SCAFFOLD_SHA}"\n', '')
-          one('rm -rf "${ANDROID_ROOT}" "${VENDOR_SOURCE}"', 'rm -rf "${ANDROID_ROOT}" "${VENDOR_SOURCE}"\ngit worktree prune')
-          old = '''git cat-file -p "${SCAFFOLD_SHA}" > "${DIAG_DIR}/merge-scaffold.txt"
-          test "$(grep -c '^parent ' "${DIAG_DIR}/merge-scaffold.txt")" = "2"
-          grep -Fq "parent ${STABLE_SHA}" "${DIAG_DIR}/merge-scaffold.txt"'''
-          new = '''git merge-base --is-ancestor "${BASE_SHA}" HEAD
-          git merge-base --is-ancestor "${STABLE_SHA}" HEAD
-          {
-            echo "integration_base=${BASE_SHA}"
-            echo "stable_parent=${STABLE_SHA}"
-            git log -1 --format='head=%H%nparents=%P%nsubject=%s' HEAD
-          } > "${DIAG_DIR}/merge-scaffold.txt"'''
-          one(old, new)
-          path.write_text(text)
-          PY
-          grep -Fq 'kernel_version=4.14.269' scripts/miru/ci_build_4.14.190.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-lts269-14d41d8-ci3' scripts/miru/ci_build_4.14.190.sh
-
-      - name: Build and validate the 4.14.269 kernel
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          bash scripts/miru/ci_build_4.14.190.sh
-          grep -Fq 'result=SUCCESS' build-diagnostics/build-summary.txt
-          grep -Fq "head=$(git rev-parse HEAD)" build-diagnostics/build-summary.txt
-          grep -Fq "banner=Linux version ${EXPECTED_RELEASE}" build-diagnostics/build-summary.txt
-
-      - name: Build and ABI-validate exactly 32 matching external modules
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python3 scripts/miru/prepare_external_modules_toolchain.py
-          python3 scripts/miru/prepare_external_pinctrl_headers.py
-          python3 scripts/miru/prepare_wlan_response_link.py
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('scripts/miru/build_external_modules_4.14.190.sh')
-          text = path.read_text()
-          old_release = '4.14.190-miru-h40-lts190-ci1+'
-          new_release = '4.14.269-miru-h40-lts269-14d41d8-ci3+'
-          old_hash = 'expected = "74ce588c69513197a354ef0032c2145e91ee0641"'
-          new_hash = 'expected = "ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3"'
-          if old_release not in text:
-              raise SystemExit('missing old external-module release gate')
-          if old_hash not in text:
-              raise SystemExit('missing 4.14.190 Makefile.build integrity hash')
-          text = text.replace(old_release, new_release, 1)
-          text = text.replace(old_hash, new_hash, 1)
-          text = text.replace('4.14.190', '4.14.269').replace('lts190', 'lts269-14d41d8-ci3')
-          path.write_text(text)
-          PY
-          test "$(git -C "${RUNNER_TEMP}/android-root/kernel/msm-4.14" hash-object scripts/Makefile.build)" = "${MAKEFILE_BUILD_269_BLOB}"
-          bash scripts/miru/build_external_modules_4.14.190.sh
-          test "$(find "${RUNNER_TEMP}/miru-external-modules/dropin" -maxdepth 1 -type f -name '*.ko' | wc -l)" = 32
-          grep -Fq 'errors=0' external-module-diagnostics/MODULE-ABI-REPORT.txt
-          test "$(grep -F ": ${EXPECTED_RELEASE} SMP preempt mod_unload modversions aarch64" external-module-diagnostics/vermagic.txt | wc -l)" = 32
-
-      - name: Assemble checksums and validation summary
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          KERNEL_DIR="${RUNNER_TEMP}/android-root/kernel/msm-4.14"
-          OUT_DIR="${RUNNER_TEMP}/android-root/out/h40-kernel"
-          MODULE_DIR="${RUNNER_TEMP}/miru-external-modules/dropin"
-          KERNEL_RELEASE="$(tr -d '\n' < "${OUT_DIR}/include/config/kernel.release")"
-          test "${KERNEL_RELEASE}" = "${EXPECTED_RELEASE}"
-          MODULE_COUNT="$(find "${MODULE_DIR}" -maxdepth 1 -type f -name '*.ko' | wc -l)"
-          test "${MODULE_COUNT}" = 32
-          grep -Fq 'errors=0' external-module-diagnostics/MODULE-ABI-REPORT.txt
-          mkdir -p final-report
-          {
-            echo "result=SUCCESS"
-            echo "source_head=$(git rev-parse HEAD)"
-            echo "production_base=${PRODUCTION_BASE}"
-            echo "android_stable_target=${ANDROID_STABLE_TARGET}"
-            echo "vendor_source_commit=${VENDOR_SHA}"
-            echo "kernel_release=${KERNEL_RELEASE}"
-            echo "vermagic=${EXPECTED_RELEASE} SMP preempt mod_unload modversions aarch64"
-            echo "module_count=${MODULE_COUNT}"
-            echo "module_abi_errors=0"
-            echo "makefile_build_blob=${MAKEFILE_BUILD_269_BLOB}"
-            echo "run_id=${GITHUB_RUN_ID}"
-            echo "run_url=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          } | tee final-report/VALIDATION-SUMMARY.txt
-          cp source-validation.txt final-report/
-          cp build-diagnostics/build-summary.txt final-report/KERNEL-BUILD-SUMMARY.txt
-          cp external-module-diagnostics/MODULE-ABI-REPORT.txt final-report/
-          cp external-module-diagnostics/BUILD-MANIFEST.txt final-report/MODULE-BUILD-MANIFEST.txt
-          cp external-module-diagnostics/PACKAGE-SUMMARY.txt final-report/MODULE-PACKAGE-SUMMARY.txt
-          find "${RUNNER_TEMP}/android-root/out/h40-artifacts" -type f -print0 | sort -z | xargs -0 sha256sum > final-report/KERNEL-FILES-SHA256.txt
-          find "${MODULE_DIR}" -type f -print0 | sort -z | xargs -0 sha256sum > final-report/MODULE-FILES-SHA256.txt
-          sha256sum \
-            "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.269.7z" \
-            "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.269-audit.zip" \
-            > final-report/MODULE-PACKAGES-SHA256.txt
-
-      - name: Upload kernel output
+      - name: Upload source-generation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-lts-4.14.269-ci3-build
-          path: ${{ runner.temp }}/android-root/out/h40-artifacts
+          name: miru-h40-4.14.291-source-from-proven-283-evidence
+          path: source-generation-evidence
           if-no-files-found: warn
           compression-level: 0
-          retention-days: 30
-
-      - name: Upload matching external-module package
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: miru-v3-modules-dropin-4.14.269-ci3
-          path: |
-            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.269.7z
-            ${{ runner.temp }}/android-root/out/miru-v3-modules-dropin-4.14.269-audit.zip
-          if-no-files-found: warn
-          compression-level: 0
-          retention-days: 30
-
-      - name: Upload kernel, module, ABI, and checksum diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: miru-h40-lts-4.14.269-ci3-diagnostics
-          path: |
-            build-diagnostics
-            external-module-diagnostics
-            final-report
-            source-conflict-markers.txt
-            source-validation.txt
-          if-no-files-found: warn
           retention-days: 30
