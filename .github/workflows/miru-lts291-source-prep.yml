@@ -1,0 +1,285 @@
+name: Miru H.40 audited Linux 4.14.291 source materializer
+
+on:
+  pull_request:
+    branches:
+      - miru-h40
+    types:
+      - opened
+      - reopened
+      - synchronize
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: miru-h40-lts291-source-prep-diag21-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+env:
+  PRODUCTION_SHA: 61371a1024e341f434deaf61b79a05f73827260a
+  GOOD_FIRST_PARENT_SHA: 21e1e64073ff320d8e6bda5ee964444327621b81
+  COMMON_305_MERGE_SHA: 4415bf5e08942aee6487946a3e0a50956ef68f1e
+  STABLE_305_TIP_SHA: a8ad60f2af5884921167e8cede5784c7849884b2
+  STABLE_291_SHA: e548869f356fead9fdcb3562f52d2226574f4f41
+  DIRECT_305_REFERENCE_SHA: 09abbe312c55a13dd2bf0d652bb5d658a64ed781
+  FDT_292_SHA: 3c2ae48eceaa40f1ecb18ba31dda3f6fe755796c
+  TARGET_BRANCH: miru-h40-lts291-source-diag21
+
+jobs:
+  materialize-source:
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout exact preparation head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Reconstruct exact target-reachable 4.14.291 source
+        id: source
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p source-generation-evidence
+          trigger_sha="$(git rev-parse HEAD)"
+          test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
+          test -z "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}")"
+
+          if ! git remote get-url android-common >/dev/null 2>&1; then
+            git remote add android-common https://github.com/aosp-mirror/kernel_common.git
+          fi
+          git fetch --no-tags android-common \
+            "${GOOD_FIRST_PARENT_SHA}" "${COMMON_305_MERGE_SHA}" \
+            "${STABLE_305_TIP_SHA}" "${STABLE_291_SHA}" "${FDT_292_SHA}"
+          git fetch --no-tags origin "${PRODUCTION_SHA}" "${DIRECT_305_REFERENCE_SHA}"
+
+          test "$(git show -s --format=%s "${STABLE_291_SHA}")" = 'Linux 4.14.291'
+          test "$(git show "${STABLE_291_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 291
+          test "$(git show "${FDT_292_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 292
+          test "$(git rev-parse "${COMMON_305_MERGE_SHA}^2")" = "${STABLE_305_TIP_SHA}"
+          git merge-base --is-ancestor "${STABLE_291_SHA}" "${STABLE_305_TIP_SHA}"
+          git merge-base --is-ancestor "${STABLE_291_SHA}" "${FDT_292_SHA}"
+          if git merge-base --is-ancestor "${FDT_292_SHA}" "${STABLE_291_SHA}"; then
+            echo '4.14.292 FDT transition is present in the 4.14.291 endpoint' >&2
+            exit 1
+          fi
+          test "$(git rev-list --count "${STABLE_291_SHA}" --not b8f3be299d5176348b15cc59d55b85faa3dece68)" = 874
+          test "$(git show "${GOOD_FIRST_PARENT_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 282
+          test "$(git show "${COMMON_305_MERGE_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 305
+          test "$(git show "${DIRECT_305_REFERENCE_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 305
+          git merge-base --is-ancestor "${COMMON_305_MERGE_SHA}" "${DIRECT_305_REFERENCE_SHA}"
+          git merge-base --is-ancestor "${PRODUCTION_SHA}" "${DIRECT_305_REFERENCE_SHA}"
+
+          common_wt="${RUNNER_TEMP}/common-291-merge"
+          common_ref_wt="${RUNNER_TEMP}/common-305-reference"
+          miru_wt="${RUNNER_TEMP}/miru-291-merge"
+          miru_ref_wt="${RUNNER_TEMP}/miru-305-reference"
+          rm -rf "${common_wt}" "${common_ref_wt}" "${miru_wt}" "${miru_ref_wt}"
+
+          git worktree add --detach "${common_wt}" "${GOOD_FIRST_PARENT_SHA}"
+          git -C "${common_wt}" config user.name github-actions[bot]
+          git -C "${common_wt}" config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          set +e
+          git -C "${common_wt}" merge --no-commit --no-ff "${STABLE_291_SHA}" \
+            > source-generation-evidence/common-291-merge.log 2>&1
+          common_merge_rc=$?
+          set -e
+          test "${common_merge_rc}" -le 1
+          git -C "${common_wt}" diff --name-only --diff-filter=U | sort -u \
+            > source-generation-evidence/common-291-conflicts.txt
+          git -C "${common_wt}" ls-files -u > source-generation-evidence/common-291-unmerged-index.txt
+          mapfile -t common_conflicts < source-generation-evidence/common-291-conflicts.txt
+
+          git worktree add --detach "${common_ref_wt}" "${COMMON_305_MERGE_SHA}"
+          if [ "${#common_conflicts[@]}" -gt 0 ]; then
+            git diff --binary --full-index "${STABLE_305_TIP_SHA}" "${STABLE_291_SHA}" -- \
+              "${common_conflicts[@]}" > source-generation-evidence/common-305-to-291-conflicts.patch
+            sha256sum source-generation-evidence/common-305-to-291-conflicts.patch \
+              > source-generation-evidence/common-305-to-291-conflicts.patch.sha256
+            if [ -s source-generation-evidence/common-305-to-291-conflicts.patch ]; then
+              git -C "${common_ref_wt}" apply --3way --index \
+                "${GITHUB_WORKSPACE}/source-generation-evidence/common-305-to-291-conflicts.patch" \
+                > source-generation-evidence/common-reference-downgrade.log 2>&1
+            else
+              : > source-generation-evidence/common-reference-downgrade.log
+            fi
+          else
+            : > source-generation-evidence/common-305-to-291-conflicts.patch
+            sha256sum source-generation-evidence/common-305-to-291-conflicts.patch \
+              > source-generation-evidence/common-305-to-291-conflicts.patch.sha256
+            : > source-generation-evidence/common-reference-downgrade.log
+          fi
+          git -C "${common_ref_wt}" diff --name-only --diff-filter=U | sort -u \
+            > source-generation-evidence/common-reference-downgrade-conflicts.txt
+          test ! -s source-generation-evidence/common-reference-downgrade-conflicts.txt
+
+          for rel in "${common_conflicts[@]}"; do
+            if [ -e "${common_ref_wt}/${rel}" ] || [ -L "${common_ref_wt}/${rel}" ]; then
+              mkdir -p "$(dirname "${common_wt}/${rel}")"
+              rm -rf "${common_wt:?}/${rel}"
+              cp -a "${common_ref_wt}/${rel}" "${common_wt}/${rel}"
+              git -C "${common_wt}" add -- "${rel}"
+            else
+              git -C "${common_wt}" rm -f --ignore-unmatch -- "${rel}"
+            fi
+          done
+          test -z "$(git -C "${common_wt}" diff --name-only --diff-filter=U)"
+          test -z "$(git -C "${common_wt}" ls-files -u)"
+          test "$(sed -n 's/^SUBLEVEL = //p' "${common_wt}/Makefile" | head -n1)" = 291
+          git -C "${common_wt}" commit -m 'Merge Linux 4.14.291 stable endpoint for Miru diagnostic'
+          common_291_sha="$(git -C "${common_wt}" rev-parse HEAD)"
+          test "$(git -C "${common_wt}" rev-parse 'HEAD^1')" = "${GOOD_FIRST_PARENT_SHA}"
+          test "$(git -C "${common_wt}" rev-parse 'HEAD^2')" = "${STABLE_291_SHA}"
+
+          cat > source-generation-evidence/allowed-miru-conflicts.txt <<'EOF'
+          Documentation/arm64/silicon-errata.txt
+          arch/arm64/Kconfig
+          arch/arm64/include/asm/cpucaps.h
+          arch/arm64/include/asm/cputype.h
+          arch/arm64/kernel/cpu_errata.c
+          arch/arm64/kernel/setup.c
+          arch/arm64/mm/mmu.c
+          drivers/char/Kconfig
+          drivers/clk/qcom/clk-rcg2.c
+          drivers/edac/edac_device.c
+          drivers/mailbox/mailbox.c
+          drivers/mmc/core/host.c
+          drivers/mmc/core/mmc_ops.c
+          drivers/mmc/host/sdhci.c
+          drivers/net/ethernet/stmicro/stmmac/stmmac_hwtstamp.c
+          drivers/rpmsg/qcom_glink_native.c
+          drivers/usb/core/quirks.c
+          drivers/usb/dwc3/core.c
+          drivers/usb/gadget/function/f_fs.c
+          drivers/usb/gadget/function/rndis.c
+          drivers/usb/host/xhci.c
+          drivers/usb/host/xhci.h
+          fs/fat/fatent.c
+          include/net/netfilter/nf_queue.h
+          include/net/sock.h
+          include/uapi/linux/virtio_ids.h
+          kernel/exit.c
+          kernel/panic.c
+          lib/Makefile
+          mm/memory.c
+          net/ipv4/tcp_output.c
+          net/ipv6/ip6_output.c
+          net/netfilter/nf_conntrack_irc.c
+          EOF
+          sed -i 's/^          //' source-generation-evidence/allowed-miru-conflicts.txt
+          sort -u -o source-generation-evidence/allowed-miru-conflicts.txt \
+            source-generation-evidence/allowed-miru-conflicts.txt
+
+          git worktree add --detach "${miru_wt}" "${PRODUCTION_SHA}"
+          git -C "${miru_wt}" config user.name github-actions[bot]
+          git -C "${miru_wt}" config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          set +e
+          git -C "${miru_wt}" merge --no-commit --no-ff "${common_291_sha}" \
+            > source-generation-evidence/miru-291-merge.log 2>&1
+          miru_merge_rc=$?
+          set -e
+          test "${miru_merge_rc}" -le 1
+          git -C "${miru_wt}" diff --name-only --diff-filter=U | sort -u \
+            > source-generation-evidence/miru-291-conflicts.txt
+          git -C "${miru_wt}" ls-files -u > source-generation-evidence/miru-291-unmerged-index.txt
+          comm -23 source-generation-evidence/miru-291-conflicts.txt \
+            source-generation-evidence/allowed-miru-conflicts.txt \
+            > source-generation-evidence/unexpected-miru-conflicts.txt
+          test ! -s source-generation-evidence/unexpected-miru-conflicts.txt
+          mapfile -t miru_conflicts < source-generation-evidence/miru-291-conflicts.txt
+
+          git worktree add --detach "${miru_ref_wt}" "${DIRECT_305_REFERENCE_SHA}"
+          if [ "${#miru_conflicts[@]}" -gt 0 ]; then
+            git diff --binary --full-index "${COMMON_305_MERGE_SHA}" "${common_291_sha}" -- \
+              "${miru_conflicts[@]}" > source-generation-evidence/miru-305-to-291-conflicts.patch
+            sha256sum source-generation-evidence/miru-305-to-291-conflicts.patch \
+              > source-generation-evidence/miru-305-to-291-conflicts.patch.sha256
+            if [ -s source-generation-evidence/miru-305-to-291-conflicts.patch ]; then
+              git -C "${miru_ref_wt}" apply --3way --index \
+                "${GITHUB_WORKSPACE}/source-generation-evidence/miru-305-to-291-conflicts.patch" \
+                > source-generation-evidence/miru-reference-downgrade.log 2>&1
+            else
+              : > source-generation-evidence/miru-reference-downgrade.log
+            fi
+          else
+            : > source-generation-evidence/miru-305-to-291-conflicts.patch
+            sha256sum source-generation-evidence/miru-305-to-291-conflicts.patch \
+              > source-generation-evidence/miru-305-to-291-conflicts.patch.sha256
+            : > source-generation-evidence/miru-reference-downgrade.log
+          fi
+          git -C "${miru_ref_wt}" diff --name-only --diff-filter=U | sort -u \
+            > source-generation-evidence/miru-reference-downgrade-conflicts.txt
+          test ! -s source-generation-evidence/miru-reference-downgrade-conflicts.txt
+
+          for rel in "${miru_conflicts[@]}"; do
+            if [ -e "${miru_ref_wt}/${rel}" ] || [ -L "${miru_ref_wt}/${rel}" ]; then
+              mkdir -p "$(dirname "${miru_wt}/${rel}")"
+              rm -rf "${miru_wt:?}/${rel}"
+              cp -a "${miru_ref_wt}/${rel}" "${miru_wt}/${rel}"
+              git -C "${miru_wt}" add -- "${rel}"
+            else
+              git -C "${miru_wt}" rm -f --ignore-unmatch -- "${rel}"
+            fi
+          done
+          test -z "$(git -C "${miru_wt}" diff --name-only --diff-filter=U)"
+          test -z "$(git -C "${miru_wt}" ls-files -u)"
+          test "$(sed -n 's/^SUBLEVEL = //p' "${miru_wt}/Makefile" | head -n1)" = 291
+          test "$(git -C "${miru_wt}" hash-object drivers/extcon/extcon.c)" = 117da8393690b281f87680bc4ea81b3984f1c24c
+          ! grep -Fq '#include <linux/random.h>' "${miru_wt}/drivers/soc/qcom/early_random.c"
+          grep -Fq 'void *dt_virt = fixmap_remap_fdt(dt_phys);' "${miru_wt}/arch/arm64/kernel/setup.c"
+          ! grep -Fq 'fixmap_remap_fdt(dt_phys, &size, PAGE_KERNEL)' "${miru_wt}/arch/arm64/kernel/setup.c"
+          if git -C "${miru_wt}" grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . \
+              ':!Documentation' > source-generation-evidence/source-conflict-markers.txt; then
+            cat source-generation-evidence/source-conflict-markers.txt
+            exit 1
+          fi
+          git -C "${miru_wt}" diff --check
+          git -C "${miru_wt}" commit -m 'Merge complete Linux 4.14.291 into Miru H.40 for diagnostic'
+          source_sha="$(git -C "${miru_wt}" rev-parse HEAD)"
+          source_tree="$(git -C "${miru_wt}" rev-parse 'HEAD^{tree}')"
+          test "$(git -C "${miru_wt}" rev-parse 'HEAD^1')" = "${PRODUCTION_SHA}"
+          test "$(git -C "${miru_wt}" rev-parse 'HEAD^2')" = "${common_291_sha}"
+          git -C "${miru_wt}" merge-base --is-ancestor "${STABLE_291_SHA}" HEAD
+          if git -C "${miru_wt}" merge-base --is-ancestor "${FDT_292_SHA}" HEAD; then
+            echo '4.14.292 FDT transition unexpectedly entered final source' >&2
+            exit 1
+          fi
+
+          {
+            echo "result=PASS"
+            echo "trigger_sha=${trigger_sha}"
+            echo "production_sha=${PRODUCTION_SHA}"
+            echo "stable_291_sha=${STABLE_291_SHA}"
+            echo "excluded_fdt_292_sha=${FDT_292_SHA}"
+            echo "common_291_merge_sha=${common_291_sha}"
+            echo "source_sha=${source_sha}"
+            echo "source_tree=${source_tree}"
+            echo "source_sublevel=291"
+            echo "source_extcon_blob=117da8393690b281f87680bc4ea81b3984f1c24c"
+            echo "early_random_include=absent_requires_compatibility_repair"
+            echo "common_conflict_count=$(wc -l < source-generation-evidence/common-291-conflicts.txt)"
+            echo "miru_conflict_count=$(wc -l < source-generation-evidence/miru-291-conflicts.txt)"
+          } | tee source-generation-evidence/SOURCE-SUMMARY.txt
+
+          test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
+          test -z "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}")"
+          git -C "${miru_wt}" push origin "${source_sha}:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${source_sha}"
+          echo "source_sha=${source_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload source-generation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-4.14.291-source-diag21-evidence
+          path: source-generation-evidence
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
