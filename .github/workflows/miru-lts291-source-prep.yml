@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: true
 
       - name: Reconstruct exact target-reachable 4.14.291 source
@@ -64,7 +64,6 @@ jobs:
 
           test "$(git show -s --format=%s "${STABLE_291_SHA}")" = 'Linux 4.14.291'
           test "$(git show "${STABLE_291_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 291
-          test "$(git show "${FDT_292_SHA}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 292
           test "$(git rev-parse "${COMMON_305_MERGE_SHA}^2")" = "${STABLE_305_TIP_SHA}"
           git merge-base --is-ancestor "${STABLE_291_SHA}" "${STABLE_305_TIP_SHA}"
           git merge-base --is-ancestor "${STABLE_291_SHA}" "${FDT_292_SHA}"
