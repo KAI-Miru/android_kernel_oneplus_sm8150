@@ -1,61 +1,39 @@
-name: Miru H.40 complete 4.14.292 FDT and RNG diagnostic
+name: Miru H.40 4.14.292 merge probe
 
 on:
-  push:
-    branches: [miru-h40-lts292-fdt-rng-fix-diag29]
-    paths:
-      - .github/workflows/miru-h40-diag29-build.yml
+  pull_request:
+    branches: [miru-h40]
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-diag29-fdt-rng-fix
+  group: miru-h40-diag29-probe-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  kernel-only:
+  source-probe:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 30
     steps:
-      - name: Checkout exact diagnostic launcher
+      - name: Checkout exact diagnostic head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Merge, resolve, build and validate Linux 4.14.292
-        id: diagnostic
+      - name: Probe exact Linux 4.14.292 merge state
         shell: bash
-        run: |
-          bash scripts/miru/diag29_build_v2.sh
-          result="$(cat diagnostic-result/RESULT 2>/dev/null || echo FAILURE)"
-          echo "result=${result}" >> "${GITHUB_OUTPUT}"
+        run: bash scripts/miru/diag29_probe.sh
 
-      - name: Upload compact physical-test ZIP
-        if: always() && steps.diagnostic.outputs.result == 'SUCCESS'
-        uses: actions/upload-artifact@v4
-        with:
-          name: miru-h40-4.14.292-diag29-fdt-rng-fix-kernel
-          path: diagnostic-result/miru-h40-4.14.292-diag29-fdt-rng-fix-kernel.zip
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 30
-
-      - name: Upload full merge and validation evidence
+      - name: Upload exact merge evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-4.14.292-diag29-fdt-rng-fix-full
-          path: full-artifact/
+          name: miru-h40-4.14.292-diag29-merge-probe
+          path: diag29-probe/
           if-no-files-found: error
-          compression-level: 0
-          include-hidden-files: true
+          compression-level: 9
           retention-days: 30
-
-      - name: Enforce diagnostic result
-        if: always()
-        env:
-          RESULT: ${{ steps.diagnostic.outputs.result }}
-        shell: bash
-        run: test "${RESULT}" = SUCCESS
