@@ -1,5 +1,0 @@
-base_blob=f906fe2acedd36354f8b1160742d86cde46c8927
-miru_blob=667c4813db46b38cd3c52d5190b3bf5af45344c5
-target_blob=4f40331ceb5ae77e2fd98b6abe691f251dbd8caf
-head_blob=667c4813db46b38cd3c52d5190b3bf5af45344c5
-target_commit_count=3
