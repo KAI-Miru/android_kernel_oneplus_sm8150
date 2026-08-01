@@ -28,7 +28,7 @@ jobs:
         id: diagnostic
         shell: bash
         run: |
-          bash scripts/miru/diag29_build_v5.sh
+          bash scripts/miru/diag29_build_v6.sh
           result="$(cat diagnostic-result/RESULT 2>/dev/null || echo FAILURE)"
           echo "result=${result}" >> "${GITHUB_OUTPUT}"
 
