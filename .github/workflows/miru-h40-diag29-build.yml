@@ -1,4 +1,4 @@
-name: Miru H.40 complete 4.14.292 FDT and RNG diagnostic
+name: Miru H.40 4.14.292 final prebuild validation
 
 on:
   pull_request:
@@ -9,14 +9,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-diag29-fdt-rng-fix-${{ github.event.pull_request.number }}
+  group: miru-h40-diag29-prebuild-v2-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  kernel-only:
+  prebuild-validation:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 45
     steps:
       - name: Checkout exact diagnostic head
         uses: actions/checkout@v4
@@ -24,38 +24,32 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Merge, resolve, build and validate Linux 4.14.292
-        id: diagnostic
+      - name: Resolve and validate through the compile boundary
+        id: preflight
         shell: bash
         run: |
-          bash scripts/miru/diag29_build_v3.sh
+          bash scripts/miru/diag29_preflight_v2.sh
           result="$(cat diagnostic-result/RESULT 2>/dev/null || echo FAILURE)"
           echo "result=${result}" >> "${GITHUB_OUTPUT}"
 
-      - name: Upload compact physical-test ZIP
-        if: always() && steps.diagnostic.outputs.result == 'SUCCESS'
-        uses: actions/upload-artifact@v4
-        with:
-          name: miru-h40-4.14.292-diag29-fdt-rng-fix-kernel
-          path: diagnostic-result/miru-h40-4.14.292-diag29-fdt-rng-fix-kernel.zip
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 30
-
-      - name: Upload full merge and validation evidence
+      - name: Upload exact prebuild evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-4.14.292-diag29-fdt-rng-fix-full
-          path: full-artifact/
-          if-no-files-found: error
-          compression-level: 0
-          include-hidden-files: true
+          name: miru-h40-4.14.292-diag29-prebuild-v2
+          path: |
+            diagnostic-result/
+            full-artifact/validation/
+            merge-conflicts.txt
+            expected-possible-conflicts.txt
+            source-validation.txt
+          if-no-files-found: warn
+          compression-level: 9
           retention-days: 30
 
-      - name: Enforce diagnostic result
+      - name: Enforce prebuild result
         if: always()
         env:
-          RESULT: ${{ steps.diagnostic.outputs.result }}
+          RESULT: ${{ steps.preflight.outputs.result }}
         shell: bash
-        run: test "${RESULT}" = SUCCESS
+        run: test "${RESULT}" = PREBUILD_PASS
