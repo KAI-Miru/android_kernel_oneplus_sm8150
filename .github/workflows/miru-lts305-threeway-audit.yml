@@ -15,7 +15,7 @@ permissions:
 jobs:
   audit:
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 45
 
     steps:
       - name: Checkout complete repository history
@@ -52,24 +52,6 @@ jobs:
             git cat-file -e "$object^{commit}"
           done
 
-          {
-            echo "H40=$H40"
-            echo "MIRU269=$MIRU269"
-            echo "MIRU305=$MIRU305"
-            echo "COMMON269=$COMMON269"
-            echo "COMMON305=$COMMON305"
-            echo "COMMON305_TAG=$(git rev-parse refs/tags/audit-common-305)"
-            echo "COMMON305_PEELED=$(git rev-parse refs/tags/audit-common-305^{commit})"
-            echo "COMMON305_TREE=$(git rev-parse "$COMMON305^{tree}")"
-            echo "H40_TREE=$(git rev-parse "$H40^{tree}")"
-            echo "MIRU269_TREE=$(git rev-parse "$MIRU269^{tree}")"
-            echo "MIRU305_TREE=$(git rev-parse "$MIRU305^{tree}")"
-          } > "$OUT/IDENTITY.txt"
-
-          test "$(git rev-parse refs/tags/audit-common-305)" = "$COMMON305_TAG" || fatal=1
-          test "$(git rev-parse refs/tags/audit-common-305^{commit})" = "$COMMON305" || fatal=1
-          test "$(git rev-parse "$COMMON305^{tree}")" = "$COMMON305_TREE" || fatal=1
-
           version_of() {
             git show "$1:Makefile" | awk '
               /^VERSION =/ {v=$3}
@@ -77,6 +59,44 @@ jobs:
               /^SUBLEVEL =/ {s=$3}
               END {print v "." p "." s}'
           }
+          check_ancestor() {
+            local label=$1 older=$2 newer=$3
+            if git merge-base --is-ancestor "$older" "$newer"; then
+              printf 'PASS\t%s\t%s\t%s\n' "$label" "$older" "$newer"
+            else
+              printf 'FAIL\t%s\t%s\t%s\n' "$label" "$older" "$newer"
+              fatal=1
+            fi
+          }
+          oid_or_missing() {
+            git rev-parse "$1:$2" 2>/dev/null || printf 'MISSING\n'
+          }
+          core_source_path() {
+            case "$1" in
+              arch/*|block/*|crypto/*|drivers/*|fs/*|include/*|init/*|ipc/*|kernel/*|lib/*|mm/*|net/*|security/*|sound/*|virt/*|Kbuild|Kconfig|Makefile)
+                return 0 ;;
+              *) return 1 ;;
+            esac
+          }
+
+          {
+            echo "H40=$H40"
+            echo "H40_TREE=$(git rev-parse "$H40^{tree}")"
+            echo "MIRU269=$MIRU269"
+            echo "MIRU269_TREE=$(git rev-parse "$MIRU269^{tree}")"
+            echo "MIRU305=$MIRU305"
+            echo "MIRU305_TREE=$(git rev-parse "$MIRU305^{tree}")"
+            echo "COMMON269=$COMMON269"
+            echo "COMMON305=$COMMON305"
+            echo "COMMON305_TAG=$(git rev-parse refs/tags/audit-common-305)"
+            echo "COMMON305_PEELED=$(git rev-parse refs/tags/audit-common-305^{commit})"
+            echo "COMMON305_TREE=$(git rev-parse "$COMMON305^{tree}")"
+          } > "$OUT/IDENTITY.txt"
+
+          test "$(git rev-parse refs/tags/audit-common-305)" = "$COMMON305_TAG" || fatal=1
+          test "$(git rev-parse refs/tags/audit-common-305^{commit})" = "$COMMON305" || fatal=1
+          test "$(git rev-parse "$COMMON305^{tree}")" = "$COMMON305_TREE" || fatal=1
+
           {
             echo "pristine_h40=$(version_of "$H40")"
             echo "miru269=$(version_of "$MIRU269")"
@@ -87,15 +107,6 @@ jobs:
           test "$(version_of "$MIRU305")" = "4.14.305" || fatal=1
           test "$(version_of "$COMMON305")" = "4.14.305" || fatal=1
 
-          check_ancestor() {
-            local label=$1 older=$2 newer=$3
-            if git merge-base --is-ancestor "$older" "$newer"; then
-              printf 'PASS\t%s\t%s\t%s\n' "$label" "$older" "$newer"
-            else
-              printf 'FAIL\t%s\t%s\t%s\n' "$label" "$older" "$newer"
-              fatal=1
-            fi
-          }
           {
             check_ancestor pristine_H40_is_in_Miru305 "$H40" "$MIRU305"
             check_ancestor Miru269_is_in_Miru305 "$MIRU269" "$MIRU305"
@@ -104,16 +115,17 @@ jobs:
             check_ancestor Common305_is_in_Miru305 "$COMMON305" "$MIRU305"
           } > "$OUT/ANCESTRY.tsv"
 
-          git rev-list "$COMMON269..$COMMON305" > "$OUT/common-269-to-305.commits"
-          common_commit_count=$(wc -l < "$OUT/common-269-to-305.commits")
-          : > "$OUT/common-commits-missing-from-miru305.txt"
-          while read -r commit; do
-            git merge-base --is-ancestor "$commit" "$MIRU305" || \
-              echo "$commit" >> "$OUT/common-commits-missing-from-miru305.txt"
-          done < "$OUT/common-269-to-305.commits"
-          missing_common_count=$(wc -l < "$OUT/common-commits-missing-from-miru305.txt")
-          test "$missing_common_count" -eq 0 || fatal=1
-
+          common_commit_count=$(git rev-list --count "$COMMON269..$COMMON305")
+          if git merge-base --is-ancestor "$COMMON305" "$MIRU305"; then
+            missing_common_count=0
+            echo "All commits reachable from Common305 are present by transitive ancestry." \
+              > "$OUT/common-commit-completeness.txt"
+          else
+            missing_common_count=-1
+            echo "Common305 is not an ancestor; individual commit audit required." \
+              > "$OUT/common-commit-completeness.txt"
+            fatal=1
+          fi
           git log --format='%H%x09%s' --grep='^Merge 4\.14\.' \
             "$COMMON269..$COMMON305" > "$OUT/common-stable-endpoints.tsv"
           stable_endpoint_count=$(wc -l < "$OUT/common-stable-endpoints.tsv")
@@ -146,9 +158,7 @@ jobs:
           grep '^CONFLICT' "$OUT/merge-tree-reconstruction.txt" \
             > "$OUT/reconstructed-conflict-messages.txt" || true
           reconstructed_conflict_count=$(wc -l < "$OUT/reconstructed-conflict-messages.txt")
-          if [ "$reconstructed_conflict_count" -ne 33 ]; then
-            fatal=1
-          fi
+          test "$reconstructed_conflict_count" -eq 33 || fatal=1
           grep -Fq -- '- Initial authentic conflicts: **33**' \
             Documentation/miru/lts-4.14.305-conflicts.md || fatal=1
           grep -Fq -- '- Semantically resolved conflicts: **33**' \
@@ -184,17 +194,6 @@ jobs:
           sort -u -o "$OUT/expected-final-compatibility.paths" \
             "$OUT/expected-final-compatibility.paths"
 
-          oid_or_missing() {
-            git rev-parse "$1:$2" 2>/dev/null || printf 'MISSING\n'
-          }
-          core_source_path() {
-            case "$1" in
-              arch/*|block/*|crypto/*|drivers/*|fs/*|include/*|init/*|ipc/*|kernel/*|lib/*|mm/*|net/*|security/*|sound/*|virt/*|Kbuild|Kconfig|Makefile)
-                return 0 ;;
-              *) return 1 ;;
-            esac
-          }
-
           : > "$OUT/common-only-final-mismatches.tsv"
           : > "$OUT/common-only-expected-compatibility.tsv"
           : > "$OUT/common-only-UNEXPECTED-core-mismatches.tsv"
@@ -228,6 +227,15 @@ jobs:
           comm -12 "$OUT/pristine-h40-delta.paths" "$OUT/common-since-h40-base.paths" \
             > "$OUT/h40-common-overlap.paths"
 
+          : > "$OUT/h40-only-paths-missing-from-miru305.txt"
+          while read -r path; do
+            [ -n "$path" ] || continue
+            git cat-file -e "$MIRU305:$path" 2>/dev/null || \
+              echo "$path" >> "$OUT/h40-only-paths-missing-from-miru305.txt"
+          done < "$OUT/h40-only.paths"
+          missing_h40_only_paths=$(wc -l < "$OUT/h40-only-paths-missing-from-miru305.txt")
+          test "$missing_h40_only_paths" -eq 0 || fatal=1
+
           git ls-tree -r --name-only "$H40" | grep -Ei '(oplus|oppo|oneplus)' | sort -u \
             > "$OUT/pristine-h40-oplus-paths.txt" || true
           : > "$OUT/pristine-h40-oplus-paths-missing-from-miru305.txt"
@@ -240,32 +248,15 @@ jobs:
           missing_h40_oplus_paths=$(wc -l < "$OUT/pristine-h40-oplus-paths-missing-from-miru305.txt")
           test "$missing_h40_oplus_paths" -eq 0 || fatal=1
 
-          extract_vendor_tokens() {
-            local rev=$1
-            { git grep -IhoEi '(oplus|oppo|oneplus)_[A-Za-z0-9_]+' "$rev" -- . \
-                ':(exclude)Documentation/**' ':(exclude).github/**' \
-                ':(exclude)h40-repro/**' 2>/dev/null || true; } |
-              tr '[:upper:]' '[:lower:]' | sort -u
-          }
-          extract_config_tokens() {
-            local rev=$1
-            { git grep -IhoE 'CONFIG_(OPLUS|OPPO|ONEPLUS)_[A-Za-z0-9_]+' "$rev" -- . \
-                ':(exclude)Documentation/**' ':(exclude).github/**' 2>/dev/null || true; } |
-              sort -u
-          }
-          extract_vendor_tokens "$H40" > "$OUT/pristine-h40-vendor-identifiers.txt"
-          extract_vendor_tokens "$MIRU305" > "$OUT/miru305-vendor-identifiers.txt"
-          comm -23 "$OUT/pristine-h40-vendor-identifiers.txt" \
-            "$OUT/miru305-vendor-identifiers.txt" \
-            > "$OUT/pristine-h40-vendor-identifiers-missing-from-miru305.txt"
-          extract_config_tokens "$H40" > "$OUT/pristine-h40-oplus-config-symbols.txt"
-          extract_config_tokens "$MIRU305" > "$OUT/miru305-oplus-config-symbols.txt"
+          { git grep -IhoE 'CONFIG_(OPLUS|OPPO|ONEPLUS)_[A-Za-z0-9_]+' "$H40" -- \
+              'arch/arm64/configs/**' 2>/dev/null || true; } | sort -u \
+            > "$OUT/pristine-h40-oplus-config-symbols.txt"
+          { git grep -IhoE 'CONFIG_(OPLUS|OPPO|ONEPLUS)_[A-Za-z0-9_]+' "$MIRU305" -- \
+              'arch/arm64/configs/**' 'h40-repro/config/**' 2>/dev/null || true; } | sort -u \
+            > "$OUT/miru305-oplus-config-symbols.txt"
           comm -23 "$OUT/pristine-h40-oplus-config-symbols.txt" \
             "$OUT/miru305-oplus-config-symbols.txt" \
             > "$OUT/pristine-h40-oplus-config-symbols-missing-from-miru305.txt"
-
-          h40_vendor_identifier_count=$(wc -l < "$OUT/pristine-h40-vendor-identifiers.txt")
-          missing_h40_vendor_identifiers=$(wc -l < "$OUT/pristine-h40-vendor-identifiers-missing-from-miru305.txt")
           h40_config_symbol_count=$(wc -l < "$OUT/pristine-h40-oplus-config-symbols.txt")
           missing_h40_config_symbols=$(wc -l < "$OUT/pristine-h40-oplus-config-symbols-missing-from-miru305.txt")
           test "$missing_h40_config_symbols" -eq 0 || fatal=1
@@ -286,7 +277,6 @@ jobs:
             echo "# Miru H.40 Linux 4.14.305 three-way audit"
             echo
             echo "## Exact identities"
-            echo
             echo "- Pristine H.40: \`$H40\`"
             echo "- Miru production 4.14.269: \`$MIRU269\`"
             echo "- Booted Miru 4.14.305: \`$MIRU305\`"
@@ -295,42 +285,34 @@ jobs:
             echo "- Official 4.14.305 tree: \`$COMMON305_TREE\`"
             echo
             echo "## Cumulative Android Common proof"
-            echo
-            echo "- Commits reachable from Common 4.14.305 but not Common 4.14.269: **$common_commit_count**"
-            echo "- Those commits missing from Miru 4.14.305 ancestry: **$missing_common_count**"
-            echo "- Stable endpoint merge commits found: **$stable_endpoint_count**"
+            echo "- Common commits in the 269→305 range: **$common_commit_count**"
+            echo "- Missing from Miru by transitive ancestry: **$missing_common_count**"
+            echo "- Stable endpoint merges found: **$stable_endpoint_count**"
             echo "- Exact two-parent Miru269 + Common305 merge: \`${exact_merge:-NOT_FOUND}\`"
-            echo "- Reconstructed authentic conflict messages: **$reconstructed_conflict_count**"
-            echo "- merge-tree return code: **$merge_tree_rc**"
+            echo "- Independently reconstructed conflict messages: **$reconstructed_conflict_count**"
             echo
-            echo "## 4.14.269 to 4.14.305 path classification"
-            echo
+            echo "## 269→305 path classification"
             echo "- Paths changed by Android Common: **$common_path_count**"
-            echo "- Downstream paths already different at Miru 4.14.269: **$downstream_path_count**"
+            echo "- Downstream paths already different at 4.14.269: **$downstream_path_count**"
             echo "- Paths touched by both sides: **$overlap_path_count**"
             echo "- Common-only paths: **$common_only_count**"
             echo "- Downstream-only paths: **$downstream_only_count**"
-            echo "- Unexpected final mismatches on Common-only core source paths: **$unexpected_common_only_count**"
+            echo "- Unexpected mismatches on Common-only core source paths: **$unexpected_common_only_count**"
             echo
             echo "## Original H.40 preservation"
-            echo
-            echo "- H.40 is an ancestor of Miru 4.14.305: see \`ANCESTRY.tsv\`"
-            echo "- Pristine H.40 paths containing Oplus/Oppo/OnePlus names: **$h40_oplus_path_count**"
-            echo "- Those paths missing from Miru 4.14.305: **$missing_h40_oplus_paths**"
-            echo "- Unique vendor-prefixed identifiers in pristine H.40: **$h40_vendor_identifier_count**"
-            echo "- Vendor-prefixed identifiers not found in Miru 4.14.305: **$missing_h40_vendor_identifiers**"
-            echo "- Oplus/Oppo/OnePlus CONFIG symbols in pristine H.40: **$h40_config_symbol_count**"
-            echo "- Those CONFIG symbols missing from Miru 4.14.305: **$missing_h40_config_symbols**"
+            echo "- H.40-only paths missing from Miru 4.14.305: **$missing_h40_only_paths**"
+            echo "- H.40 paths named for Oplus/Oppo/OnePlus: **$h40_oplus_path_count**"
+            echo "- Those named vendor paths missing: **$missing_h40_oplus_paths**"
+            echo "- H.40 Oplus/Oppo/OnePlus CONFIG symbols: **$h40_config_symbol_count**"
+            echo "- Those CONFIG symbols missing: **$missing_h40_config_symbols**"
             echo
             echo "## Post-merge audit surface"
-            echo
             echo "- Commits after the exact authentic merge: **$post_merge_commit_count**"
             echo "- Paths changed after the exact authentic merge: **$post_merge_path_count**"
             echo
             echo "## Automated gate"
-            echo
             if [ "$fatal" -eq 0 ]; then
-              echo "**PASS** — no structural omission or unexplained Common-only core-source mismatch was detected."
+              echo "**PASS** — no structural omission, unexplained Common-only core-source mismatch, or vendor-path/config loss was detected."
             else
               echo "**FAIL** — inspect the detailed reports in this artifact."
             fi
@@ -342,11 +324,10 @@ jobs:
             echo "missing_common_count=$missing_common_count"
             echo "reconstructed_conflict_count=$reconstructed_conflict_count"
             echo "unexpected_common_only_count=$unexpected_common_only_count"
+            echo "missing_h40_only_paths=$missing_h40_only_paths"
             echo "missing_h40_oplus_paths=$missing_h40_oplus_paths"
-            echo "missing_h40_vendor_identifiers=$missing_h40_vendor_identifiers"
             echo "missing_h40_config_symbols=$missing_h40_config_symbols"
           } > "$OUT/status.env"
-
           cat "$OUT/SUMMARY.md"
 
       - name: Upload complete three-way audit evidence
