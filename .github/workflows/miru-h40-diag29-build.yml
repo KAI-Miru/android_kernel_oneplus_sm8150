@@ -1,4 +1,4 @@
-name: Miru H.40 complete 4.14.292 FDT and RNG diagnostic
+name: Miru H.40 complete 4.14.292 FDT RNG and rmap diagnostic
 
 on:
   pull_request:
@@ -28,7 +28,7 @@ jobs:
         id: diagnostic
         shell: bash
         run: |
-          bash scripts/miru/diag29_build_v6.sh
+          bash scripts/miru/diag29_build_v7.sh
           result="$(cat diagnostic-result/RESULT 2>/dev/null || echo FAILURE)"
           echo "result=${result}" >> "${GITHUB_OUTPUT}"
 
@@ -42,7 +42,7 @@ jobs:
           compression-level: 0
           retention-days: 30
 
-      - name: Upload full merge and validation evidence
+      - name: Upload full merge compiler and validation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
