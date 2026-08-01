@@ -96,9 +96,20 @@ jobs:
           test -z "$(git -C source ls-files -u)"
           git -C source diff --check "${BOOT_TESTED_SOURCE}" "${SOURCE_SHA}" --
 
-          if git -C source grep -nE '^(<<<<<<< |=======|>>>>>>> )' -- . \
+          if git -C source grep -nE '^(<<<<<<< |>>>>>>> )' -- . \
               > source-conflict-markers.txt; then
             cat source-conflict-markers.txt
+            exit 1
+          fi
+
+          # A line of seven '=' characters is valid reStructuredText. Check it
+          # only among additions since the boot-tested source, where it would
+          # be an actual unresolved conflict separator.
+          git -C source diff --unified=0 "${BOOT_TESTED_SOURCE}" "${SOURCE_SHA}" -- . \
+            | grep -E '^\+(<<<<<<< |=======$|>>>>>>> )' \
+            > changed-conflict-markers.txt || true
+          if [ -s changed-conflict-markers.txt ]; then
+            cat changed-conflict-markers.txt
             exit 1
           fi
 
@@ -210,6 +221,7 @@ jobs:
             echo conflict_ledger=33/33
             echo remaining_conflicts=0
             echo runtime_source_equivalence=PASS
+            echo conflict_marker_scan=PASS
             echo allowed_difference_roots=.github,Documentation,README.md
             echo mandatory_compatibility_areas=5
             echo additional_rmap_compatibility=PASS
@@ -477,7 +489,7 @@ jobs:
           cp -a SOURCE-EQUIVALENCE.txt BUILD-CONTROL-PATCH.txt \
             runtime-source-differences.txt all-release-differences.txt \
             unexpected-release-differences.txt source-conflict-markers.txt \
-            "${FULL}/" 2>/dev/null || true
+            changed-conflict-markers.txt "${FULL}/" 2>/dev/null || true
           cp -a control/build-validation-result "${FULL}/validator-result" 2>/dev/null || true
           cp -a source/build-diagnostics "${FULL}/kernel-build-logs" 2>/dev/null || true
           cp -a source/external-module-diagnostics "${FULL}/external-module-logs" 2>/dev/null || true
