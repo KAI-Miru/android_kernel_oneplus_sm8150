@@ -346,26 +346,27 @@ int anon_vma_clone_oplus(struct vm_area_struct *dst, struct vm_area_struct *src)
 		length++;
 
 		/*
-		 * Reuse existing anon_vma if its degree lower than two,
-		 * that means it has no vma and only one anon_vma child.
+		 * Reuse existing anon_vma if it has no active VMA and only
+		 * one anon_vma child.
 		 *
 		 * Do not chose parent anon_vma, otherwise first child
 		 * will always reuse it. Root anon_vma is never reused:
 		 * it has self-parent reference and at least one child.
 		 */
 		if (!dst->anon_vma && anon_vma != src->anon_vma &&
-				anon_vma->degree < 2)
+				anon_vma->num_children < 2 &&
+				anon_vma->num_active_vmas == 0)
 			dst->anon_vma = anon_vma;
 	}
 	if (dst->anon_vma)
-		dst->anon_vma->degree++;
+		dst->anon_vma->num_active_vmas++;
 	unlock_anon_vma_root(root);
 	return length;
 
  enomem_failure:
 	/*
-	 * dst->anon_vma is dropped here otherwise its degree can be incorrectly
-	 * decremented in unlink_anon_vmas().
+	 * Drop dst->anon_vma so unlink_anon_vmas() does not incorrectly
+	 * decrement its active-VMA count after a failed clone.
 	 * We can safely do this because callers of anon_vma_clone() don't care
 	 * about dst->anon_vma if anon_vma_clone() failed.
 	 */
