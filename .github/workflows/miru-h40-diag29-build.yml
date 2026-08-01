@@ -28,7 +28,7 @@ jobs:
         id: preflight
         shell: bash
         run: |
-          bash scripts/miru/diag29_driver_preflight_v3.sh
+          bash scripts/miru/diag29_driver_preflight_v4.sh
           result="$(cat diagnostic-result/RESULT 2>/dev/null || echo FAILURE)"
           echo "result=${result}" >> "${GITHUB_OUTPUT}"
 
