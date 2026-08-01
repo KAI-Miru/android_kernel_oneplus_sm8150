@@ -1,3 +1,4 @@
+# activation: source preparation only; no compilation
 name: Prepare proven Miru H.40 4.14.305 boot fixes
 
 on:
