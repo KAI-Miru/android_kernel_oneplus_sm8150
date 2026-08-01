@@ -1,9 +1,8 @@
-# activation: source preparation only; no compilation
 name: Prepare proven Miru H.40 4.14.305 boot fixes
 
 on:
-  push:
-    branches: [miru-h40-lts305-bootfix-prebuild]
+  pull_request:
+    branches: [miru-h40-lts305-prep-anchor]
     paths:
       - .github/workflows/miru-lts305-prepare-bootfixes.yml
 
@@ -22,7 +21,7 @@ jobs:
       - name: Checkout exact preparation head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: true
 
@@ -32,13 +31,15 @@ jobs:
           AUDITED_SHA: af61e9d6dfc33b7b46bfc608b20b6badf894ad23
           VALIDATED_SHA: 09abbe312c55a13dd2bf0d652bb5d658a64ed781
           PRODUCTION_SHA: 61371a1024e341f434deaf61b79a05f73827260a
-          BRANCH: miru-h40-lts305-bootfix-prebuild
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BRANCH: ${{ github.head_ref }}
           WORKFLOW: .github/workflows/miru-lts305-prepare-bootfixes.yml
         run: |
           set -Eeuo pipefail
 
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
-          test "$(git ls-remote origin refs/heads/${BRANCH} | awk '{print $1}')" = "${GITHUB_SHA}"
+          test "$(git rev-parse HEAD)" = "${HEAD_SHA}"
+          test "${BRANCH}" = miru-h40-lts305-bootfix-prebuild
+          test "$(git ls-remote origin refs/heads/${BRANCH} | awk '{print $1}')" = "${HEAD_SHA}"
           test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
           git merge-base --is-ancestor "${AUDITED_SHA}" HEAD
           test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 305
@@ -183,6 +184,6 @@ jobs:
           git commit -m 'kernel: apply proven 4.14.305 boot compatibility fixes [skip ci]'
 
           test "$(git diff --name-only "${AUDITED_SHA}" HEAD | sort)" = "$(cat "${RUNNER_TEMP}/expected-files.txt")"
-          test "$(git ls-remote origin refs/heads/${BRANCH} | awk '{print $1}')" = "${GITHUB_SHA}"
+          test "$(git ls-remote origin refs/heads/${BRANCH} | awk '{print $1}')" = "${HEAD_SHA}"
           test "$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
           git push origin HEAD:"${BRANCH}"
