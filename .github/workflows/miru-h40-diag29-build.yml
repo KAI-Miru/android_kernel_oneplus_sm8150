@@ -1,4 +1,4 @@
-name: Miru H.40 4.14.292 merge probe
+name: Miru H.40 4.14.292 prebuild locator
 
 on:
   pull_request:
@@ -9,14 +9,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-diag29-probe-${{ github.event.pull_request.number }}
+  group: miru-h40-diag29-preflight-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  source-probe:
+  prebuild-locator:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout exact diagnostic head
         uses: actions/checkout@v4
@@ -24,16 +24,21 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Probe exact Linux 4.14.292 merge state
+      - name: Resolve and validate through the compile boundary
         shell: bash
-        run: bash scripts/miru/diag29_probe.sh
+        run: bash scripts/miru/diag29_preflight.sh
 
-      - name: Upload exact merge evidence
+      - name: Upload exact prebuild evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-4.14.292-diag29-merge-probe
-          path: diag29-probe/
-          if-no-files-found: error
+          name: miru-h40-4.14.292-diag29-prebuild-locator
+          path: |
+            diagnostic-result/
+            full-artifact/validation/
+            merge-conflicts.txt
+            expected-possible-conflicts.txt
+            source-validation.txt
+          if-no-files-found: warn
           compression-level: 9
           retention-days: 30
