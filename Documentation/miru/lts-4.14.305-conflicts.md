@@ -8,28 +8,25 @@ introduced by cleanly merged changes.
 ## Current status
 
 - Production branch: `miru-h40`
-- Integration branch: `miru-h40-lts305-integration`
+- Clean release branch: `miru-h40-lts305-release`
 - Immutable production baseline: `61371a1024e341f434deaf61b79a05f73827260a`
 - Production baseline version: Linux `4.14.269`
-- Previous Android Common target: `0eec6f6001d15bb1108835a642ec4637d75eef19`
-- New Android Common target: `4415bf5e08942aee6487946a3e0a50956ef68f1e`
-- Stable range: `4.14.270` through `4.14.305`
-- Ledger preparation date: `2026-07-27`
-- Reconnaissance: **complete**
-- Target object verification: **PASS**
-- Authentic merge preview: **complete**
-- Authentic merge scaffold: **created and verified**
+- Exact boot-tested source: `53f76796d1b68260507a83968a4a4bee3b89754f`
+- Android Common 4.14.305 target: `4415bf5e08942aee6487946a3e0a50956ef68f1e`
+- Authentic integration merge: `b92a77e96dd54fd30f8f39c7eef23e76f211c515`
 - Initial authentic conflicts: **33**
 - Index-resolved conflicts: **33**
 - Semantically resolved conflicts: **33**
 - Remaining semantic conflicts: **0**
-- Cleanly merged paths in authentic preview: **2067**
-- Full kernel build: **not performed**
-- External-module build: **not performed**
-- Physical device testing: **not performed**
-- Boot/runtime testing: **not performed**
-- Flashing: **not performed**
-- Production merge: **not performed**
+- Full kernel build: **PASS** — run `30701388376`
+- External-module build: **PASS** — 32 modules
+- In-tree module build: **PASS** — 13 modules
+- ABI/MODVERSIONS errors: **0**
+- Three-way audit: **PASS** — run `30714292944`
+- Physical device testing: **PASS**
+- Boot/runtime testing: **PASS**
+- Flashing: **PASS**
+- Production merge: **pending until the clean final-identity package passes CI and the final smoke test**
 
 ## Mandatory baseline verification
 
@@ -328,11 +325,18 @@ Kernel and module outputs:
 
 ## Explicit safety status
 
-- Physical device testing: **not performed**
-- Boot/runtime testing: **not performed**
-- Flashing: **not performed**
-- Production merge: **not performed**
-- Production branch modification during this milestone: **prohibited**
+- Full kernel build: **PASS** — run `30701388376`
+- External-module build: **PASS** — 32/32 modules
+- In-tree module build: **PASS** — 13/13 modules
+- Binary ABI/MODVERSIONS CRC errors: **0**
+- Physical device testing: **PASS** for the exact boot-tested source
+- Boot/runtime testing: **PASS**
+- Flashing: **PASS**
+- Three-way audit: **PASS** — run `30714292944`
+- Clean `lts305-ci1+` release-candidate workflow: **pending**
+- Final full physical smoke test: **pending**
+- Production merge: **pending**
+- Production branch modification during diagnosis and validation: **none**
 
 ## Authentic scaffold evidence
 
