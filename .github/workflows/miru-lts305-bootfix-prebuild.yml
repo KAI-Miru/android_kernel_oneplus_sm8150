@@ -1,0 +1,497 @@
+name: Miru H.40 4.14.305 bootfix CI1 kernel and modules
+
+on:
+  pull_request:
+    branches:
+      - miru-h40-lts305-prep-anchor
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+    paths:
+      - .github/workflows/miru-lts305-bootfix-prebuild.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: miru-h40-lts305-bootfix-ci1
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: 53f76796d1b68260507a83968a4a4bee3b89754f
+  AUDITED_SHA: af61e9d6dfc33b7b46bfc608b20b6badf894ad23
+  PRODUCTION_SHA: 61371a1024e341f434deaf61b79a05f73827260a
+  VENDOR_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
+  CONTROL_SHA: 9db1ff57feb92e9bed955f0395d9ea298ae13906
+  CONTROL_SCRIPT_BLOB: 6d5e44a57b611463b7f691710ccfb84e2e88123b
+  EXPECTED_RELEASE: 4.14.305-miru-h40-lts305-bootfix-ci1+
+  EXPECTED_LOCALVERSION: miru-h40-lts305-bootfix-ci1
+  CONTROL_HEAD: ${{ github.event.pull_request.head.sha }}
+  WORKFLOW_PATH: .github/workflows/miru-lts305-bootfix-prebuild.yml
+
+jobs:
+  kernel-and-matching-modules:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout isolated diagnostic control head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CONTROL_HEAD }}
+          path: launcher
+          fetch-depth: 0
+
+      - name: Checkout exact prepared 4.14.305 source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          fetch-depth: 0
+
+      - name: Checkout reviewed proven 4.14.305 validator
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CONTROL_SHA }}
+          path: control
+          fetch-depth: 1
+
+      - name: Verify immutable source, production, fixes, FDT, and build controls
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
+          test "$(git -C launcher rev-parse HEAD)" = "${CONTROL_HEAD}"
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40-lts305-bootfix-prebuild | awk '{print $1}')" = "${CONTROL_HEAD}"
+          test "$(git -C control hash-object scripts/miru/ci_validate_4.14.305.sh)" = "${CONTROL_SCRIPT_BLOB}"
+
+          git -C source merge-base --is-ancestor "${AUDITED_SHA}" "${SOURCE_SHA}"
+          test "$(sed -n 's/^SUBLEVEL = //p' source/Makefile | head -n1)" = 305
+          test -z "$(git -C source ls-files -u)"
+          git -C source diff --check "${AUDITED_SHA}" "${SOURCE_SHA}" -- . \
+            ':!Documentation/miru' ':!.github' ':!scripts/miru'
+
+          if git -C source grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . \
+              ':!Documentation' ':!.github' ':!scripts/miru' \
+              > source-conflict-markers.txt; then
+            cat source-conflict-markers.txt
+            exit 1
+          fi
+
+          grep -Fq -- '- Initial authentic conflicts: **33**' source/Documentation/miru/lts-4.14.305-conflicts.md
+          grep -Fq -- '- Index-resolved conflicts: **33**' source/Documentation/miru/lts-4.14.305-conflicts.md
+          grep -Fq -- '- Semantically resolved conflicts: **33**' source/Documentation/miru/lts-4.14.305-conflicts.md
+          grep -Fq -- '- Remaining semantic conflicts: **0**' source/Documentation/miru/lts-4.14.305-conflicts.md
+
+          cat > expected-kernel-fix-paths.txt <<'EOF'
+          arch/arm64/kernel/cpu_errata.c
+          drivers/char/random.c
+          drivers/extcon/extcon.c
+          drivers/soc/qcom/early_random.c
+          mm/rmap.c
+          EOF
+          git -C source diff --name-only "${AUDITED_SHA}" "${SOURCE_SHA}" -- arch drivers mm | sort > actual-kernel-fix-paths.txt
+          diff -u expected-kernel-fix-paths.txt actual-kernel-fix-paths.txt
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('source')
+          cpu = (root / 'arch/arm64/kernel/cpu_errata.c').read_text()
+          early = (root / 'drivers/soc/qcom/early_random.c').read_text()
+          rmap = (root / 'mm/rmap.c').read_text()
+          extcon = (root / 'drivers/extcon/extcon.c').read_text()
+          random = (root / 'drivers/char/random.c').read_text()
+          setup = (root / 'arch/arm64/kernel/setup.c').read_text()
+          mmu = (root / 'arch/arm64/mm/mmu.c').read_text()
+
+          for name in ('arm64_update_smccc_conduit', 'arm64_enable_wa2_handling'):
+              definitions = re.findall(rf'^\s*(?:static\s+)?void\s+__init\s+{name}\s*\(', cpu, re.M)
+              if len(definitions) != 1:
+                  raise SystemExit(f'{name}: expected exactly one definition, got {len(definitions)}')
+
+          for include in ('#include <linux/hw_random.h>', '#include <linux/random.h>'):
+              if early.count(include) != 1:
+                  raise SystemExit(f'early_random include gate failed: {include}')
+
+          start = rmap.index('int anon_vma_clone_oplus')
+          clone = rmap[start:start + 6000]
+          if '->degree' in clone:
+              raise SystemExit('stale anon-vma degree access remains')
+          for token in ('num_children', 'num_active_vmas'):
+              if token not in clone:
+                  raise SystemExit(f'anon-vma clone missing {token}')
+
+          if 'edev->bnh = kcalloc' not in extcon:
+              raise SystemExit('extcon bnh allocation missing')
+          if 'BLOCKING_INIT_NOTIFIER_HEAD(&edev->bnh[i])' not in extcon:
+              raise SystemExit('extcon bnh initialization missing')
+          if extcon.count('kfree(edev->bnh);') < 2:
+              raise SystemExit('extcon bnh cleanup paths incomplete')
+
+          normalized = re.sub(r'\s+', ' ', random)
+          guard = 'if (system_wq && !kthread_should_stop() && crng_ready()) schedule_timeout_interruptible(CRNG_RESEED_INTERVAL);'
+          if guard not in normalized:
+              raise SystemExit('physically proven RNG early-boot guard missing')
+
+          if setup.count('fixmap_remap_fdt(') < 2:
+              raise SystemExit('ARM64 setup FDT caller missing')
+          if len(re.findall(r'^void \*__init fixmap_remap_fdt\s*\(', mmu, re.M)) != 1:
+              raise SystemExit('ARM64 public FDT implementation is not unique')
+          if '__fixmap_remap_fdt' in setup or '__fixmap_remap_fdt' in mmu:
+              raise SystemExit('temporary private FDT helper workaround detected')
+          PY
+
+          test "$(git -C launcher diff --name-only "${SOURCE_SHA}" "${CONTROL_HEAD}" | wc -l)" = 1
+          test "$(git -C launcher diff --name-only "${SOURCE_SHA}" "${CONTROL_HEAD}")" = "${WORKFLOW_PATH}"
+          for path in \
+            arch/arm64/kernel/cpu_errata.c \
+            drivers/char/random.c \
+            drivers/extcon/extcon.c \
+            drivers/soc/qcom/early_random.c \
+            mm/rmap.c; do
+            test "$(git -C launcher hash-object "${path}")" = "$(git -C source hash-object "${path}")"
+          done
+
+          {
+            echo result=PASS
+            echo "kernel_source_sha=${SOURCE_SHA}"
+            echo "audited_source_sha=${AUDITED_SHA}"
+            echo "production_sha=${PRODUCTION_SHA}"
+            echo "diagnostic_control_sha=${CONTROL_HEAD}"
+            echo "external_module_source_sha=${VENDOR_SHA}"
+            echo sublevel=305
+            echo conflict_ledger=33/33
+            echo remaining_conflicts=0
+            echo five_prepared_kernel_files=PASS
+            echo arm64_fdt_public_interface=coherent
+            echo temporary_fdt_workaround=absent
+          } | tee SOURCE-IDENTITY.txt
+
+      - name: Parameterize the reviewed validator for bootfix CI1
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          script=control/scripts/miru/ci_validate_4.14.305.sh
+          bash -n "${script}"
+          python3 - "${script}" "${SOURCE_SHA}" "${EXPECTED_RELEASE}" "${EXPECTED_LOCALVERSION}" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          source_sha, expected_release, expected_local = sys.argv[2:]
+          text = path.read_text()
+          old_source = 'af61e9d6dfc33b7b46bfc608b20b6badf894ad23'
+          old_release = '4.14.305-miru-h40-lts305-af61e9d-ci1+'
+          old_local = 'miru-h40-lts305-af61e9d-ci1'
+
+          if text.count(old_source) != 1:
+              raise SystemExit('reviewed validator source pin changed unexpectedly')
+          if text.count(old_release) < 2:
+              raise SystemExit('reviewed validator release gates changed unexpectedly')
+          if text.count(old_local) < 2:
+              raise SystemExit('reviewed validator localversion gates changed unexpectedly')
+
+          text = text.replace(old_source, source_sha)
+          text = text.replace(old_release, expected_release)
+          text = text.replace(old_local, expected_local)
+          path.write_text(text)
+          PY
+          bash -n "${script}"
+          grep -Fq "SOURCE_SHA=${SOURCE_SHA}" "${script}"
+          grep -Fq "EXPECTED_RELEASE=${EXPECTED_RELEASE}" "${script}"
+          grep -Fq "KERNEL_LOCALVERSION=-${EXPECTED_LOCALVERSION}" "${script}"
+
+      - name: Build kernel, all in-tree modules, and 32 matching external modules
+        id: validation
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          bash control/scripts/miru/ci_validate_4.14.305.sh \
+            "${GITHUB_WORKSPACE}/source" \
+            "${GITHUB_WORKSPACE}/control"
+          status=$?
+          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
+          exit 0
+
+      - name: Enforce DTB layout, module ABI, vermagic, and immutable refs
+        id: post_validation
+        if: always() && steps.validation.outputs.exit_code == '0'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          OUT_DIR="${RUNNER_TEMP}/android-root/out/h40-kernel"
+          ARTIFACT_DIR="${RUNNER_TEMP}/android-root/out/h40-artifacts"
+          EXTERNAL_DIR="${RUNNER_TEMP}/miru-external-modules/dropin"
+          REPORT_DIR="${GITHUB_WORKSPACE}/post-validation"
+          mkdir -p "${REPORT_DIR}"
+          exec > >(tee "${REPORT_DIR}/post-validation-console.log") 2>&1
+          set -Eeuo pipefail
+
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40-lts305-bootfix-prebuild | awk '{print $1}')" = "${CONTROL_HEAD}"
+          test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
+          test "$(tr -d '\n' < "${OUT_DIR}/include/config/kernel.release")" = "${EXPECTED_RELEASE}"
+
+          for rel in \
+            arch/arm64/boot/Image \
+            arch/arm64/boot/Image.gz \
+            arch/arm64/boot/Image.gz-dtb \
+            .config System.map Module.symvers; do
+            test -s "${OUT_DIR}/${rel}"
+          done
+
+          mapfile -t in_tree_modules < <(find "${OUT_DIR}" -type f -name '*.ko' | sort)
+          mapfile -t external_modules < <(find "${EXTERNAL_DIR}" -maxdepth 1 -type f -name '*.ko' | sort)
+          test "${#in_tree_modules[@]}" = 13
+          test "${#external_modules[@]}" = 32
+
+          expected_vermagic="${EXPECTED_RELEASE} SMP preempt mod_unload modversions aarch64"
+          : > "${REPORT_DIR}/IN-TREE-VERMAGIC.txt"
+          for module in "${in_tree_modules[@]}"; do
+            vermagic="$(modinfo -F vermagic "${module}")"
+            test "${vermagic}" = "${expected_vermagic}"
+            echo "${module#${OUT_DIR}/}: ${vermagic}" >> "${REPORT_DIR}/IN-TREE-VERMAGIC.txt"
+          done
+          test "$(grep -F ": ${expected_vermagic}" source/external-module-diagnostics/vermagic.txt | wc -l)" = 32
+          grep -Fq 'modules=32' source/external-module-diagnostics/MODULE-ABI-REPORT.txt
+          grep -Fq 'errors=0' source/external-module-diagnostics/MODULE-ABI-REPORT.txt
+
+          python3 - "${OUT_DIR}/Module.symvers" "${REPORT_DIR}/IN-TREE-MODVERSIONS.txt" "${in_tree_modules[@]}" <<'PY'
+          from pathlib import Path
+          import subprocess
+          import sys
+
+          symvers_path = Path(sys.argv[1])
+          report_path = Path(sys.argv[2])
+          modules = [Path(p) for p in sys.argv[3:]]
+          exports = {}
+          for line in symvers_path.read_text().splitlines():
+              fields = line.split()
+              if len(fields) >= 2:
+                  exports[fields[1]] = int(fields[0], 16)
+
+          errors = []
+          lines = []
+          for module in modules:
+              proc = subprocess.run(
+                  ['modprobe', '--dump-modversions', str(module)],
+                  check=True, text=True, capture_output=True,
+              )
+              imports = 0
+              for line in proc.stdout.splitlines():
+                  fields = line.split()
+                  if len(fields) != 2:
+                      continue
+                  crc_text, symbol = fields
+                  imports += 1
+                  actual = int(crc_text, 16)
+                  expected = exports.get(symbol)
+                  if expected is None:
+                      errors.append(f'{module}: missing export {symbol}')
+                  elif expected != actual:
+                      errors.append(
+                          f'{module}: CRC mismatch {symbol}: module={actual:#010x} kernel={expected:#010x}'
+                      )
+              lines.append(f'{module}: imports={imports}')
+          report = [f'modules={len(modules)}', f'errors={len(errors)}', '', *lines]
+          if errors:
+              report.extend(['', 'ERRORS', *errors])
+          report_path.write_text('\n'.join(report) + '\n')
+          if errors:
+              raise SystemExit('\n'.join(errors))
+          PY
+          grep -Fq 'modules=13' "${REPORT_DIR}/IN-TREE-MODVERSIONS.txt"
+          grep -Fq 'errors=0' "${REPORT_DIR}/IN-TREE-MODVERSIONS.txt"
+
+          if grep -R -nE 'ERROR: ".*".*undefined!|Unknown symbol|undefined symbol' \
+              source/build-diagnostics/*.log source/external-module-diagnostics/*.log \
+              > "${REPORT_DIR}/UNRESOLVED-SYMBOLS.txt"; then
+            cat "${REPORT_DIR}/UNRESOLVED-SYMBOLS.txt"
+            exit 1
+          else
+            echo 'unresolved_symbols=0' > "${REPORT_DIR}/UNRESOLVED-SYMBOLS.txt"
+          fi
+
+          dtb_root="${OUT_DIR}/arch/arm64/boot/dts"
+          projects=(18821 19801 19863 18865 18857)
+          mapfile -t all_dtbs < <(find "${dtb_root}" -type f -name '*.dtb' | sort)
+          test "${#all_dtbs[@]}" = 5
+          dtbs=()
+          for project in "${projects[@]}"; do
+            dtb="${dtb_root}/${project}/sm8150-v2-mtp.dtb"
+            test -s "${dtb}"
+            dtbs+=("${dtb}")
+          done
+          test "$(find "${dtb_root}" -type f -name '*.dtbo' | wc -l)" = 0
+
+          cat "${OUT_DIR}/arch/arm64/boot/Image.gz" "${dtbs[@]}" > "${REPORT_DIR}/expected-Image.gz-dtb"
+          cmp "${REPORT_DIR}/expected-Image.gz-dtb" "${OUT_DIR}/arch/arm64/boot/Image.gz-dtb"
+          rm "${REPORT_DIR}/expected-Image.gz-dtb"
+
+          {
+            echo 'order=18821 19801 19863 18865 18857'
+            for dtb in "${dtbs[@]}"; do
+              stat -c 'size=%s path=%n' "${dtb}"
+              sha256sum "${dtb}"
+            done
+          } > "${REPORT_DIR}/DTB-REPORT.txt"
+
+          {
+            echo "kernel_source_sha=${SOURCE_SHA}"
+            echo "production_sha=${PRODUCTION_SHA}"
+            echo "diagnostic_control_sha=${CONTROL_HEAD}"
+            echo "external_module_source_sha=${VENDOR_SHA}"
+            echo "kernel_release=${EXPECTED_RELEASE}"
+            echo "vermagic=${expected_vermagic}"
+            echo 'dtb_order=18821 19801 19863 18865 18857'
+            echo 'dtb_count=5'
+            echo 'dtbo_count=0'
+            echo "in_tree_module_count=${#in_tree_modules[@]}"
+            echo "external_module_count=${#external_modules[@]}"
+            echo 'unresolved_symbols=0'
+            echo 'module_abi_errors=0'
+            echo 'modversions=PASS'
+            echo 'production_unchanged=yes'
+            echo 'source_branch_control_unchanged=yes'
+          } | tee "${REPORT_DIR}/VALIDATION-SUMMARY.txt"
+
+          {
+            "${RUNNER_TEMP}/miru-toolchains/clang-repo/clang-r377782c/bin/clang" --version | head -n1
+            "${RUNNER_TEMP}/miru-toolchains/gcc64/bin/aarch64-linux-android-ld" --version | head -n1
+          } > "${REPORT_DIR}/COMPILER-LINKER.txt"
+
+          {
+            for rel in \
+              arch/arm64/boot/Image \
+              arch/arm64/boot/Image.gz \
+              arch/arm64/boot/Image.gz-dtb \
+              .config System.map Module.symvers; do
+              stat -c 'size=%s path=%n' "${OUT_DIR}/${rel}"
+              sha256sum "${OUT_DIR}/${rel}"
+            done
+          } > "${REPORT_DIR}/KERNEL-OUTPUTS-SHA256.txt"
+
+          find "${ARTIFACT_DIR}" -type f -print0 | sort -z | xargs -0 sha256sum \
+            > "${REPORT_DIR}/FULL-KERNEL-FILES-SHA256.txt"
+          find "${EXTERNAL_DIR}" -type f -print0 | sort -z | xargs -0 sha256sum \
+            > "${REPORT_DIR}/EXTERNAL-MODULE-FILES-SHA256.txt"
+          echo 'post_validation=PASS' > "${REPORT_DIR}/RESULT.txt"
+          echo 'exit_code=0' >> "${GITHUB_OUTPUT}"
+
+      - name: Assemble compact physical-test and full validation packages
+        if: always()
+        shell: bash
+        env:
+          VALIDATION_EXIT: ${{ steps.validation.outputs.exit_code }}
+          POST_EXIT: ${{ steps.post_validation.outputs.exit_code }}
+        run: |
+          set -Eeuo pipefail
+          OUT_DIR="${RUNNER_TEMP}/android-root/out/h40-kernel"
+          ARTIFACT_DIR="${RUNNER_TEMP}/android-root/out/h40-artifacts"
+          EXTERNAL_DIR="${RUNNER_TEMP}/miru-external-modules/dropin"
+          PACKAGE_ROOT="${GITHUB_WORKSPACE}/packages"
+          FULL="${PACKAGE_ROOT}/full-validation"
+          COMPACT="${PACKAGE_ROOT}/physical-test"
+          mkdir -p "${FULL}" "${COMPACT}"
+
+          cp -a SOURCE-IDENTITY.txt source-conflict-markers.txt expected-kernel-fix-paths.txt actual-kernel-fix-paths.txt "${FULL}/" 2>/dev/null || true
+          cp -a control/build-validation-result "${FULL}/validator-result" 2>/dev/null || true
+          cp -a source/build-diagnostics "${FULL}/kernel-build-logs" 2>/dev/null || true
+          cp -a source/external-module-diagnostics "${FULL}/external-module-logs" 2>/dev/null || true
+          cp -a post-validation "${FULL}/post-validation" 2>/dev/null || true
+          cp -a "${ARTIFACT_DIR}" "${FULL}/kernel-output" 2>/dev/null || true
+          cp -a "${EXTERNAL_DIR}" "${FULL}/external-modules" 2>/dev/null || true
+          cp -a "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.305.7z" "${FULL}/" 2>/dev/null || true
+          cp -a "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.305-audit.zip" "${FULL}/" 2>/dev/null || true
+
+          {
+            echo "validator_exit=${VALIDATION_EXIT:-missing}"
+            echo "post_validation_exit=${POST_EXIT:-missing}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "run_url=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          } > "${FULL}/RUN-STATUS.txt"
+
+          if [ "${VALIDATION_EXIT:-1}" = 0 ] && [ "${POST_EXIT:-1}" = 0 ]; then
+            mkdir -p "${COMPACT}/external-modules" "${COMPACT}/in-tree-modules"
+            cp "${OUT_DIR}/arch/arm64/boot/Image.gz-dtb" "${COMPACT}/"
+            cp "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.305.7z" "${COMPACT}/external-modules/"
+            cp "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.305-audit.zip" "${COMPACT}/external-modules/"
+            while IFS= read -r -d '' module; do
+              rel="${module#${OUT_DIR}/}"
+              mkdir -p "${COMPACT}/in-tree-modules/$(dirname "${rel}")"
+              cp "${module}" "${COMPACT}/in-tree-modules/${rel}"
+            done < <(find "${OUT_DIR}" -type f -name '*.ko' -print0)
+            cp SOURCE-IDENTITY.txt "${COMPACT}/"
+            cp post-validation/VALIDATION-SUMMARY.txt "${COMPACT}/KERNEL-RELEASE-AND-VALIDATION.txt"
+            cp post-validation/KERNEL-OUTPUTS-SHA256.txt post-validation/DTB-REPORT.txt "${COMPACT}/"
+            cat > "${COMPACT}/README.txt" <<'EOF'
+          Miru H.40 Linux 4.14.305 bootfix CI1 physical-test package
+          ==========================================================
+
+          DIAGNOSTIC BUILD ONLY. DO NOT PROMOTE OR MERGE INTO PRODUCTION.
+
+          Kernel release:
+            4.14.305-miru-h40-lts305-bootfix-ci1+
+
+          Contents:
+            Image.gz-dtb                     exact boot-test kernel image
+            external-modules/*.7z            matching external module drop-in
+            external-modules/*-audit.zip     complete external module audit package
+            in-tree-modules/                 all 13 matching in-tree modules
+
+          Installation:
+            1. Back up the current boot and vendor partitions.
+            2. Flash Image.gz-dtb with the established Miru H.40 diagnostic installer.
+            3. Install only the module packages included here; do not mix modules from another kernel release.
+            4. First test only whether the phone passes the first splash and reaches the second boot screen.
+            5. Do not promote this build to production after a compile-only success.
+          EOF
+            (
+              cd "${COMPACT}"
+              find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+            )
+            command -v zip >/dev/null 2>&1 || sudo apt-get install -y --no-install-recommends zip
+            (
+              cd "${PACKAGE_ROOT}"
+              zip -q -9 -r miru-h40-4.14.305-bootfix-ci1-physical-test.zip physical-test
+            )
+          fi
+
+      - name: Upload compact physical-test package
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-4.14.305-bootfix-ci1-physical-test
+          path: packages/miru-h40-4.14.305-bootfix-ci1-physical-test.zip
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload full validation artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-4.14.305-bootfix-ci1-full-validation
+          path: packages/full-validation
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Enforce complete validation result
+        if: always()
+        env:
+          VALIDATION_EXIT: ${{ steps.validation.outputs.exit_code }}
+          POST_EXIT: ${{ steps.post_validation.outputs.exit_code }}
+        shell: bash
+        run: |
+          test "${VALIDATION_EXIT:-1}" = 0
+          test "${POST_EXIT:-1}" = 0
