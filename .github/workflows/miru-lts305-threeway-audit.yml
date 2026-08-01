@@ -108,7 +108,7 @@ jobs:
           common_commit_count=$(git rev-list --count "$COMMON269..$COMMON305")
           if git merge-base --is-ancestor "$COMMON305" "$MIRU305"; then
             missing_common_count=0
-            echo "PASS: Common305 is an ancestor of Miru305; therefore every commit reachable from Common305 is present." \
+            echo "PASS: Common305 is an ancestor of Miru305; every commit reachable from Common305 is present." \
               > "$OUT/common-commit-completeness.txt"
           else
             missing_common_count=-1
@@ -121,9 +121,12 @@ jobs:
           stable_endpoint_count=$(wc -l < "$OUT/common-stable-endpoints.tsv")
 
           exact_merge=""
+          merge_parent1=""
           while read -r commit p1 p2 rest; do
-            if [ "${p1:-}" = "$MIRU269" ] && [ "${p2:-}" = "$COMMON305" ] && [ -z "${rest:-}" ]; then
+            if [ "${p2:-}" = "$COMMON305" ] && [ -z "${rest:-}" ] && \
+               git merge-base --is-ancestor "$MIRU269" "$p1"; then
               exact_merge=$commit
+              merge_parent1=$p1
               break
             fi
           done < <(git rev-list --parents "$MIRU269..$MIRU305")
@@ -133,12 +136,17 @@ jobs:
           else
             {
               echo "merge_commit=$exact_merge"
+              echo "parent1_prepared_miru=$merge_parent1"
+              echo "parent2_android_common=$COMMON305"
               echo "parents=$(git show -s --format='%P' "$exact_merge")"
               echo "tree=$(git rev-parse "$exact_merge^{tree}")"
               echo "subject=$(git show -s --format='%s' "$exact_merge")"
             } > "$OUT/EXACT-MERGE.txt"
             git merge-base --is-ancestor "$exact_merge" "$MIRU305" || fatal=1
+            git log --format='%H%x09%s' --reverse "$MIRU269..$merge_parent1" \
+              > "$OUT/pre-merge-preparation.commits.tsv"
           fi
+          pre_merge_preparation_count=$(wc -l < "$OUT/pre-merge-preparation.commits.tsv" 2>/dev/null || echo 0)
 
           grep -Fq -- '- Initial authentic conflicts: **33**' \
             Documentation/miru/lts-4.14.305-conflicts.md || fatal=1
@@ -206,9 +214,41 @@ jobs:
           comm -12 "$OUT/pristine-h40-delta.paths" "$OUT/common-since-h40-base.paths" \
             > "$OUT/h40-common-overlap.paths"
           comm -23 "$OUT/h40-only.paths" "$OUT/miru305-all.paths" \
-            > "$OUT/h40-only-paths-missing-from-miru305.txt"
+            > "$OUT/h40-only-paths-missing-from-miru305.raw.txt"
           comm -12 "$OUT/h40-only.paths" "$OUT/h40-to-miru305.paths" \
             > "$OUT/h40-only-paths-intentionally-diverged-in-miru.txt"
+
+          cat > "$OUT/expected-historical-dead-source-removals.paths" <<'EOF'
+          drivers/phy/qualcomm/phy-qcom-ufs-qmp-20nm.c
+          drivers/phy/qualcomm/phy-qcom-ufs-qmp-20nm.h
+          EOF
+          sed -i 's/^[[:space:]]*//' "$OUT/expected-historical-dead-source-removals.paths"
+          sort -u -o "$OUT/expected-historical-dead-source-removals.paths" \
+            "$OUT/expected-historical-dead-source-removals.paths"
+          comm -12 "$OUT/h40-only-paths-missing-from-miru305.raw.txt" \
+            "$OUT/expected-historical-dead-source-removals.paths" \
+            > "$OUT/h40-only-expected-historical-removals.paths"
+          comm -23 "$OUT/h40-only-paths-missing-from-miru305.raw.txt" \
+            "$OUT/expected-historical-dead-source-removals.paths" \
+            > "$OUT/h40-only-UNEXPECTED-missing.paths"
+
+          while read -r path; do
+            [ -n "$path" ] || continue
+            if git cat-file -e "$MIRU269:$path" 2>/dev/null; then
+              echo "$path was still present at Miru269" \
+                >> "$OUT/historical-removal-validation-errors.txt"
+              fatal=1
+            fi
+          done < "$OUT/h40-only-expected-historical-removals.paths"
+          if git grep -Fq 'phy-qcom-ufs-qmp-20nm' "$H40" -- \
+               drivers/phy/qualcomm/Makefile drivers/phy/qualcomm/Kconfig; then
+            echo "20nm UFS PHY was referenced by pristine H.40 build metadata" \
+              >> "$OUT/historical-removal-validation-errors.txt"
+            fatal=1
+          fi
+          diff -u <(git show "$H40:drivers/phy/qualcomm/Makefile") \
+                  <(git show "$MIRU305:drivers/phy/qualcomm/Makefile") \
+            > "$OUT/h40-vs-miru305-qcom-phy-makefile.diff" || fatal=1
 
           git ls-tree -r --name-only "$H40" | grep -Ei '(oplus|oppo|oneplus)' | sort -u \
             > "$OUT/pristine-h40-oplus-paths.txt" || true
@@ -228,13 +268,14 @@ jobs:
           h40_delta_count=$(wc -l < "$OUT/pristine-h40-delta.paths")
           h40_only_count=$(wc -l < "$OUT/h40-only.paths")
           h40_overlap_count=$(wc -l < "$OUT/h40-common-overlap.paths")
-          missing_h40_only_paths=$(wc -l < "$OUT/h40-only-paths-missing-from-miru305.txt")
+          historical_dead_removal_count=$(wc -l < "$OUT/h40-only-expected-historical-removals.paths")
+          unexpected_missing_h40_only_count=$(wc -l < "$OUT/h40-only-UNEXPECTED-missing.paths")
           diverged_h40_only_paths=$(wc -l < "$OUT/h40-only-paths-intentionally-diverged-in-miru.txt")
           h40_oplus_path_count=$(wc -l < "$OUT/pristine-h40-oplus-paths.txt")
           missing_h40_oplus_paths=$(wc -l < "$OUT/pristine-h40-oplus-paths-missing-from-miru305.txt")
           h40_config_symbol_count=$(wc -l < "$OUT/pristine-h40-oplus-config-symbols.txt")
           missing_h40_config_symbols=$(wc -l < "$OUT/pristine-h40-oplus-config-symbols-missing-from-miru305.txt")
-          test "$missing_h40_only_paths" -eq 0 || fatal=1
+          test "$unexpected_missing_h40_only_count" -eq 0 || fatal=1
           test "$missing_h40_oplus_paths" -eq 0 || fatal=1
           test "$missing_h40_config_symbols" -eq 0 || fatal=1
 
@@ -265,7 +306,8 @@ jobs:
             echo "- Commits in the Common 269→305 range: **$common_commit_count**"
             echo "- Missing from Miru by transitive ancestry: **$missing_common_count**"
             echo "- Stable endpoint merge commits found: **$stable_endpoint_count**"
-            echo "- Exact two-parent Miru269 + Common305 merge: \`${exact_merge:-NOT_FOUND}\`"
+            echo "- Exact Common305 merge into a Miru269-derived preparation parent: \`${exact_merge:-NOT_FOUND}\`"
+            echo "- Preparation commits before the authentic merge: **$pre_merge_preparation_count**"
             echo "- Conflict ledger: **33 initial / 33 semantic / 0 remaining**"
             echo
             echo "## Final-tree Common coverage"
@@ -281,7 +323,8 @@ jobs:
             echo "- Files in the original H.40 downstream delta: **$h40_delta_count**"
             echo "- H.40-only paths untouched by Common: **$h40_only_count**"
             echo "- H.40/Common overlap paths: **$h40_overlap_count**"
-            echo "- H.40-only paths missing from Miru 305: **$missing_h40_only_paths**"
+            echo "- Historical unbuilt 20 nm UFS PHY source removals: **$historical_dead_removal_count**"
+            echo "- Unexpected H.40-only paths missing: **$unexpected_missing_h40_only_count**"
             echo "- H.40-only paths intentionally changed later by Miru: **$diverged_h40_only_paths**"
             echo "- H.40 paths named for Oplus/Oppo/OnePlus: **$h40_oplus_path_count**"
             echo "- Those named vendor paths missing: **$missing_h40_oplus_paths**"
@@ -289,12 +332,12 @@ jobs:
             echo "- Those CONFIG symbols missing: **$missing_h40_config_symbols**"
             echo
             echo "## Post-merge audit surface"
-            echo "- Commits after the exact authentic merge: **$post_merge_commit_count**"
-            echo "- Paths changed after the exact authentic merge: **$post_merge_path_count**"
+            echo "- Commits after the authentic merge: **$post_merge_commit_count**"
+            echo "- Paths changed after the authentic merge: **$post_merge_path_count**"
             echo
             echo "## Automated gate"
             if [ "$fatal" -eq 0 ]; then
-              echo "**PASS** — complete Common 4.14.305 ancestry is present, no unexpected Common-only core-source mismatch exists, and no original H.40-only/vendor path or vendor CONFIG symbol was lost."
+              echo "**PASS** — complete Common 4.14.305 ancestry is present, no unexpected Common-only core-source mismatch exists, and no active original H.40/Oplus path or vendor CONFIG symbol was lost."
             else
               echo "**FAIL** — inspect the detailed path lists in this artifact."
             fi
@@ -305,7 +348,7 @@ jobs:
             echo "common_commit_count=$common_commit_count"
             echo "missing_common_count=$missing_common_count"
             echo "unexpected_common_only_count=$unexpected_common_only_count"
-            echo "missing_h40_only_paths=$missing_h40_only_paths"
+            echo "unexpected_missing_h40_only_count=$unexpected_missing_h40_only_count"
             echo "missing_h40_oplus_paths=$missing_h40_oplus_paths"
             echo "missing_h40_config_symbols=$missing_h40_config_symbols"
           } > "$OUT/status.env"
