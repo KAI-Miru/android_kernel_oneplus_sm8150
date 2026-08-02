@@ -7,10 +7,10 @@ introduced by cleanly merged changes.
 
 ## Current status
 
-- Production branch: `miru-h40`
-- Clean release branch: `miru-h40-lts305-release`
-- Immutable production baseline: `61371a1024e341f434deaf61b79a05f73827260a`
-- Production baseline version: Linux `4.14.269`
+- Production branch: `miru-h40` (Linux `4.14.305`)
+- Retired promotion source branch: `miru-h40-lts305-release` (deleted after PR #86)
+- Pre-promotion / rollback baseline: `61371a1024e341f434deaf61b79a05f73827260a` (`miru-h40-4.14.269-final`)
+- Pre-promotion baseline version: Linux `4.14.269`
 - Exact boot-tested source: `53f76796d1b68260507a83968a4a4bee3b89754f`
 - Android Common 4.14.305 target: `4415bf5e08942aee6487946a3e0a50956ef68f1e`
 - Authentic integration merge: `b92a77e96dd54fd30f8f39c7eef23e76f211c515`
@@ -30,8 +30,8 @@ introduced by cleanly merged changes.
 
 ## Mandatory baseline verification
 
-The live `miru-h40` ref was read directly from GitHub before branch creation and
-again before every guarded write. It resolved to:
+The pre-promotion `miru-h40` ref was read directly from GitHub before branch
+creation and again before every guarded write. It resolved to:
 
 ```text
 61371a1024e341f434deaf61b79a05f73827260a
@@ -146,7 +146,7 @@ No toolchain, config or vendor-source upgrade is part of this LTS integration.
 - Previous exact validated source is present in production ancestry.
 - New target object is available in the repository object graph but is not in
   production ancestry.
-- Draft helper PR: `#70`, explicitly marked **DO NOT MERGE**.
+- Helper PR: `#70`, explicitly marked **DO NOT MERGE** and closed without merge on 2026-07-27.
 - Completed preview-only push workflow was retired after successful artifact
   retrieval to prevent obsolete repeated runs.
 
@@ -333,10 +333,11 @@ Kernel and module outputs:
 - Boot/runtime testing: **PASS**
 - Flashing: **PASS**
 - Three-way audit: **PASS** — run `30714292944`
-- Clean `lts305-ci1+` release-candidate workflow: **pending**
-- Final full physical smoke test: **pending**
-- Production merge: **pending**
-- Production branch modification during diagnosis and validation: **none**
+- Clean `lts305-ci1+` release-candidate workflow: **PASS** — run `30718744153`
+- Final full physical smoke test: **PASS** — maintainer-confirmed on 2026-08-02
+- Production merge: **PASS** — PR #86 normal merge `489177590738e082a37e17fc9ef9290e4f168058`; permanent production run `30735235333`
+- Production branch modification before explicit promotion authorization: **none**
+- Authorized production promotion: **PASS** — normal merge `489177590738e082a37e17fc9ef9290e4f168058`
 
 ## Authentic scaffold evidence
 
@@ -714,4 +715,6 @@ Kernel and module outputs:
 - Release-candidate artifact: `8824428231`, `sha256:239f0b95d845ebfb24008b4069f1c473e96c2ee242749bb368c2453913140660`.
 - Final `Image.gz-dtb` SHA-256: `ba4d7a598a094f46fb852f5d0e7c9d604eaa4b3a3e0dac506d64ef346f7033ad`.
 - Final physical smoke test: **PASS** — on 2026-08-02 the maintainer confirmed complete boot, Wi-Fi, cellular signal/data, maximum-volume audio, NFC, 90 Hz, fingerprint/HBM, AOD, charging, USB/ADB, suspend/wake and reboot on the OnePlus 7 Pro.
-- The release branch's runtime kernel paths remain byte-identical to boot-tested source `53f76796d1b68260507a83968a4a4bee3b89754f`. Production `miru-h40` remains at `61371a1024e341f434deaf61b79a05f73827260a` pending separate explicit authorization for the normal merge commit.
+- The retired promotion branch's runtime kernel paths remained byte-identical to boot-tested source `53f76796d1b68260507a83968a4a4bee3b89754f`.
+- After maintainer authorization, PR #86 was merged normally as `489177590738e082a37e17fc9ef9290e4f168058`; permanent production run `30735235333` passed.
+- The promotion source branch was deleted during post-promotion cleanup. `miru-h40` is the Linux 4.14.305 production branch; the preserved rollback target is `miru-h40-4.14.269-final`.
