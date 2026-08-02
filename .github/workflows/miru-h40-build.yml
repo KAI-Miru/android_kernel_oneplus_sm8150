@@ -52,15 +52,19 @@ jobs:
           path = Path("scripts/miru/integrate_4.14.336.sh")
           text = path.read_text()
           replacements = {
+              "#!/usr/bin/env bash\nset -Eeuo pipefail\n":
+                  "#!/usr/bin/env bash\nset -Eeuo pipefail\n"
+                  "trap 'rc=$?; printf \"integration_error.line=%s\\nintegration_error.command=%s\\nintegration_error.rc=%s\\n\" \"$LINENO\" \"$BASH_COMMAND\" \"$rc\" >&2' ERR\n",
               "if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- \\\n":
                   "if git grep -n -E '^(<<<<<<< .+|>>>>>>> .+)$' -- \\\n",
               "    grep -Fq 'sde_kcal_apply_pcc' drivers/gpu/drm/msm/sde/sde_color_processing.c\n":
                   "    grep -Fq 'sde_cp_crtc_kcal_update_locked' drivers/gpu/drm/msm/sde/sde_color_processing.c\n"
                   "    grep -Fq 'sde_kcal_get_generation' drivers/gpu/drm/msm/sde/sde_color_processing.c\n",
               "    grep -Fq 'CONFIG_DRM_SDE_KCAL=y' h40-repro/config/GM1911_11_H.40.config\n":
-                  "    grep -Fq 'CONFIG_DRM_MSM_KCAL_CTRL=y' h40-repro/config/GM1911_11_H.40.config\n",
+                  "    grep -Fq 'CONFIG_DRM_MSM_KCAL_CTRL=y' h40-repro/config/GM1911_11_H.40.config\n"
+                  "    grep -Fq 'oplus_touchscreen/' drivers/input/touchscreen/Makefile\n",
               "        drivers/input/touchscreen/oneplus_touchscreen\n":
-                  "        drivers/input/touchscreen/oplus_touchscreen\n",
+                  "        drivers/input/touchscreen\n",
           }
           for old, new in replacements.items():
               if text.count(old) != 1:
@@ -71,10 +75,11 @@ jobs:
           bash -n scripts/miru/integrate_4.14.336.sh
           git diff -- scripts/miru/integrate_4.14.336.sh > audit/runtime-guard-corrections.patch
           test -s audit/runtime-guard-corrections.patch
+          grep -Fq "integration_error.line" scripts/miru/integrate_4.14.336.sh
           grep -Fq "^(<<<<<<< .+|>>>>>>> .+)$" scripts/miru/integrate_4.14.336.sh
           grep -Fq "sde_cp_crtc_kcal_update_locked" scripts/miru/integrate_4.14.336.sh
           grep -Fq "CONFIG_DRM_MSM_KCAL_CTRL=y" scripts/miru/integrate_4.14.336.sh
-          grep -Fq "drivers/input/touchscreen/oplus_touchscreen" scripts/miru/integrate_4.14.336.sh
+          grep -Fq "oplus_touchscreen/" scripts/miru/integrate_4.14.336.sh
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           test "$(git config user.name)" = "github-actions[bot]"
