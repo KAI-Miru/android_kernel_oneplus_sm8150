@@ -1123,7 +1123,6 @@ static int dwc3_core_get_phy(struct dwc3 *dwc)
 		}
 	}
 
-	dwc->usb3_generic_phy = devm_phy_get(dev, "usb3-phy");
 	if (IS_ERR(dwc->usb3_generic_phy)) {
 		ret = PTR_ERR(dwc->usb3_generic_phy);
 		if (ret == -ENOSYS || ret == -ENODEV) {
@@ -1625,8 +1624,19 @@ static int dwc3_runtime_resume(struct device *dev)
 	int		ret;
 
 	/* Check if platform glue driver handling PM, if not then handle here */
-	if (!dwc3_notify_event(dwc, DWC3_CORE_PM_RESUME_EVENT, 0))
+	if (!dwc3_notify_event(dwc, DWC3_CORE_PM_RESUME_EVENT, 0)) {
+		switch (dwc->dr_mode) {
+		case USB_DR_MODE_PERIPHERAL:
+		case USB_DR_MODE_OTG:
+			dwc3_gadget_process_pending_events(dwc);
+			break;
+		case USB_DR_MODE_HOST:
+		default:
+			/* do nothing */
+			break;
+		}
 		return 0;
+	}
 
 	device_init_wakeup(dev, false);
 
