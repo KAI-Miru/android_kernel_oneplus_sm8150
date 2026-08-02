@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+: "${EXPECTED_PARENT:?EXPECTED_PARENT is required}"
+
+PRODUCTION_BRANCH=miru-h40
+INTEGRATION_BRANCH=miru-h40-lts305-integration
+PRODUCTION_SHA=61371a1024e341f434deaf61b79a05f73827260a
+PREVIOUS_TARGET=0eec6f6001d15bb1108835a642ec4637d75eef19
+TAG_NAME=ASB-2023-02-05_4.14-stable
+TAG_OBJECT=fb7d1aa1e00554d9ac07b2a6267f58e585569b81
+TARGET_COMMIT=4415bf5e08942aee6487946a3e0a50956ef68f1e
+TARGET_TREE=b13cdb6b1f31e75df2d2dddeed15b04dceeed939
+
+rm -rf lts305-recon
+mkdir -p lts305-recon/objects lts305-recon/refs
+
+test "$(git rev-parse HEAD^)" = "${EXPECTED_PARENT}"
+test "$(git ls-remote origin "refs/heads/${INTEGRATION_BRANCH}" | awk '{print $1}')" = "$(git rev-parse HEAD)"
+test "$(git ls-remote origin "refs/heads/${PRODUCTION_BRANCH}" | awk '{print $1}')" = "${PRODUCTION_SHA}"
+git merge-base --is-ancestor "${PRODUCTION_SHA}" HEAD
+test "$(sed -n 's/^VERSION = //p' Makefile | head -n1)" = 4
+test "$(sed -n 's/^PATCHLEVEL = //p' Makefile | head -n1)" = 14
+test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 269
+
+git remote add android-common https://android.googlesource.com/kernel/common
+git fetch --force --no-tags android-common \
+  "refs/tags/${TAG_NAME}:refs/tags/${TAG_NAME}"
+
+resolved_tag="$(git rev-parse "refs/tags/${TAG_NAME}")"
+peeled="$(git rev-parse "refs/tags/${TAG_NAME}^{}")"
+tag_type="$(git cat-file -t "${resolved_tag}")"
+commit_type="$(git cat-file -t "${peeled}")"
+tree="$(git rev-parse "${peeled}^{tree}")"
+tag_rehash="$(git cat-file tag "${resolved_tag}" | git hash-object -t tag --stdin)"
+commit_rehash="$(git cat-file commit "${peeled}" | git hash-object -t commit --stdin)"
+
+test "${resolved_tag}" = "${TAG_OBJECT}"
+test "${peeled}" = "${TARGET_COMMIT}"
+test "${tag_type}" = tag
+test "${commit_type}" = commit
+test "${tree}" = "${TARGET_TREE}"
+test "${tag_rehash}" = "${TAG_OBJECT}"
+test "${commit_rehash}" = "${TARGET_COMMIT}"
+
+git cat-file tag "${resolved_tag}" > lts305-recon/objects/android-tag.txt
+git cat-file commit "${peeled}" > lts305-recon/objects/android-target-commit.txt
+git cat-file -p "${peeled}^{tree}" > lts305-recon/objects/android-target-tree.txt
+git show "${peeled}:Makefile" > lts305-recon/objects/android-target-Makefile
+
+test "$(git show "${peeled}:Makefile" | sed -n 's/^VERSION = //p' | head -n1)" = 4
+test "$(git show "${peeled}:Makefile" | sed -n 's/^PATCHLEVEL = //p' | head -n1)" = 14
+test "$(git show "${peeled}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 305
+git merge-base --is-ancestor "${PREVIOUS_TARGET}" "${TARGET_COMMIT}"
+if git merge-base --is-ancestor "${TARGET_COMMIT}" "${PRODUCTION_SHA}"; then
+  echo 'Target is already in production ancestry' >&2
+  exit 1
+fi
+
+if grep -q '^-----BEGIN PGP SIGNATURE-----$' lts305-recon/objects/android-tag.txt; then
+  signature_status=embedded-signature-present-not-verified
+else
+  signature_status=no-embedded-signature
+fi
+
+{
+  echo "production_sha=${PRODUCTION_SHA}"
+  echo "integration_head=$(git rev-parse HEAD)"
+  echo "expected_parent=${EXPECTED_PARENT}"
+  echo "tag_name=${TAG_NAME}"
+  echo "tag_object=${resolved_tag}"
+  echo "tag_type=${tag_type}"
+  echo "tag_rehash=${tag_rehash}"
+  echo "peeled_commit=${peeled}"
+  echo "commit_type=${commit_type}"
+  echo "commit_rehash=${commit_rehash}"
+  echo "target_tree=${tree}"
+  echo "target_version=4.14.305"
+  echo "previous_target_ancestor=yes"
+  echo "target_in_production=no"
+  echo "signature_status=${signature_status}"
+} | tee lts305-recon/object-verification.txt
+
+mkdir -p lts305-recon/merge lts305-recon/stages/{1,2,3}
+pre_head="$(git rev-parse HEAD)"
+pre_tree="$(git write-tree)"
+test -z "$(git status --porcelain --untracked-files=no)"
+git status --porcelain=v2 --branch > lts305-recon/merge/pre-status-v2.txt
+git ls-files -s > lts305-recon/merge/pre-index.txt
+
+set +e
+git merge --no-commit --no-ff "${TARGET_COMMIT}" \
+  >lts305-recon/merge/merge.stdout 2>lts305-recon/merge/merge.stderr
+merge_rc=$?
+set -e
+echo "${merge_rc}" > lts305-recon/merge/merge-exit-code.txt
+
+git status --porcelain=v2 --branch > lts305-recon/merge/post-merge-status-v2.txt
+git status --short > lts305-recon/merge/post-merge-status-short.txt
+git ls-files -u > lts305-recon/merge/unmerged-index.txt
+git diff --name-only --diff-filter=U > lts305-recon/merge/conflicted-paths.txt
+git diff --raw --no-abbrev > lts305-recon/merge/worktree-raw-diff.txt
+git diff --cached --raw --no-abbrev HEAD > lts305-recon/merge/index-raw-diff.txt
+git diff --cached --name-status -M -C HEAD > lts305-recon/merge/index-name-status.txt
+git diff --name-status -M -C > lts305-recon/merge/worktree-name-status.txt
+
+python3 - <<'PY'
+from pathlib import Path
+import subprocess
+conflicts = set(Path('lts305-recon/merge/conflicted-paths.txt').read_text().splitlines())
+staged = set(subprocess.check_output(
+    ['git', 'diff', '--cached', '--name-only', 'HEAD'], text=True
+).splitlines())
+Path('lts305-recon/merge/cleanly-merged-paths.txt').write_text(
+    ''.join(f'{p}\n' for p in sorted(staged - conflicts))
+)
+PY
+
+while read -r mode sha stage path; do
+  test -n "${path}" || continue
+  dest="lts305-recon/stages/${stage}/${path}"
+  mkdir -p "$(dirname "${dest}")"
+  git cat-file blob "${sha}" > "${dest}"
+done < lts305-recon/merge/unmerged-index.txt
+
+conflict_count="$(wc -l < lts305-recon/merge/conflicted-paths.txt | tr -d ' ')"
+clean_count="$(wc -l < lts305-recon/merge/cleanly-merged-paths.txt | tr -d ' ')"
+{
+  echo "merge_exit_code=${merge_rc}"
+  echo "authentic_conflict_count=${conflict_count}"
+  echo "cleanly_merged_path_count=${clean_count}"
+} | tee lts305-recon/merge/preview-summary.txt
+
+if test "${merge_rc}" -eq 0; then
+  test "${conflict_count}" -eq 0
+else
+  test "${conflict_count}" -gt 0
+fi
+
+git merge --abort
+test "$(git rev-parse HEAD)" = "${pre_head}"
+test "$(git write-tree)" = "${pre_tree}"
+test -z "$(git status --porcelain --untracked-files=no)"
+git diff --quiet
+git diff --cached --quiet
+git status --porcelain=v2 --branch > lts305-recon/merge/post-abort-status-v2.txt
+{
+  echo "post_abort_head=$(git rev-parse HEAD)"
+  echo "post_abort_tree=$(git write-tree)"
+  echo "tracked_worktree_restored=yes"
+  echo "diagnostic_directory_untracked_and_ignored_for_tracked_check=lts305-recon"
+} | tee lts305-recon/merge/post-abort-proof.txt
+
+find lts305-recon -type f -print0 | sort -z | xargs -0 sha256sum \
+  > lts305-recon/SHA256SUMS
+tar -C . -czf miru-lts305-recon.tar.gz lts305-recon
+sha256sum miru-lts305-recon.tar.gz > miru-lts305-recon.tar.gz.sha256
