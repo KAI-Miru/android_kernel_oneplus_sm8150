@@ -156,7 +156,7 @@ jobs:
             drivers/gpu/drm/msm/sde/sde_color_processing.c
             drivers/gpu/drm/msm/sde/sde_crtc.c
             drivers/gpu/drm/msm/msm_drv.c
-            drivers/gpu/drm/msm/sde/Makefile
+            drivers/gpu/drm/msm/Makefile
             h40-repro/config/GM1911_11_H.40.config
           )
           : > "${audit}/kcal-premerge.tsv"
@@ -164,6 +164,7 @@ jobs:
             test -s "${path}"
             printf '%s\t%s\n' "$(git hash-object "${path}")" "${path}" >> "${audit}/kcal-premerge.tsv"
           done
+          grep -Fq 'sde/sde_kcal_ctrl.o' drivers/gpu/drm/msm/Makefile
           echo 'premerge_identity_inventory=PASS'
 
           set +e
@@ -238,6 +239,7 @@ jobs:
           done
           grep -Fq 'sde_kcal_apply_pcc' drivers/gpu/drm/msm/sde/sde_color_processing.c
           grep -Fq 'sde_kcal_ctrl_init' drivers/gpu/drm/msm/msm_drv.c
+          grep -Fq 'sde/sde_kcal_ctrl.o' drivers/gpu/drm/msm/Makefile
           grep -Fq 'CONFIG_DRM_SDE_KCAL=y' h40-repro/config/GM1911_11_H.40.config
 
           required_paths=(
