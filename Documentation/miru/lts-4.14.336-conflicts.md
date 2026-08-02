@@ -2,9 +2,9 @@
 
 ## Status
 
-- Integration status: **@INTEGRATION_STATUS@**
+- Integration status: **COMPLETE — authentic candidate merge created**
 - Candidate branch: `miru-h40-lts336-release`
-- Candidate parent before authentic merge: `@CANDIDATE_PARENT@`
+- Candidate parent before authentic merge: `94d2f7f9ac571047c961addbc73aa703b5762293`
 - Production branch: `miru-h40` at `a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee` (**must remain unchanged during candidate work**)
 - Previous production merge: `489177590738e082a37e17fc9ef9290e4f168058` (`4.14.305-miru-h40-lts305-ci1+`)
 - Pristine OnePlus H.40: `180d787684d5965be5145bcfbf666ed427b4ea18`
@@ -14,7 +14,7 @@
 - Target parent order: `bc841b804f61c5918bd950ccb15e63c36f5bd0b5`, then `c31e35278ea8f04f1dceadd77dca4dd7d47932a3`
 - Authentic merge parent order: candidate parent first, exact Android Common target second
 - Authentic conflicts: **14**
-- Semantic resolutions: **@SEMANTIC_STATUS@**
+- Semantic resolutions: **14 of 14 complete**
 - Kernel/module/ABI validation: **pending**
 - Physical OnePlus 7 Pro validation: **pending**
 - Production promotion: **not authorized**
@@ -94,3 +94,17 @@ The merge workflow must fail before any push unless all of these are true:
 The authentic merge is only the source-integration boundary. It is not a test-ready kernel until candidate CI proves the final identity, exact five DTBs, 13 in-tree modules, pinned 32 external modules, vermagic, MODVERSIONS/CRC compatibility, unresolved-symbol count, package checksums, and provenance/compatibility artifacts.
 
 No production merge may occur until those gates pass, the artifact is physically tested on the OnePlus 7 Pro, and the maintainer explicitly authorizes promotion.
+
+## Deterministic replay closure
+
+The earlier one-off `devfreq.c` final-blob discrepancy was treated as unexplained and blocked integration. Read-only run `30748527303` then reproduced the authentic merge six times: twice at the formerly failing parent, twice at the subsequent passing parent, and twice at the replay workflow parent. All six runs used Git 2.54.0 with rerere and renormalization disabled and produced identical 14-path stage manifests, final mode/blob manifests, resolver reports, and staged patches.
+
+- Replay commit: `c10f24a63e3175db2ddf59231175a0fab4e3c8b6`
+- Replay artifact ID: `8833712206`
+- Replay artifact SHA-256: `60747de0d01c0b0e1dadafbed72d2787ce7e8dac653d6b3687b4cfc43475d9b9`
+- Conflict-stage manifest SHA-256: `2969b2e787bfd3e98fc5fe6768eef686aa39030b3783fe3da8436d7bfc5d2143`
+- Final mode/blob manifest SHA-256: `2494ea2e93551dbc89f3c98be8577ce3d3b7acf66b27db217df908f1c6383ca8`
+- Resolver report SHA-256: `c84b3d9b14c13d37a57759f8da096b760c60652585fd48fc8042c162b954c01f`
+- Resolved staged patch SHA-256: `8ab87ab2ea79c342d61590e842aba8a8b5de452dbd60fbb5dc78681d6627d810`
+- Replay result: **PASS — six of six byte-identical**
+- Replay repository-write gate: **PASS — none**
