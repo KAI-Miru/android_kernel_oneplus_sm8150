@@ -137,7 +137,6 @@ jobs:
           set -Eeuo pipefail
           validator=control/scripts/miru/ci_validate_4.14.305.sh
           helper=source/scripts/miru/prepare_wlan_response_link.py
-          build_driver=source/scripts/miru/ci_build_4.14.190.sh
 
           python3 - "${validator}" "${SOURCE_SHA}" "${EXPECTED_RELEASE}" "${EXPECTED_LOCALVERSION}" "${VENDOR_SHA}" <<'PY'
           from pathlib import Path
@@ -180,6 +179,18 @@ jobs:
               raise SystemExit("validator vendor identity anchor mismatch")
           text = text.replace(top_vendor, f"VENDOR_SHA={vendor_sha}", 1)
 
+          stable_pair = (
+              "    ('STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac',\n"
+              "     'STABLE_SHA=014241ad77dda0eafbdf671d5b8e86917d8ec97e'),\n"
+          )
+          if text.count(stable_pair) != 1:
+              raise SystemExit("embedded build-driver stable anchor mismatch")
+          vendor_pair = (
+              "    ('VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798',\n"
+              f"     'VENDOR_SHA={vendor_sha}'),\n"
+          )
+          text = text.replace(stable_pair, stable_pair + vendor_pair, 1)
+
           if "305" in text or "lts305" in text:
               stale = [f"{i}: {line}" for i, line in enumerate(text.splitlines(), 1)
                        if "305" in line or "lts305" in line]
@@ -198,19 +209,6 @@ jobs:
           path.write_text(text)
           PY
 
-          python3 - "${build_driver}" "${VENDOR_SHA}" <<'PY'
-          from pathlib import Path
-          import sys
-
-          path = Path(sys.argv[1])
-          vendor_sha = sys.argv[2]
-          text = path.read_text()
-          old = "VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798"
-          if text.count(old) != 1:
-              raise SystemExit("kernel build-driver vendor anchor mismatch")
-          path.write_text(text.replace(old, f"VENDOR_SHA={vendor_sha}", 1))
-          PY
-
           python3 - "${helper}" "${MAKEFILE_BUILD_BLOB}" <<'PY'
           from pathlib import Path
           import sys
@@ -225,12 +223,10 @@ jobs:
           PY
 
           bash -n "${validator}"
-          bash -n "${build_driver}"
           python3 -m py_compile "${helper}"
           grep -Fq "SOURCE_SHA=${SOURCE_SHA}" "${validator}"
           grep -Fq "EXPECTED_RELEASE=${EXPECTED_RELEASE}" "${validator}"
           grep -Fq "VENDOR_SHA=${VENDOR_SHA}" "${validator}"
-          grep -Fq "VENDOR_SHA=${VENDOR_SHA}" "${build_driver}"
           grep -Fq "KERNEL_LOCALVERSION=-${EXPECTED_LOCALVERSION}" "${validator}"
 
       - name: Build proper-fix kernel and matching modules
