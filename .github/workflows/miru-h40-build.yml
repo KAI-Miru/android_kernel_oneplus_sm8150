@@ -1,31 +1,28 @@
 name: Miru H.40 Linux 4.14.336 authentic integration
 
 on:
-  pull_request:
+  push:
     branches:
-      - miru-h40
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
+      - miru-h40-lts336-release
+    paths:
+      - ".github/workflows/miru-h40-build.yml"
 
 permissions:
   contents: write
 
 concurrency:
-  group: miru-h40-lts336-integration-${{ github.event.pull_request.number }}
+  group: miru-h40-lts336-integration
   cancel-in-progress: false
 
 env:
   RELEASE_BRANCH: miru-h40-lts336-release
-  SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+  SOURCE_SHA: ${{ github.sha }}
 
 jobs:
   authentic-integration:
     if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.head_ref == 'miru-h40-lts336-release'
+      github.repository == 'KAI-Miru/android_kernel_oneplus_sm8150' &&
+      github.ref == 'refs/heads/miru-h40-lts336-release'
     runs-on: ubuntu-24.04
     timeout-minutes: 75
 
@@ -36,10 +33,18 @@ jobs:
           ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 0
 
+      - name: Prime exact Android Common ancestry
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags --force https://android.googlesource.com/kernel/common "+refs/heads/deprecated/android-4.14-stable:refs/remotes/android-common/deprecated/android-4.14-stable"
+          test "$(git rev-parse refs/remotes/android-common/deprecated/android-4.14-stable)" = "014241ad77dda0eafbdf671d5b8e86917d8ec97e"
+          git cat-file -e "4415bf5e08942aee6487946a3e0a50956ef68f1e^{commit}"
+
       - name: Prepare and validate authentic merge
         id: integrate
         shell: bash
-        run: bash scripts/miru/integrate_4.14.336.sh prepare
+        run: GITHUB_HEAD_REF="$RELEASE_BRANCH" bash scripts/miru/integrate_4.14.336.sh prepare
 
       - name: Upload integration evidence before any push
         if: always()
@@ -57,4 +62,4 @@ jobs:
       - name: Guarded candidate-only push
         if: steps.integrate.outputs.created == 'true'
         shell: bash
-        run: bash scripts/miru/integrate_4.14.336.sh push
+        run: GITHUB_HEAD_REF="$RELEASE_BRANCH" bash scripts/miru/integrate_4.14.336.sh push
