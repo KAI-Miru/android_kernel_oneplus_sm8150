@@ -1,16 +1,21 @@
 name: Miru H.40 Linux 4.14.336 integration scaffold
 
 on:
-  push:
+  pull_request:
     branches:
-      - miru-h40-lts336-release
+      - miru-h40
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: miru-h40-lts336-scaffold
+  group: miru-h40-lts336-scaffold-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 env:
@@ -24,10 +29,14 @@ env:
   ANDROID_COMMON_336_PARENT_2: c31e35278ea8f04f1dceadd77dca4dd7d47932a3
   RELEASE_BRANCH: miru-h40-lts336-release
   LEDGER: Documentation/miru/lts-4.14.336-conflicts.md
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
 
 jobs:
   create-authentic-scaffold:
-    if: github.repository == 'KAI-Miru/android_kernel_oneplus_sm8150'
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'miru-h40-lts336-release'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
 
@@ -35,7 +44,7 @@ jobs:
       - name: Checkout exact candidate head with complete ancestry
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 0
 
       - name: Merge exact Android Common target and push guarded scaffold
@@ -45,21 +54,34 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
-          test "${GITHUB_REF_NAME}" = "${RELEASE_BRANCH}"
+          test "${GITHUB_HEAD_REF}" = "${RELEASE_BRANCH}"
           source_head="$(git rev-parse HEAD)"
-          test "${source_head}" = "${GITHUB_SHA}"
+          test "${source_head}" = "${SOURCE_SHA}"
+
           live_candidate="$(git ls-remote origin "refs/heads/${RELEASE_BRANCH}" | awk '{print $1}')"
           live_production="$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')"
+          live_h40="$(git ls-remote origin refs/heads/oneplus/sm8150_s_12.1_op7pro | awk '{print $1}')"
+          live_rollback="$(git ls-remote origin refs/tags/miru-h40-4.14.269-final^{} refs/tags/miru-h40-4.14.269-final | awk 'NR == 1 {print $1}')"
+
           test "${live_candidate}" = "${source_head}"
           test "${live_production}" = "${PRODUCTION_HEAD}"
+          test "${live_h40}" = "${PRISTINE_H40}"
+          test "${live_rollback}" = "${ROLLBACK_269}"
+
+          for commit in \
+            "${PRODUCTION_HEAD}" \
+            "${PRODUCTION_MERGE_305}" \
+            "${PRISTINE_H40}" \
+            "${ROLLBACK_269}" \
+            "${ANDROID_COMMON_305}"; do
+            git cat-file -e "${commit}^{commit}"
+          done
 
           git merge-base --is-ancestor "${PRODUCTION_HEAD}" HEAD
           git merge-base --is-ancestor "${PRODUCTION_MERGE_305}" HEAD
           git merge-base --is-ancestor "${PRISTINE_H40}" HEAD
           git merge-base --is-ancestor "${ROLLBACK_269}" HEAD
           git merge-base --is-ancestor "${ANDROID_COMMON_305}" HEAD
-          test "$(git rev-parse oneplus/sm8150_s_12.1_op7pro)" = "${PRISTINE_H40}"
-          test "$(git rev-parse miru-h40-4.14.269-final^{commit})" = "${ROLLBACK_269}"
 
           target_branch_head="$(git ls-remote https://android.googlesource.com/kernel/common refs/heads/deprecated/android-4.14-stable | awk '{print $1}')"
           test "${target_branch_head}" = "${ANDROID_COMMON_336}"
@@ -120,7 +142,6 @@ jobs:
 
           python3 - <<'PY'
           from pathlib import Path
-          import subprocess
 
           root = Path('/tmp/lts336-audit')
           paths = [p for p in root.joinpath('conflict-paths.txt').read_text().splitlines() if p]
@@ -168,7 +189,14 @@ jobs:
                       raise SystemExit(f'{path}: staged {staged}, expected Miru stage-2 blob {ours_blob}')
           PY
 
-          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 336
+          scaffold_sublevel="$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)"
+          makefile_conflict=no
+          if grep -Fxq Makefile /tmp/lts336-audit/conflict-paths.txt; then
+            makefile_conflict=yes
+          else
+            test "${scaffold_sublevel}" = 336
+          fi
+
           for path in "${kcal_paths[@]}"; do
             expected="$(awk -F '\t' -v p="${path}" '$2 == p { print $1 }' /tmp/lts336-audit/kcal-premerge.txt)"
             test -n "${expected}"
@@ -185,7 +213,9 @@ jobs:
             net/qrtr
             sound/soc
           )
-          for path in "${required_paths[@]}"; do test -e "${path}"; done
+          for path in "${required_paths[@]}"; do
+            test -e "${path}"
+          done
 
           python3 - <<'PY'
           from pathlib import Path
@@ -230,7 +260,7 @@ jobs:
             echo '# Miru H.40 to Android Common 4.14.336 integration ledger'
             echo
             echo 'This ledger records the final Android Common Linux 4.14 milestone integration.'
-            echo 'Index resolution preserves the Miru stage-2 blob for every authentic conflict; semantic resolution is deliberately still pending at this scaffold stage.'
+            echo 'Every authentic conflict is initially index-resolved to the Miru stage-2 blob. Semantic resolution is deliberately still pending at this scaffold stage.'
             echo
             echo '## Current scaffold status'
             echo
@@ -249,6 +279,8 @@ jobs:
             echo "- Index-resolved conflicts: **${conflict_count}**"
             echo '- Semantically resolved conflicts: **0**'
             echo "- Remaining semantic conflicts: **${conflict_count}**"
+            echo "- Scaffold Makefile sublevel: \`${scaffold_sublevel}\`"
+            echo "- Makefile is an authentic conflict: **${makefile_conflict}**"
             echo '- KCAL pre-merge identity preserved at scaffold: **PASS**'
             echo '- Required H.40/Oplus/Qualcomm path-presence gates: **PASS**'
             echo '- Prior 4.14.305 compatibility gates at scaffold: **PASS**'
@@ -280,7 +312,7 @@ jobs:
             echo
             echo '## Safety record'
             echo
-            echo '- The production branch was re-read immediately before integration and remained exact.'
+            echo '- Production, pristine H.40, and rollback refs were re-read immediately before integration and remained exact.'
             echo '- No force push, rebase, tag, release, or production write was performed.'
             echo '- Cleanly merged Android Common paths remain exactly as Git produced them.'
             echo '- Conflicted paths are only index-resolved; no semantic-resolution claim is made yet.'
@@ -297,7 +329,6 @@ jobs:
           merge_head="$(git rev-parse HEAD)"
           test "$(git rev-list --parents -n 1 HEAD)" = "${merge_head} ${parent1} ${ANDROID_COMMON_336}"
           git merge-base --is-ancestor "${ANDROID_COMMON_336}" HEAD
-          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 336
 
           live_candidate="$(git ls-remote origin "refs/heads/${RELEASE_BRANCH}" | awk '{print $1}')"
           live_production="$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')"
