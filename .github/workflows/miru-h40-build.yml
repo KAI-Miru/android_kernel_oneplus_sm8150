@@ -1,9 +1,6 @@
-name: Miru H.40 Linux 4.14.305 kernel and matching modules
+name: Miru H.40 Linux 4.14.336 candidate audit
 
 on:
-  push:
-    branches:
-      - miru-h40
   pull_request:
     branches:
       - miru-h40
@@ -18,572 +15,204 @@ permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-4.14.305-${{ github.event.pull_request.number || github.ref }}
+  group: miru-h40-lts336-audit-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 env:
-  PRODUCTION_BASE: 61371a1024e341f434deaf61b79a05f73827260a
-  ANDROID_COMMON_TARGET: 4415bf5e08942aee6487946a3e0a50956ef68f1e
+  PRODUCTION_HEAD: a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee
+  PRODUCTION_MERGE_305: 489177590738e082a37e17fc9ef9290e4f168058
   PRISTINE_H40: 180d787684d5965be5145bcfbf666ed427b4ea18
-  BOOT_TESTED_SOURCE: 53f76796d1b68260507a83968a4a4bee3b89754f
-  AUTHENTIC_MERGE: b92a77e96dd54fd30f8f39c7eef23e76f211c515
-  AUTHENTIC_MERGE_PARENT_1: b125a425ef1559871b1d6cd662806c8afc53e934
-  RELEASE_BRANCH: miru-h40-lts305-release
-  AUDITED_SCAFFOLD: af61e9d6dfc33b7b46bfc608b20b6badf894ad23
-  VENDOR_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
-  VALIDATOR_SHA: 9db1ff57feb92e9bed955f0395d9ea298ae13906
-  VALIDATOR_BLOB: 6d5e44a57b611463b7f691710ccfb84e2e88123b
-  WLAN_HELPER_BLOB: f8db305e54123f3b9a768d4fc32a418785838bb6
-  MAKEFILE_BUILD_BLOB: ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3
-  EXPECTED_RELEASE: 4.14.305-miru-h40-lts305-ci1+
-  EXPECTED_LOCALVERSION: miru-h40-lts305-ci1
-  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+  ROLLBACK_269: 61371a1024e341f434deaf61b79a05f73827260a
+  ANDROID_COMMON_305: 4415bf5e08942aee6487946a3e0a50956ef68f1e
+  ANDROID_COMMON_336: 014241ad77dda0eafbdf671d5b8e86917d8ec97e
+  ANDROID_COMMON_336_PARENT_1: bc841b804f61c5918bd950ccb15e63c36f5bd0b5
+  ANDROID_COMMON_336_PARENT_2: c31e35278ea8f04f1dceadd77dca4dd7d47932a3
+  RELEASE_BRANCH: miru-h40-lts336-release
 
 jobs:
-  kernel-and-matching-modules:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+  provenance-and-conflict-audit:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 45
 
     steps:
-      - name: Checkout release candidate or production head
+      - name: Checkout candidate with complete Miru ancestry
         uses: actions/checkout@v4
         with:
-          ref: ${{ env.SOURCE_SHA }}
-          path: source
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Checkout reviewed production-derived validator
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.VALIDATOR_SHA }}
-          path: control
-          fetch-depth: 1
-
-      - name: Verify ancestry, cleanup, source equivalence, and compatibility
+      - name: Verify immutable refs and import exact Android Common target
         shell: bash
         run: |
           set -Eeuo pipefail
+          mkdir -p audit/conflicts/{base,ours,theirs,worktree}
 
-          test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
-          test "$(git -C control hash-object scripts/miru/ci_validate_4.14.305.sh)" = "${VALIDATOR_BLOB}"
-          test "$(git -C source hash-object scripts/miru/prepare_wlan_response_link.py)" = "${WLAN_HELPER_BLOB}"
-          test "$(git -C source hash-object scripts/Makefile.build)" = "${MAKEFILE_BUILD_BLOB}"
+          test "${GITHUB_HEAD_REF}" = "${RELEASE_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          git merge-base --is-ancestor "${PRODUCTION_HEAD}" HEAD
+          git merge-base --is-ancestor "${PRODUCTION_MERGE_305}" HEAD
+          git merge-base --is-ancestor "${PRISTINE_H40}" HEAD
+          git merge-base --is-ancestor "${ROLLBACK_269}" HEAD
+          git merge-base --is-ancestor "${ANDROID_COMMON_305}" HEAD
 
-          git -C source merge-base --is-ancestor "${PRODUCTION_BASE}" "${SOURCE_SHA}"
-          git -C source merge-base --is-ancestor "${ANDROID_COMMON_TARGET}" "${SOURCE_SHA}"
-          git -C source merge-base --is-ancestor "${PRISTINE_H40}" "${SOURCE_SHA}"
-          git -C source merge-base --is-ancestor "${BOOT_TESTED_SOURCE}" "${SOURCE_SHA}"
-          git -C source merge-base --is-ancestor "${AUTHENTIC_MERGE}" "${SOURCE_SHA}"
-          test "$(git -C source rev-list --parents -n 1 "${AUTHENTIC_MERGE}")" = "${AUTHENTIC_MERGE} ${AUTHENTIC_MERGE_PARENT_1} ${ANDROID_COMMON_TARGET}"
+          live_production="$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')"
+          test "${live_production}" = "${PRODUCTION_HEAD}"
+          test "$(git rev-parse oneplus/sm8150_s_12.1_op7pro)" = "${PRISTINE_H40}"
+          test "$(git rev-parse miru-h40-4.14.269-final^{commit})" = "${ROLLBACK_269}"
 
-          live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk '{print $1}')"
-          if [ "${GITHUB_EVENT_NAME}" = push ] && [ "${GITHUB_REF_NAME}" = miru-h40 ]; then
-            expected_live_production="${SOURCE_SHA}"
-          else
-            expected_live_production="${PRODUCTION_BASE}"
-          fi
-          test "${live_production}" = "${expected_live_production}"
-          echo "EXPECTED_LIVE_PRODUCTION=${expected_live_production}" >> "${GITHUB_ENV}"
+          target_branch_head="$(git ls-remote https://android.googlesource.com/kernel/common refs/heads/deprecated/android-4.14-stable | awk '{print $1}')"
+          test "${target_branch_head}" = "${ANDROID_COMMON_336}"
+          git fetch --no-tags --force https://android.googlesource.com/kernel/common "${ANDROID_COMMON_336}"
+          test "$(git rev-parse FETCH_HEAD)" = "${ANDROID_COMMON_336}"
+          git update-ref refs/remotes/android-common/deprecated-android-4.14-stable "${ANDROID_COMMON_336}"
 
-          if [ "${GITHUB_EVENT_NAME}" = pull_request ]; then
-            test "${GITHUB_HEAD_REF}" = "${RELEASE_BRANCH}"
-          else
-            test "${GITHUB_REF_NAME}" = "${RELEASE_BRANCH}" || test "${GITHUB_REF_NAME}" = miru-h40
-          fi
-
-          test "$(sed -n 's/^SUBLEVEL = //p' source/Makefile | head -n1)" = 305
-          test -z "$(git -C source ls-files -u)"
-          git -C source diff --check "${BOOT_TESTED_SOURCE}" "${SOURCE_SHA}" --
-
-          if git -C source grep -nE '^(<<<<<<< |>>>>>>> )' -- . \
-              > source-conflict-markers.txt; then
-            cat source-conflict-markers.txt
-            exit 1
-          fi
-
-          # A line of seven '=' characters is valid reStructuredText. Check it
-          # only among additions since the boot-tested source, where it would
-          # be an actual unresolved conflict separator.
-          git -C source diff --unified=0 "${BOOT_TESTED_SOURCE}" "${SOURCE_SHA}" -- . \
-            | grep -E '^\+(<<<<<<< |=======$|>>>>>>> )' \
-            > changed-conflict-markers.txt || true
-          if [ -s changed-conflict-markers.txt ]; then
-            cat changed-conflict-markers.txt
-            exit 1
-          fi
-
-          grep -Fq -- '- Initial authentic conflicts: **33**' source/Documentation/miru/lts-4.14.305-conflicts.md
-          grep -Fq -- '- Index-resolved conflicts: **33**' source/Documentation/miru/lts-4.14.305-conflicts.md
-          grep -Fq -- '- Semantically resolved conflicts: **33**' source/Documentation/miru/lts-4.14.305-conflicts.md
-          grep -Fq -- '- Remaining semantic conflicts: **0**' source/Documentation/miru/lts-4.14.305-conflicts.md
-
-          test -z "$(find source/.github/workflows -maxdepth 1 -type f -name 'miru-lts305-*' -print -quit)"
-          test ! -e source/.github/miru-audit
-          test ! -e source/Documentation/miru/lts305-final3-recon
-
-          mapfile -t workflow_files < <(find source/.github/workflows -type f -printf '%P\n' | sort)
-          test "${#workflow_files[@]}" = 1
-          test "${workflow_files[0]}" = miru-h40-build.yml
-
-          runtime_paths=(
-            arch block crypto drivers fs include init ipc kernel lib mm net
-            security sound virt Kbuild Kconfig Makefile h40-repro/config
-          )
-          git -C source diff --name-only "${BOOT_TESTED_SOURCE}" "${SOURCE_SHA}" -- \
-            "${runtime_paths[@]}" > runtime-source-differences.txt
-          test ! -s runtime-source-differences.txt
-
-          git -C source diff --name-only "${BOOT_TESTED_SOURCE}" "${SOURCE_SHA}" -- \
-            > all-release-differences.txt
-          awk '
-            /^\.github\// { next }
-            /^Documentation\// { next }
-            /^README\.md$/ { next }
-            { print; bad = 1 }
-            END { exit bad }
-          ' all-release-differences.txt > unexpected-release-differences.txt
-          test ! -s unexpected-release-differences.txt
-
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          root = Path("source")
-          cpu = (root / "arch/arm64/kernel/cpu_errata.c").read_text()
-          random = (root / "drivers/char/random.c").read_text()
-          extcon = (root / "drivers/extcon/extcon.c").read_text()
-          fdt = (root / "drivers/of/fdt.c").read_text()
-          early = (root / "drivers/soc/qcom/early_random.c").read_text()
-          setup = (root / "arch/arm64/kernel/setup.c").read_text()
-          mmu = (root / "arch/arm64/mm/mmu.c").read_text()
-          rmap = (root / "mm/rmap.c").read_text()
-
-          for name in ("arm64_update_smccc_conduit", "arm64_enable_wa2_handling"):
-              count = len(re.findall(
-                  rf"^\s*(?:static\s+)?void\s+__init\s+{name}\s*\(", cpu, re.M
-              ))
-              if count != 1:
-                  raise SystemExit(f"{name}: expected one definition, got {count}")
-
-          normalized = re.sub(r"\s+", " ", random)
-          guard = (
-              "if (system_wq && !kthread_should_stop() && crng_ready()) "
-              "schedule_timeout_interruptible(CRNG_RESEED_INTERVAL);"
-          )
-          if guard not in normalized:
-              raise SystemExit("RNG early-boot system_wq guard missing")
-
-          if "edev->bnh = kcalloc" not in extcon:
-              raise SystemExit("extcon blocking-notifier allocation missing")
-          if not re.search(
-              r"BLOCKING_INIT_NOTIFIER_HEAD\s*\(\s*&edev->bnh\s*"
-              r"\[\s*[A-Za-z_]\w*\s*\]\s*\)\s*;",
-              extcon,
-          ):
-              raise SystemExit("extcon blocking-notifier initialization missing")
-          if extcon.count("kfree(edev->bnh);") < 2:
-              raise SystemExit("extcon blocking-notifier lifetime cleanup incomplete")
-
-          if len(re.findall(r"^int\s+of_fdt_get_ddrtype\s*\(", fdt, re.M)) != 1:
-              raise SystemExit("downstream of_fdt_get_ddrtype API missing or duplicated")
-          if setup.count("fixmap_remap_fdt(") < 2:
-              raise SystemExit("ARM64 public FDT caller missing")
-          if len(re.findall(r"^void \*__init fixmap_remap_fdt\s*\(", mmu, re.M)) != 1:
-              raise SystemExit("ARM64 public FDT implementation missing or duplicated")
-          if "__fixmap_remap_fdt" in setup or "__fixmap_remap_fdt" in mmu:
-              raise SystemExit("temporary private FDT workaround detected")
-
-          for include in ("#include <linux/hw_random.h>", "#include <linux/random.h>"):
-              if early.count(include) != 1:
-                  raise SystemExit(f"early_random include gate failed: {include}")
-
-          clone = rmap[rmap.index("int anon_vma_clone_oplus"):]
-          if "->degree" in clone:
-              raise SystemExit("stale anon-vma degree access remains")
-          for token in ("num_children", "num_active_vmas"):
-              if token not in clone:
-                  raise SystemExit(f"anon-vma clone missing {token}")
-          PY
+          test "$(git rev-list --parents -n 1 "${ANDROID_COMMON_336}")" = "${ANDROID_COMMON_336} ${ANDROID_COMMON_336_PARENT_1} ${ANDROID_COMMON_336_PARENT_2}"
+          test "$(git show "${ANDROID_COMMON_336}:Makefile" | sed -n 's/^VERSION = //p' | head -n1)" = 4
+          test "$(git show "${ANDROID_COMMON_336}:Makefile" | sed -n 's/^PATCHLEVEL = //p' | head -n1)" = 14
+          test "$(git show "${ANDROID_COMMON_336}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 336
+          git merge-base --is-ancestor "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}"
 
           {
             echo result=PASS
-            echo "source_sha=${SOURCE_SHA}"
-            echo "production_base=${PRODUCTION_BASE}"
-            echo "android_common_target=${ANDROID_COMMON_TARGET}"
+            echo "candidate_head=$(git rev-parse HEAD)"
+            echo "production_head=${live_production}"
+            echo "production_merge_305=${PRODUCTION_MERGE_305}"
             echo "pristine_h40=${PRISTINE_H40}"
-            echo "boot_tested_source=${BOOT_TESTED_SOURCE}"
-            echo "authentic_merge=${AUTHENTIC_MERGE}"
-            echo "authentic_merge_parent_order=PASS"
-            echo "live_production_expected=${expected_live_production}"
-            echo "permanent_workflow_count=1"
-            echo sublevel=305
-            echo conflict_ledger=33/33
-            echo remaining_conflicts=0
-            echo runtime_source_equivalence=PASS
-            echo conflict_marker_scan=PASS
-            echo allowed_difference_roots=.github,Documentation,README.md
-            echo mandatory_compatibility_areas=5
-            echo additional_rmap_compatibility=PASS
-          } | tee SOURCE-EQUIVALENCE.txt
+            echo "rollback_269=${ROLLBACK_269}"
+            echo "android_common_305=${ANDROID_COMMON_305}"
+            echo "android_common_336=${ANDROID_COMMON_336}"
+            echo "android_common_branch_head=${target_branch_head}"
+            echo "android_common_336_parent_order=${ANDROID_COMMON_336_PARENT_1},${ANDROID_COMMON_336_PARENT_2}"
+            echo "candidate_commits_after_production=$(git rev-list --count "${PRODUCTION_HEAD}..HEAD")"
+            echo "merge_base_candidate_target=$(git merge-base HEAD "${ANDROID_COMMON_336}")"
+            echo "merge_base_pristine_target=$(git merge-base "${PRISTINE_H40}" "${ANDROID_COMMON_336}")"
+          } | tee audit/PROVENANCE.txt
 
-      - name: Prepare exact validator and WLAN control identity
+      - name: Build three-way path and compatibility audit
         shell: bash
         run: |
           set -Eeuo pipefail
 
-          validator=control/scripts/miru/ci_validate_4.14.305.sh
-          helper=source/scripts/miru/prepare_wlan_response_link.py
-          bash -n "${validator}"
+          git diff --name-status "${PRISTINE_H40}" "${PRODUCTION_HEAD}" -- > audit/H40-TO-PRODUCTION-PATHS.txt
+          git diff --name-status "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}" -- > audit/ANDROID-COMMON-305-TO-336-PATHS.txt
+          git diff --stat "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}" -- > audit/ANDROID-COMMON-305-TO-336-STAT.txt
+          git diff --shortstat "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}" -- > audit/ANDROID-COMMON-305-TO-336-SHORTSTAT.txt
+          git log --oneline --no-merges "${ANDROID_COMMON_305}..${ANDROID_COMMON_336}" > audit/ANDROID-COMMON-305-TO-336-COMMITS.txt
 
-          python3 - "${validator}" "${SOURCE_SHA}" "${EXPECTED_RELEASE}" "${EXPECTED_LOCALVERSION}" "${EXPECTED_LIVE_PRODUCTION}" <<'PY'
-          from pathlib import Path
-          import sys
+          git diff --name-only "${PRISTINE_H40}" "${PRODUCTION_HEAD}" -- | sort -u > audit/downstream-paths.txt
+          git diff --name-only "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}" -- | sort -u > audit/common-305-336-paths.txt
+          comm -12 audit/downstream-paths.txt audit/common-305-336-paths.txt > audit/OVERLAPPING-RUNTIME-PATHS.txt
 
-          path = Path(sys.argv[1])
-          source_sha, expected_release, expected_local, expected_live_production = sys.argv[2:]
-          text = path.read_text()
-          replacements = (
-              ("af61e9d6dfc33b7b46bfc608b20b6badf894ad23", source_sha, 1),
-              ("4.14.305-miru-h40-lts305-af61e9d-ci1+", expected_release, 2),
-              ("miru-h40-lts305-af61e9d-ci1", expected_local, 2),
-              ("PRODUCTION_BASE=61371a1024e341f434deaf61b79a05f73827260a",
-               "PRODUCTION_BASE=61371a1024e341f434deaf61b79a05f73827260a\n"
-               "EXPECTED_LIVE_PRODUCTION=" + expected_live_production, 1),
-              ('test "${production_ref}" = "${PRODUCTION_BASE}"',
-               'test "${production_ref}" = "${EXPECTED_LIVE_PRODUCTION}"', 1),
+          required_paths=(
+            arch/arm64
+            drivers/char/random.c
+            drivers/extcon/extcon.c
+            drivers/gpu/drm/msm
+            drivers/input/touchscreen/oneplus_touchscreen
+            drivers/of/fdt.c
+            drivers/power/oplus
+            drivers/rpmsg
+            drivers/soc/qcom
+            h40-repro/config
+            mm/rmap.c
+            net/qrtr
+            sound/soc
           )
-          for old, new, minimum in replacements:
-              count = text.count(old)
-              if count < minimum:
-                  raise SystemExit(
-                      f"validator parameter count for {old}: {count}, expected at least {minimum}"
-                  )
-              text = text.replace(old, new)
-          path.write_text(text)
-          PY
+          : > audit/REQUIRED-PATH-305-336-DELTA.txt
+          for path in "${required_paths[@]}"; do
+            test -e "${path}"
+            git diff --name-status "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}" -- "${path}" >> audit/REQUIRED-PATH-305-336-DELTA.txt
+          done
 
-          python3 - "${helper}" "${MAKEFILE_BUILD_BLOB}" <<'PY'
-          from pathlib import Path
-          import sys
-
-          path = Path(sys.argv[1])
-          new_blob = sys.argv[2]
-          text = path.read_text()
-          old_blob = "74ce588c69513197a354ef0032c2145e91ee0641"
-          if text.count(old_blob) != 1:
-              raise SystemExit("stale WLAN Makefile.build identity is missing or duplicated")
-          if text.count(new_blob) != 0:
-              raise SystemExit("new WLAN Makefile.build identity already present unexpectedly")
-          path.write_text(text.replace(old_blob, new_blob, 1))
-          PY
-
-          bash -n "${validator}"
-          python3 -m py_compile "${helper}"
-          grep -Fq "SOURCE_SHA=${SOURCE_SHA}" "${validator}"
-          grep -Fq "EXPECTED_RELEASE=${EXPECTED_RELEASE}" "${validator}"
-          grep -Fq "KERNEL_LOCALVERSION=-${EXPECTED_LOCALVERSION}" "${validator}"
-          grep -Fq "EXPECTED_LIVE_PRODUCTION=${EXPECTED_LIVE_PRODUCTION}" "${validator}"
-          grep -Fq 'test "${production_ref}" = "${EXPECTED_LIVE_PRODUCTION}"' "${validator}"
-          grep -Fq "expected = \"${MAKEFILE_BUILD_BLOB}\"" "${helper}"
-          test "$(git -C source hash-object scripts/Makefile.build)" = "${MAKEFILE_BUILD_BLOB}"
+          kcal_paths=(
+            drivers/gpu/drm/msm/sde/sde_kcal_ctrl.c
+            drivers/gpu/drm/msm/sde/sde_kcal_ctrl.h
+            drivers/gpu/drm/msm/sde/sde_color_processing.c
+            drivers/gpu/drm/msm/sde/sde_crtc.c
+            drivers/gpu/drm/msm/msm_drv.c
+          )
+          : > audit/KCAL-PREMERGE-IDENTITY.txt
+          for path in "${kcal_paths[@]}"; do
+            test -s "${path}"
+            printf '%s  %s\n' "$(git hash-object "${path}")" "${path}" >> audit/KCAL-PREMERGE-IDENTITY.txt
+          done
+          grep -Fq 'sde_kcal_apply_pcc' drivers/gpu/drm/msm/sde/sde_color_processing.c
+          grep -Fq 'sde_kcal_ctrl_init' drivers/gpu/drm/msm/msm_drv.c
+          grep -Fq 'kcal_ctrl' drivers/gpu/drm/msm/sde/Makefile
+          grep -Fq 'CONFIG_DRM_SDE_KCAL=y' h40-repro/config
 
           {
             echo result=PASS
-            echo committed_runtime_source_changes=0
-            echo workspace_only_control_patch=scripts/miru/prepare_wlan_response_link.py
-            echo "expected_makefile_build_blob=${MAKEFILE_BUILD_BLOB}"
-          } | tee BUILD-CONTROL-PATCH.txt
+            echo "downstream_changed_paths=$(wc -l < audit/downstream-paths.txt)"
+            echo "common_305_336_changed_paths=$(wc -l < audit/common-305-336-paths.txt)"
+            echo "overlap_paths=$(wc -l < audit/OVERLAPPING-RUNTIME-PATHS.txt)"
+            echo "kcal_identity_entries=$(wc -l < audit/KCAL-PREMERGE-IDENTITY.txt)"
+          } | tee audit/THREE-WAY-SUMMARY.txt
 
-      - name: Build kernel, DTBs, in-tree modules, and external modules
-        id: validation
+      - name: Perform authentic no-commit merge and capture every conflict stage
         shell: bash
-        run: |
-          set +e
-          bash control/scripts/miru/ci_validate_4.14.305.sh \
-            "${GITHUB_WORKSPACE}/source" \
-            "${GITHUB_WORKSPACE}/control"
-          status=$?
-          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
-          if [ "${status}" = 0 ]; then
-            echo result=success >> "${GITHUB_OUTPUT}"
-          else
-            echo result=failure >> "${GITHUB_OUTPUT}"
-          fi
-          exit 0
-
-      - name: Enforce release, DTB, module, vermagic, and ABI gates
-        id: post
-        if: always() && steps.validation.outputs.result == 'success'
-        shell: bash
-        run: |
-          set +e
-          (
-            set -Eeuo pipefail
-            OUT_DIR="${RUNNER_TEMP}/android-root/out/h40-kernel"
-            ARTIFACT_DIR="${RUNNER_TEMP}/android-root/out/h40-artifacts"
-            EXTERNAL_DIR="${RUNNER_TEMP}/miru-external-modules/dropin"
-            REPORT_DIR="${GITHUB_WORKSPACE}/post-validation"
-            mkdir -p "${REPORT_DIR}"
-            exec > >(tee "${REPORT_DIR}/post-validation-console.log") 2>&1
-
-            test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
-            test "$(tr -d '\n' < "${OUT_DIR}/include/config/kernel.release")" = "${EXPECTED_RELEASE}"
-
-            for rel in \
-              arch/arm64/boot/Image \
-              arch/arm64/boot/Image.gz \
-              arch/arm64/boot/Image.gz-dtb \
-              .config System.map Module.symvers; do
-              test -s "${OUT_DIR}/${rel}"
-            done
-
-            mapfile -t in_tree_modules < <(find "${OUT_DIR}" -type f -name '*.ko' | sort)
-            mapfile -t external_modules < <(find "${EXTERNAL_DIR}" -maxdepth 1 -type f -name '*.ko' | sort)
-            test "${#in_tree_modules[@]}" = 13
-            test "${#external_modules[@]}" = 32
-
-            expected_vermagic="${EXPECTED_RELEASE} SMP preempt mod_unload modversions aarch64"
-            : > "${REPORT_DIR}/IN-TREE-VERMAGIC.txt"
-            for module in "${in_tree_modules[@]}"; do
-              vermagic="$(modinfo -F vermagic "${module}")"
-              test "${vermagic}" = "${expected_vermagic}"
-              echo "${module#${OUT_DIR}/}: ${vermagic}" >> "${REPORT_DIR}/IN-TREE-VERMAGIC.txt"
-            done
-            test "$(grep -F ": ${expected_vermagic}" source/external-module-diagnostics/vermagic.txt | wc -l)" = 32
-            grep -Fq 'modules=32' source/external-module-diagnostics/MODULE-ABI-REPORT.txt
-            grep -Fq 'errors=0' source/external-module-diagnostics/MODULE-ABI-REPORT.txt
-
-            python3 - "${OUT_DIR}/Module.symvers" "${REPORT_DIR}/IN-TREE-MODVERSIONS.txt" "${in_tree_modules[@]}" <<'PY'
-          from pathlib import Path
-          import subprocess
-          import sys
-
-          symvers = {}
-          for line in Path(sys.argv[1]).read_text().splitlines():
-              fields = line.split()
-              if len(fields) >= 2:
-                  symvers[fields[1]] = int(fields[0], 16)
-
-          modules = [Path(p) for p in sys.argv[3:]]
-          errors = []
-          details = []
-          for module in modules:
-              output = subprocess.check_output(
-                  ["modprobe", "--dump-modversions", str(module)], text=True
-              )
-              imports = 0
-              for line in output.splitlines():
-                  fields = line.split()
-                  if len(fields) != 2:
-                      continue
-                  imports += 1
-                  actual = int(fields[0], 16)
-                  symbol = fields[1]
-                  expected = symvers.get(symbol)
-                  if expected is None:
-                      errors.append(f"{module}: missing export {symbol}")
-                  elif expected != actual:
-                      errors.append(f"{module}: CRC mismatch {symbol}")
-              details.append(f"{module}: imports={imports}")
-          report = [f"modules={len(modules)}", f"errors={len(errors)}", "", *details]
-          if errors:
-              report.extend(["", "ERRORS", *errors])
-          Path(sys.argv[2]).write_text("\n".join(report) + "\n")
-          if errors:
-              raise SystemExit("\n".join(errors))
-          PY
-            grep -Fq 'modules=13' "${REPORT_DIR}/IN-TREE-MODVERSIONS.txt"
-            grep -Fq 'errors=0' "${REPORT_DIR}/IN-TREE-MODVERSIONS.txt"
-
-            dtb_root="${OUT_DIR}/arch/arm64/boot/dts"
-            projects=(18821 19801 19863 18865 18857)
-            mapfile -t all_dtbs < <(find "${dtb_root}" -type f -name '*.dtb' | sort)
-            test "${#all_dtbs[@]}" = 5
-            dtbs=()
-            for project in "${projects[@]}"; do
-              dtb="${dtb_root}/${project}/sm8150-v2-mtp.dtb"
-              test -s "${dtb}"
-              dtbs+=("${dtb}")
-            done
-            test "$(find "${dtb_root}" -type f -name '*.dtbo' | wc -l)" = 0
-
-            cat "${OUT_DIR}/arch/arm64/boot/Image.gz" "${dtbs[@]}" \
-              > "${REPORT_DIR}/expected-Image.gz-dtb"
-            cmp "${REPORT_DIR}/expected-Image.gz-dtb" \
-              "${OUT_DIR}/arch/arm64/boot/Image.gz-dtb"
-            rm "${REPORT_DIR}/expected-Image.gz-dtb"
-
-            {
-              echo 'order=18821 19801 19863 18865 18857'
-              for dtb in "${dtbs[@]}"; do
-                stat -c 'size=%s path=%n' "${dtb}"
-                sha256sum "${dtb}"
-              done
-            } > "${REPORT_DIR}/DTB-REPORT.txt"
-
-            {
-              for rel in \
-                arch/arm64/boot/Image \
-                arch/arm64/boot/Image.gz \
-                arch/arm64/boot/Image.gz-dtb \
-                .config System.map Module.symvers; do
-                stat -c 'size=%s path=%n' "${OUT_DIR}/${rel}"
-                sha256sum "${OUT_DIR}/${rel}"
-              done
-            } > "${REPORT_DIR}/KERNEL-OUTPUTS-SHA256.txt"
-
-            {
-              echo "source_sha=${SOURCE_SHA}"
-              echo "production_base=${PRODUCTION_BASE}"
-              echo "android_common_target=${ANDROID_COMMON_TARGET}"
-              echo "pristine_h40=${PRISTINE_H40}"
-              echo "boot_tested_source=${BOOT_TESTED_SOURCE}"
-              echo "external_module_source_sha=${VENDOR_SHA}"
-              echo "kernel_release=${EXPECTED_RELEASE}"
-              echo "vermagic=${expected_vermagic}"
-              echo 'dtb_order=18821 19801 19863 18865 18857'
-              echo 'dtb_count=5'
-              echo 'dtbo_count=0'
-              echo "in_tree_module_count=${#in_tree_modules[@]}"
-              echo "external_module_count=${#external_modules[@]}"
-              echo 'unresolved_symbol_abi_errors=0'
-              echo 'external_module_abi_errors=0'
-              echo 'in_tree_modversions=PASS'
-              echo 'runtime_source_equivalence=PASS'
-            } | tee "${REPORT_DIR}/VALIDATION-SUMMARY.txt"
-
-            find "${ARTIFACT_DIR}" -type f -print0 | sort -z | xargs -0 sha256sum \
-              > "${REPORT_DIR}/FULL-KERNEL-FILES-SHA256.txt"
-            find "${EXTERNAL_DIR}" -type f -print0 | sort -z | xargs -0 sha256sum \
-              > "${REPORT_DIR}/EXTERNAL-MODULE-FILES-SHA256.txt"
-            echo result=PASS > "${REPORT_DIR}/RESULT.txt"
-          )
-          status=$?
-          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
-          if [ "${status}" = 0 ]; then
-            echo result=success >> "${GITHUB_OUTPUT}"
-          else
-            echo result=failure >> "${GITHUB_OUTPUT}"
-          fi
-          exit 0
-
-      - name: Assemble release-candidate and full validation packages
-        if: always()
-        shell: bash
-        env:
-          VALIDATION_RESULT: ${{ steps.validation.outputs.result }}
-          VALIDATION_EXIT: ${{ steps.validation.outputs.exit_code }}
-          POST_RESULT: ${{ steps.post.outputs.result }}
-          POST_EXIT: ${{ steps.post.outputs.exit_code }}
         run: |
           set -Eeuo pipefail
-          OUT_DIR="${RUNNER_TEMP}/android-root/out/h40-kernel"
-          ARTIFACT_DIR="${RUNNER_TEMP}/android-root/out/h40-artifacts"
-          EXTERNAL_DIR="${RUNNER_TEMP}/miru-external-modules/dropin"
-          PACKAGE_ROOT="${GITHUB_WORKSPACE}/packages"
-          FULL="${PACKAGE_ROOT}/full-validation"
-          RELEASE="${PACKAGE_ROOT}/release-candidate"
-          mkdir -p "${FULL}" "${RELEASE}"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
-          cp -a SOURCE-EQUIVALENCE.txt BUILD-CONTROL-PATCH.txt \
-            runtime-source-differences.txt all-release-differences.txt \
-            unexpected-release-differences.txt source-conflict-markers.txt \
-            changed-conflict-markers.txt "${FULL}/" 2>/dev/null || true
-          cp -a control/build-validation-result "${FULL}/validator-result" 2>/dev/null || true
-          cp -a source/build-diagnostics "${FULL}/kernel-build-logs" 2>/dev/null || true
-          cp -a source/external-module-diagnostics "${FULL}/external-module-logs" 2>/dev/null || true
-          cp -a post-validation "${FULL}/post-validation" 2>/dev/null || true
-          cp -a "${ARTIFACT_DIR}" "${FULL}/kernel-output" 2>/dev/null || true
-          cp -a "${EXTERNAL_DIR}" "${FULL}/external-modules" 2>/dev/null || true
-          cp -a "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.305.7z" \
-            "${FULL}/" 2>/dev/null || true
-          cp -a "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.305-audit.zip" \
-            "${FULL}/" 2>/dev/null || true
+          parent1="$(git rev-parse HEAD)"
+          set +e
+          git merge --no-commit --no-ff "${ANDROID_COMMON_336}" > audit/MERGE-OUTPUT.txt 2>&1
+          merge_status=$?
+          set -e
 
-          {
-            echo "validation_result=${VALIDATION_RESULT:-missing}"
-            echo "validator_exit=${VALIDATION_EXIT:-missing}"
-            echo "post_result=${POST_RESULT:-missing}"
-            echo "post_exit=${POST_EXIT:-missing}"
-            echo "run_id=${GITHUB_RUN_ID}"
-            echo "run_url=https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          } > "${FULL}/RUN-STATUS.txt"
+          printf 'merge_exit_code=%s\n' "${merge_status}" | tee audit/MERGE-STATUS.txt
+          printf 'expected_parent_1=%s\nexpected_parent_2=%s\n' "${parent1}" "${ANDROID_COMMON_336}" > audit/EXPECTED-MERGE-PARENTS.txt
+          git status --short > audit/MERGE-STATUS-SHORT.txt
+          git ls-files -u > audit/UNMERGED-INDEX.txt
+          git diff --name-only --diff-filter=U | sort -u > audit/CONFLICT-PATHS.txt
+          git diff --cc > audit/COMBINED-CONFLICT-DIFF.patch || true
 
-          if [ "${VALIDATION_RESULT:-}" = success ] && [ "${POST_RESULT:-}" = success ]; then
-            mkdir -p "${RELEASE}/external-modules" "${RELEASE}/in-tree-modules"
-            cp "${OUT_DIR}/arch/arm64/boot/Image.gz-dtb" "${RELEASE}/"
-            cp "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.305.7z" \
-              "${RELEASE}/external-modules/"
-            cp "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.305-audit.zip" \
-              "${RELEASE}/external-modules/"
-            while IFS= read -r -d '' module; do
-              rel="${module#${OUT_DIR}/}"
-              mkdir -p "${RELEASE}/in-tree-modules/$(dirname "${rel}")"
-              cp "${module}" "${RELEASE}/in-tree-modules/${rel}"
-            done < <(find "${OUT_DIR}" -type f -name '*.ko' -print0)
-            cp SOURCE-EQUIVALENCE.txt BUILD-CONTROL-PATCH.txt "${RELEASE}/"
-            cp post-validation/VALIDATION-SUMMARY.txt \
-              "${RELEASE}/KERNEL-RELEASE-AND-VALIDATION.txt"
-            cp post-validation/KERNEL-OUTPUTS-SHA256.txt \
-              post-validation/DTB-REPORT.txt "${RELEASE}/"
-            cat > "${RELEASE}/README.txt" <<EOF
-          Miru H.40 Linux 4.14.305 release candidate
-          ===========================================
+          while IFS= read -r path; do
+            [ -n "${path}" ] || continue
+            for entry in '1 base' '2 ours' '3 theirs'; do
+              set -- ${entry}
+              stage="$1"
+              label="$2"
+              mkdir -p "audit/conflicts/${label}/$(dirname "${path}")"
+              if git show ":${stage}:${path}" > "audit/conflicts/${label}/${path}" 2>/dev/null; then
+                :
+              else
+                printf 'MISSING AT INDEX STAGE %s\n' "${stage}" > "audit/conflicts/${label}/${path}.missing"
+              fi
+            done
+            mkdir -p "audit/conflicts/worktree/$(dirname "${path}")"
+            if [ -e "${path}" ]; then
+              cp -a "${path}" "audit/conflicts/worktree/${path}"
+            else
+              printf 'MISSING IN WORKTREE\n' > "audit/conflicts/worktree/${path}.missing"
+            fi
+          done < audit/CONFLICT-PATHS.txt
 
-          Kernel release:
-            ${EXPECTED_RELEASE}
-
-          Source:
-            ${SOURCE_SHA}
-
-          Status:
-            RELEASE CANDIDATE — requires final physical smoke testing on the OnePlus 7 Pro before production merge.
-
-          This package contains the exact kernel image, 13 matching in-tree
-          modules, the matching 32-module external drop-in, checksums, and
-          validation reports. Use only the modules shipped with this package.
-          EOF
-            (
-              cd "${RELEASE}"
-              find . -type f ! -name SHA256SUMS -print0 | sort -z | \
-                xargs -0 sha256sum > SHA256SUMS
-            )
-            command -v zip >/dev/null 2>&1 || \
-              sudo apt-get install -y --no-install-recommends zip
-            (
-              cd "${PACKAGE_ROOT}"
-              zip -q -9 -r miru-h40-4.14.305-lts305-ci1-release-candidate.zip \
-                release-candidate
-            )
+          conflict_count="$(wc -l < audit/CONFLICT-PATHS.txt)"
+          if [ "${merge_status}" -eq 0 ]; then
+            test "${conflict_count}" -eq 0
+            result=CLEAN
+          else
+            test "${conflict_count}" -gt 0
+            result=CONFLICTS_CAPTURED
           fi
 
-      - name: Upload release-candidate package
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: miru-h40-4.14.305-lts305-ci1-release-candidate
-          path: packages/miru-h40-4.14.305-lts305-ci1-release-candidate.zip
-          if-no-files-found: warn
-          compression-level: 0
-          retention-days: 30
+          {
+            echo "result=${result}"
+            echo "parent_1=${parent1}"
+            echo "parent_2=${ANDROID_COMMON_336}"
+            echo "initial_conflicts=${conflict_count}"
+            echo "unmerged_index_entries=$(wc -l < audit/UNMERGED-INDEX.txt)"
+          } | tee audit/CONFLICT-SUMMARY.txt
 
-      - name: Upload full validation and source-equivalence artifact
-        if: always()
+      - name: Upload provenance and semantic-resolution input
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-4.14.305-lts305-ci1-full-validation
-          path: packages/full-validation
+          name: miru-h40-lts336-initial-audit-${{ github.event.pull_request.head.sha }}
+          path: audit
           if-no-files-found: error
-          compression-level: 0
+          compression-level: 9
           retention-days: 30
-
-      - name: Enforce complete result
-        if: always()
-        shell: bash
-        env:
-          VALIDATION_RESULT: ${{ steps.validation.outputs.result }}
-          POST_RESULT: ${{ steps.post.outputs.result }}
-        run: |
-          test "${VALIDATION_RESULT:-}" = success
-          test "${POST_RESULT:-}" = success
