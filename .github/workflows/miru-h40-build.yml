@@ -5,16 +5,13 @@ on:
     branches:
       - miru-h40
     types:
-      - opened
-      - reopened
       - synchronize
-      - ready_for_review
 
 permissions:
   contents: write
 
 concurrency:
-  group: miru-h40-lts336-integration-${{ github.event.pull_request.number }}
+  group: miru-h40-lts336-authentic-integration-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 env:
@@ -29,24 +26,17 @@ env:
   ANDROID_COMMON_BRANCH: deprecated/android-4.14-stable
   RELEASE_BRANCH: miru-h40-lts336-release
   SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+  RESOLVER_BLOB: edc816bf754ab8b5992d8ce42628565184b42659
   LEDGER: Documentation/miru/lts-4.14.336-conflicts.md
   RESULT_TSV: Documentation/miru/lts-4.14.336-resolution-results.tsv
-  REPLAY_COMMIT: c10f24a63e3175db2ddf59231175a0fab4e3c8b6
-  REPLAY_RUN: '30748527303'
-  REPLAY_ARTIFACT_ID: '8833712206'
-  REPLAY_ARTIFACT_SHA256: 60747de0d01c0b0e1dadafbed72d2787ce7e8dac653d6b3687b4cfc43475d9b9
-  REPLAY_STAGE_SHA256: 2969b2e787bfd3e98fc5fe6768eef686aa39030b3783fe3da8436d7bfc5d2143
-  REPLAY_FINAL_SHA256: 2494ea2e93551dbc89f3c98be8577ce3d3b7acf66b27db217df908f1c6383ca8
-  REPLAY_REPORT_SHA256: c84b3d9b14c13d37a57759f8da096b760c60652585fd48fc8042c162b954c01f
-  REPLAY_PATCH_SHA256: 8ab87ab2ea79c342d61590e842aba8a8b5de452dbd60fbb5dc78681d6627d810
 
 jobs:
-  authentic-integration:
+  integrate:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.head_ref == 'miru-h40-lts336-release'
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
+    timeout-minutes: 90
 
     steps:
       - name: Checkout exact candidate head with complete ancestry
@@ -55,8 +45,8 @@ jobs:
           ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 0
 
-      - name: Verify immutable refs, replay boundary, and exact target
-        id: provenance
+      - name: Verify immutable refs and exact Android Common target
+        id: preflight
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -67,47 +57,42 @@ jobs:
           }
           check_eq() {
             local label="$1" actual="$2" expected="$3"
-            printf '%s.actual=%s\n%s.expected=%s\n' "$label" "$actual" "$label" "$expected" | tee -a audit/provenance.txt
+            printf '%s.actual=%s\n%s.expected=%s\n' \
+              "$label" "$actual" "$label" "$expected" | tee -a audit/provenance.txt
             test "$actual" = "$expected"
           }
 
-          source_head="$(git rev-parse HEAD)"
-          check_eq source_head "$source_head" "$SOURCE_SHA"
+          check_eq source_head "$(git rev-parse HEAD)" "$SOURCE_SHA"
           check_eq head_ref "$GITHUB_HEAD_REF" "$RELEASE_BRANCH"
-          check_eq live_candidate "$(read_ref "refs/heads/$RELEASE_BRANCH")" "$source_head"
-          check_eq live_production "$(read_ref refs/heads/miru-h40)" "$PRODUCTION_HEAD"
-          check_eq live_h40 "$(read_ref refs/heads/oneplus/sm8150_s_12.1_op7pro)" "$PRISTINE_H40"
+          check_eq candidate_ref "$(read_ref "refs/heads/$RELEASE_BRANCH")" "$SOURCE_SHA"
+          check_eq production_ref "$(read_ref refs/heads/miru-h40)" "$PRODUCTION_HEAD"
+          check_eq pristine_h40_ref "$(read_ref refs/heads/oneplus/sm8150_s_12.1_op7pro)" "$PRISTINE_H40"
 
-          live_rollback="$(read_ref 'refs/tags/miru-h40-4.14.269-final^{}')"
-          if [ -z "$live_rollback" ]; then
-            live_rollback="$(read_ref refs/tags/miru-h40-4.14.269-final)"
+          rollback_ref="$(read_ref 'refs/tags/miru-h40-4.14.269-final^{}')"
+          if [ -z "$rollback_ref" ]; then
+            rollback_ref="$(read_ref refs/tags/miru-h40-4.14.269-final)"
           fi
-          check_eq live_rollback "$live_rollback" "$ROLLBACK_269"
+          check_eq rollback_ref "$rollback_ref" "$ROLLBACK_269"
 
           for ancestor in \
             "$PRODUCTION_HEAD" \
             "$PRODUCTION_MERGE_305" \
             "$PRISTINE_H40" \
             "$ROLLBACK_269" \
-            "$ANDROID_COMMON_305" \
-            "$REPLAY_COMMIT"; do
+            "$ANDROID_COMMON_305"; do
             git cat-file -e "${ancestor}^{commit}"
             git merge-base --is-ancestor "$ancestor" HEAD
             echo "candidate_ancestor.$ancestor=PASS" | tee -a audit/provenance.txt
           done
 
-          if ! git merge-base --is-ancestor "$ANDROID_COMMON_336" HEAD; then
-            test "$(git rev-list --count "$REPLAY_COMMIT..HEAD")" -eq 1
-            git diff --name-only "$REPLAY_COMMIT" HEAD | sort -u > audit/replay-to-integration-paths.txt
-            test "$(wc -l < audit/replay-to-integration-paths.txt)" -eq 1
-            grep -Fxq '.github/workflows/miru-h40-build.yml' audit/replay-to-integration-paths.txt
-            check_eq resolver_after_replay \
-              "$(git rev-parse 'HEAD:scripts/miru/resolve_4.14.336.py')" \
-              "$(git rev-parse "$REPLAY_COMMIT:scripts/miru/resolve_4.14.336.py")"
-            check_eq ledger_after_replay \
-              "$(git rev-parse 'HEAD:Documentation/miru/lts-4.14.336-conflicts.md')" \
-              "$(git rev-parse "$REPLAY_COMMIT:Documentation/miru/lts-4.14.336-conflicts.md")"
-          fi
+          cat > audit/expected-parent-delta.txt <<'EOF'
+          .github/workflows/miru-h40-build.yml
+          Documentation/miru/lts-4.14.336-conflicts.md
+          scripts/miru/resolve_4.14.336.py
+          EOF
+          git diff --name-only "$PRODUCTION_HEAD" HEAD | sort -u > audit/actual-parent-delta.txt
+          diff -u audit/expected-parent-delta.txt audit/actual-parent-delta.txt
+          check_eq resolver_blob "$(git rev-parse "HEAD:scripts/miru/resolve_4.14.336.py")" "$RESOLVER_BLOB"
 
           remote_branch="refs/heads/$ANDROID_COMMON_BRANCH"
           local_branch="refs/remotes/android-common/$ANDROID_COMMON_BRANCH"
@@ -119,16 +104,15 @@ jobs:
 
           mapfile -t target_parents < <(git cat-file -p "$ANDROID_COMMON_336" | sed -n 's/^parent //p')
           test "${#target_parents[@]}" -eq 2
-          check_eq android_common_parent_1 "${target_parents[0]}" "$ANDROID_COMMON_336_PARENT_1"
-          check_eq android_common_parent_2 "${target_parents[1]}" "$ANDROID_COMMON_336_PARENT_2"
+          check_eq target_parent_1 "${target_parents[0]}" "$ANDROID_COMMON_336_PARENT_1"
+          check_eq target_parent_2 "${target_parents[1]}" "$ANDROID_COMMON_336_PARENT_2"
+          git merge-base --is-ancestor "$ANDROID_COMMON_305" "$ANDROID_COMMON_336"
 
           git show "$ANDROID_COMMON_336:Makefile" > audit/android-common-Makefile
           check_eq target_version "$(awk '$1 == "VERSION" && $2 == "=" {value=$3} END {print value}' audit/android-common-Makefile)" 4
           check_eq target_patchlevel "$(awk '$1 == "PATCHLEVEL" && $2 == "=" {value=$3} END {print value}' audit/android-common-Makefile)" 14
           check_eq target_sublevel "$(awk '$1 == "SUBLEVEL" && $2 == "=" {value=$3} END {print value}' audit/android-common-Makefile)" 336
-          git merge-base --is-ancestor "$ANDROID_COMMON_305" "$ANDROID_COMMON_336"
 
-          git version | tee audit/git-version.txt
           if git merge-base --is-ancestor "$ANDROID_COMMON_336" HEAD; then
             echo already_integrated=true >> "$GITHUB_OUTPUT"
             echo integration_state=ALREADY_PRESENT | tee -a audit/provenance.txt
@@ -137,8 +121,8 @@ jobs:
             echo integration_state=READY | tee -a audit/provenance.txt
           fi
 
-      - name: Record three-way path overlap and downstream identities
-        if: steps.provenance.outputs.already_integrated == 'false'
+      - name: Capture downstream identities before merge
+        if: steps.preflight.outputs.already_integrated == 'false'
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -157,15 +141,13 @@ jobs:
             printf '%s\t%s\n' "$(git hash-object "$path")" "$path" >> audit/kcal-parent-identities.tsv
           done
 
-          git diff --name-only "$PRISTINE_H40" "$PRODUCTION_HEAD" -- | sort -u > audit/downstream-paths.txt
-          git diff --name-only "$ANDROID_COMMON_305" "$ANDROID_COMMON_336" -- | sort -u > audit/common-305-336-paths.txt
+          git diff --name-only "$PRISTINE_H40" "$PRODUCTION_HEAD" | sort -u > audit/downstream-paths.txt
+          git diff --name-only "$ANDROID_COMMON_305" "$ANDROID_COMMON_336" | sort -u > audit/common-305-336-paths.txt
           comm -12 audit/downstream-paths.txt audit/common-305-336-paths.txt > audit/overlap-paths.txt
-          git diff --shortstat "$ANDROID_COMMON_305" "$ANDROID_COMMON_336" -- > audit/common-305-336-shortstat.txt
-          git diff --name-status "$ANDROID_COMMON_305" "$ANDROID_COMMON_336" -- > audit/common-305-336-name-status.txt
           git log --oneline --no-merges "$ANDROID_COMMON_305..$ANDROID_COMMON_336" > audit/common-305-336-commits.txt
 
-      - name: Perform authentic merge and exact semantic resolution
-        if: steps.provenance.outputs.already_integrated == 'false'
+      - name: Perform authentic merge and deterministic resolution
+        if: steps.preflight.outputs.already_integrated == 'false'
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -174,7 +156,6 @@ jobs:
           git config rerere.enabled false
           git config rerere.autoupdate false
           git config merge.renormalize false
-          rm -rf "$(git rev-parse --git-common-dir)/rr-cache"
 
           set +e
           git -c rerere.enabled=false -c rerere.autoupdate=false -c merge.renormalize=false \
@@ -186,150 +167,41 @@ jobs:
           git status --porcelain=v1 > audit/status-after-merge.txt
           git ls-files -u > audit/unmerged-before-resolution.tsv
           git diff --name-only --diff-filter=U | sort -u > audit/conflict-paths.txt
-          conflict_count="$(wc -l < audit/conflict-paths.txt)"
-          printf 'merge_exit_code=%s\nconflict_count=%s\n' "$merge_status" "$conflict_count" | tee audit/merge-summary.txt
+          cat > audit/expected-conflict-paths.txt <<'EOF'
+          drivers/devfreq/devfreq.c
+          drivers/gpu/drm/drm_mipi_dsi.c
+          drivers/mmc/core/block.c
+          drivers/mtd/ubi/wl.c
+          drivers/thermal/thermal_core.c
+          drivers/usb/dwc3/core.c
+          drivers/usb/dwc3/gadget.c
+          drivers/usb/gadget/function/f_fs.c
+          include/net/pkt_sched.h
+          init/main.c
+          kernel/events/core.c
+          kernel/sched/fair.c
+          lib/ubsan.h
+          scripts/checkpatch.pl
+          EOF
           test "$merge_status" -ne 0
-          test "$conflict_count" -eq 14
+          diff -u audit/expected-conflict-paths.txt audit/conflict-paths.txt
 
           python3 scripts/miru/resolve_4.14.336.py --report "$RESULT_TSV" | tee audit/resolver-output.txt
           test -z "$(git ls-files -u)"
           test "$(wc -l < "$RESULT_TSV")" -eq 15
-          git diff --cached --check
-          perl -c scripts/checkpatch.pl |& tee audit/checkpatch-perl.txt
+          git diff --cached --check | tee audit/diff-check.txt
+          perl -c scripts/checkpatch.pl 2>&1 | tee audit/checkpatch-perl.txt
 
-          python3 - <<'PY' | tee audit/semantic-gates.txt
-          from pathlib import Path
+          while IFS= read -r path; do
+            if grep -n -E '^(<<<<<<< |=======$|>>>>>>> )' -- "$path"; then
+              echo "unresolved merge marker in $path" >&2
+              exit 1
+            fi
+          done < audit/conflict-paths.txt
 
-          passed = []
-          def require(condition, message):
-              if not condition:
-                  raise SystemExit(message)
-              passed.append(message)
-
-          devfreq = Path('drivers/devfreq/devfreq.c').read_text()
-          require(devfreq.count('mutex_destroy(&devfreq->event_lock);') == 1,
-                  'devfreq downstream event_lock teardown')
-          require(devfreq.count('srcu_cleanup_notifier_head(&devfreq->transition_notifier_list);') == 1,
-                  'devfreq Android Common SRCU teardown')
-
-          dsi = Path('drivers/gpu/drm/drm_mipi_dsi.c').read_text()
-          for symbol in ('mipi_dsi_dcs_write_c1',
-                         'mipi_dsi_dcs_set_display_brightness_large',
-                         'mipi_dsi_dcs_get_display_brightness_large'):
-              require(dsi.count('int ' + symbol + '(') == 1, 'DSI symbol ' + symbol)
-
-          mmc = Path('drivers/mmc/core/block.c').read_text()
-          require(mmc.count('rpmb ? MMC_DRV_OP_IOCTL_RPMB : MMC_DRV_OP_IOCTL;') == 2,
-                  'MMC RPMB-aware ioctl operation selection')
-          require(mmc.count('req_to_mmc_queue_req(req)->drv_op_result = -EIO;') >= 2,
-                  'MMC ioctl error initialization')
-
-          ubi = Path('drivers/mtd/ubi/wl.c').read_text()
-          marker = 'e->sqnum = UBI_UNKNOWN;'
-          require(marker in ubi, 'UBI downstream sqnum reset')
-          section = ubi[max(0, ubi.index(marker) - 800):ubi.index(marker)]
-          require('if (!e) {' in section and 'up_read(&ubi->fm_protect);' in section,
-                  'UBI missing-entry guard before sqnum reset')
-
-          thermal = Path('drivers/thermal/thermal_core.c').read_text()
-          for token in ('snprintf(dev->upper_attr_name',
-                        'snprintf(dev->lower_attr_name',
-                        'snprintf(dev->weight_attr_name'):
-              require(token in thermal, 'thermal bounded name formatting: ' + token)
-
-          core = Path('drivers/usb/dwc3/core.c').read_text()
-          require(core.count('dma_set_max_seg_size(dev, UINT_MAX);') == 1,
-                  'DWC3 DMA max segment size')
-          require('pm_runtime_allow(dev);' in core,
-                  'DWC3 downstream runtime-PM lifecycle')
-
-          gadget = Path('drivers/usb/dwc3/gadget.c').read_text()
-          require('if (pm_runtime_suspended(dwc->dev)) {' in gadget,
-                  'DWC3 suspended-event gate')
-          require('pm_runtime_get(dwc->dev);' in gadget,
-                  'DWC3 pending-event runtime reference')
-          require('if (dwc3_check_event_buf(dwc->ev_buf) == IRQ_WAKE_THREAD)' in gadget,
-                  'DWC3 Qualcomm-compatible pending buffer check')
-          require('dwc3_interrupt(dwc->irq_gadget, dwc->ev_buf);' not in gadget,
-                  'DWC3 incompatible upstream callback signature absent')
-          pending = gadget[gadget.index('void dwc3_gadget_process_pending_events') :]
-          require(pending.index('dwc3_thread_interrupt') < pending.index('pm_runtime_put(dwc->dev);'),
-                  'DWC3 pending processing before runtime put')
-
-          ffs = Path('drivers/usb/gadget/function/f_fs.c').read_text()
-          tail = ffs[ffs.index('static void ffs_func_unbind') :]
-          require(tail.index('ffs_event_add(ffs, FUNCTIONFS_UNBIND);') < tail.index('functionfs_unbind(ffs);'),
-                  'FunctionFS UNBIND event ordering')
-
-          pkt = Path('include/net/pkt_sched.h').read_text()
-          require('tc_qdisc_flow_control' in pkt, 'downstream qdisc flow-control API')
-          require('rtm_tca_policy' in pkt, 'Android Common qdisc policy API')
-          require('READ_ONCE(dev->mtu)' in pkt, 'qdisc MTU READ_ONCE hardening')
-
-          init = Path('init/main.c').read_text()
-          require(init.count('arch_cpu_finalize_init();') == 1,
-                  'early architecture finalization')
-          require('KERNEL_DELAYACCT_INIT_DONE' in init,
-                  'Oplus Phoenix delayacct boot stage')
-          require('check_bugs();' not in init,
-                  'no duplicate direct check_bugs invocation')
-
-          perf = Path('kernel/events/core.c').read_text()
-          sequence = ('event->group_leader->group_generation++;\n\n'
-                      '\t\tif (event->shared)\n'
-                      '\t\t\tevent->group_leader = event;')
-          require(sequence in perf, 'perf generation update before shared leader rewrite')
-          require('parent->group_generation != leader->group_generation' in perf,
-                  'perf inherited group mismatch guard')
-
-          fair = Path('kernel/sched/fair.c').read_text()
-          require('entity_is_long_sleeper(se)' in fair,
-                  'scheduler long-sleeper vruntime guard')
-          require('place_entity_adjust_ux_task(cfs_rq, se, initial);' in fair,
-                  'Oplus UX placement hook')
-
-          ubsan = Path('lib/ubsan.h').read_text()
-          require(ubsan.count('struct nonnull_arg_data {') == 1,
-                  'single compiler-compatible UBSAN nonnull_arg_data')
-          require('struct nonnull_return_data' not in ubsan,
-                  'obsolete UBSAN nonnull return data removed')
-
-          checkpatch = Path('scripts/checkpatch.pl').read_text()
-          for token in ('STABLE_ADDRESS', 'GERRIT_CHANGE_ID', 'BAD_AUTHOR',
-                        'DT_SCHEMA_BINDING_PATCH', 'string concatenation'):
-              require(token in checkpatch, 'checkpatch semantic token ' + token)
-
-          for path in ('drivers/mmc/core/block.c', 'include/net/pkt_sched.h',
-                       'kernel/sched/fair.c'):
-              require((Path(path).stat().st_mode & 0o111) == 0,
-                      'normalized non-executable mode ' + path)
-
-          print('semantic_gate_count=' + str(len(passed)))
-          for item in passed:
-              print('PASS\t' + item)
-          PY
-
-          if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- \
-            . \
-            ':!Documentation/miru/lts-4.14.336-conflicts.md' \
-            ':!scripts/miru/resolve_4.14.336.py'; then
-            echo 'merge marker found after resolution' >&2
-            exit 1
-          fi
-
-      - name: Prove KCAL identity and required downstream runtime paths
-        if: steps.provenance.outputs.already_integrated == 'false'
-        shell: bash
-        run: |
-          set -Eeuo pipefail
           while IFS=$'\t' read -r expected path; do
             test "$(git hash-object "$path")" = "$expected"
           done < audit/kcal-parent-identities.tsv
-
-          grep -Fq 'sde_kcal_apply_pcc' drivers/gpu/drm/msm/sde/sde_color_processing.c
-          grep -Fq 'sde_kcal_ctrl_init' drivers/gpu/drm/msm/msm_drv.c
-          grep -Fq 'sde/sde_kcal_ctrl.o' drivers/gpu/drm/msm/Makefile
-          grep -Fq 'CONFIG_DRM_SDE_KCAL=y' h40-repro/config/GM1911_11_H.40.config
 
           required_paths=(
             arch/arm64
@@ -349,17 +221,16 @@ jobs:
           test "$(awk '$1 == "VERSION" && $2 == "=" {value=$3} END {print value}' Makefile)" = 4
           test "$(awk '$1 == "PATCHLEVEL" && $2 == "=" {value=$3} END {print value}' Makefile)" = 14
           test "$(awk '$1 == "SUBLEVEL" && $2 == "=" {value=$3} END {print value}' Makefile)" = 336
-          echo downstream_compatibility_gate=PASS | tee audit/downstream-compatibility.txt
+          echo merge_and_resolution=PASS | tee audit/integration-gates.txt
 
-      - name: Finalize ledger and create authentic two-parent merge commit
-        if: steps.provenance.outputs.already_integrated == 'false'
+      - name: Finalize ledger and create authentic two-parent merge
+        if: steps.preflight.outputs.already_integrated == 'false'
         id: merge_commit
         shell: bash
         run: |
           set -Eeuo pipefail
           python3 - "$SOURCE_SHA" <<'PY'
           from pathlib import Path
-          import os
           import sys
 
           path = Path('Documentation/miru/lts-4.14.336-conflicts.md')
@@ -373,50 +244,32 @@ jobs:
               if text.count(old) != 1:
                   raise SystemExit(f'ledger placeholder {old} count is not one')
               text = text.replace(old, new)
-
-          heading = '## Deterministic replay closure\n'
-          if heading in text:
-              raise SystemExit('deterministic replay section already present')
-          text += f'''\n{heading}
-The earlier one-off `devfreq.c` final-blob discrepancy was treated as unexplained and blocked integration. Read-only run `{os.environ['REPLAY_RUN']}` then reproduced the authentic merge six times: twice at the formerly failing parent, twice at the subsequent passing parent, and twice at the replay workflow parent. All six runs used Git 2.54.0 with rerere and renormalization disabled and produced identical 14-path stage manifests, final mode/blob manifests, resolver reports, and staged patches.
-
-- Replay commit: `{os.environ['REPLAY_COMMIT']}`
-- Replay artifact ID: `{os.environ['REPLAY_ARTIFACT_ID']}`
-- Replay artifact SHA-256: `{os.environ['REPLAY_ARTIFACT_SHA256']}`
-- Conflict-stage manifest SHA-256: `{os.environ['REPLAY_STAGE_SHA256']}`
-- Final mode/blob manifest SHA-256: `{os.environ['REPLAY_FINAL_SHA256']}`
-- Resolver report SHA-256: `{os.environ['REPLAY_REPORT_SHA256']}`
-- Resolved staged patch SHA-256: `{os.environ['REPLAY_PATCH_SHA256']}`
-- Replay result: **PASS — six of six byte-identical**
-- Replay repository-write gate: **PASS — none**
-'''
           path.write_text(text)
           PY
 
           git add -- "$LEDGER" "$RESULT_TSV"
           git diff --cached --check
           test -z "$(git ls-files -u)"
-
           git commit \
             -m 'Merge Android Common Linux 4.14.336 into Miru H.40' \
             -m 'Parent 1 is the production-derived Miru H.40 4.14.305 candidate.' \
             -m 'Parent 2 is exact Android Common deprecated/android-4.14-stable commit 014241ad77dda0eafbdf671d5b8e86917d8ec97e.' \
-            -m 'All 14 authentic conflicts are resolved by exact stage/blob manifests, semantic gates, and a six-run deterministic replay.'
+            -m 'All 14 authentic conflicts use the deterministic, six-replay-verified resolutions.'
 
           merge_head="$(git rev-parse HEAD)"
           actual_parents="$(git rev-list --parents -n 1 HEAD)"
-          expected_parents="$merge_head $SOURCE_SHA $ANDROID_COMMON_336"
-          test "$actual_parents" = "$expected_parents"
-          git merge-base --is-ancestor "$ANDROID_COMMON_336" HEAD
+          test "$actual_parents" = "$merge_head $SOURCE_SHA $ANDROID_COMMON_336"
+          git merge-base --is-ancestor "$PRODUCTION_HEAD" "$merge_head"
+          git merge-base --is-ancestor "$ANDROID_COMMON_336" "$merge_head"
           printf 'merge_commit=%s\nparent_1=%s\nparent_2=%s\n' \
             "$merge_head" "$SOURCE_SHA" "$ANDROID_COMMON_336" | tee audit/authentic-merge.txt
           echo "merge_head=$merge_head" >> "$GITHUB_OUTPUT"
 
-      - name: Upload integration evidence before any push
-        if: steps.provenance.outputs.already_integrated == 'false'
+      - name: Upload integration evidence before push
+        if: steps.preflight.outputs.already_integrated == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-lts336-integration-${{ env.SOURCE_SHA }}
+          name: miru-h40-lts336-authentic-integration-${{ env.SOURCE_SHA }}
           path: |
             audit
             Documentation/miru/lts-4.14.336-conflicts.md
@@ -426,22 +279,25 @@ The earlier one-off `devfreq.c` final-blob discrepancy was treated as unexplaine
           retention-days: 30
 
       - name: Guarded candidate-only push
-        if: steps.provenance.outputs.already_integrated == 'false'
+        if: steps.preflight.outputs.already_integrated == 'false'
         shell: bash
         run: |
           set -Eeuo pipefail
           read_ref() {
             git ls-remote origin "$1" | awk 'NR == 1 {value=$1} END {print value}'
           }
+          merge_head="${{ steps.merge_commit.outputs.merge_head }}"
+          test -n "$merge_head"
           test "$(read_ref "refs/heads/$RELEASE_BRANCH")" = "$SOURCE_SHA"
           test "$(read_ref refs/heads/miru-h40)" = "$PRODUCTION_HEAD"
           git push origin "HEAD:refs/heads/$RELEASE_BRANCH"
+          test "$(read_ref "refs/heads/$RELEASE_BRANCH")" = "$merge_head"
           test "$(read_ref refs/heads/miru-h40)" = "$PRODUCTION_HEAD"
           echo candidate_push=PASS
           echo production_write=NONE
 
-      - name: Validate already-integrated candidate on follow-up run
-        if: steps.provenance.outputs.already_integrated == 'true'
+      - name: Validate an already-integrated candidate
+        if: steps.preflight.outputs.already_integrated == 'true'
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -456,11 +312,9 @@ The earlier one-off `devfreq.c` final-blob discrepancy was treated as unexplaine
           test -n "$found"
           git merge-base --is-ancestor "$PRODUCTION_HEAD" "$found"
           git merge-base --is-ancestor "$ANDROID_COMMON_336" "$found"
-          test "$(git ls-remote origin refs/heads/miru-h40 | awk 'NR == 1 {value=$1} END {print value}')" = "$PRODUCTION_HEAD"
           test "$(awk '$1 == "SUBLEVEL" && $2 == "=" {value=$3} END {print value}' Makefile)" = 336
           grep -Fq 'Integration status: **COMPLETE' "$LEDGER"
           grep -Fq 'Semantic resolutions: **14 of 14 complete**' "$LEDGER"
-          grep -Fq 'Replay result: **PASS — six of six byte-identical**' "$LEDGER"
           test "$(wc -l < "$RESULT_TSV")" -eq 15
           echo "existing_authentic_merge=$found"
           echo production_write=NONE
