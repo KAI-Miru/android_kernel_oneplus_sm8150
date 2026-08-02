@@ -1,21 +1,16 @@
-name: Miru H.40 Linux 4.14.336 candidate audit
+name: Miru H.40 Linux 4.14.336 integration scaffold
 
 on:
-  pull_request:
+  push:
     branches:
-      - miru-h40
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
+      - miru-h40-lts336-release
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: miru-h40-lts336-audit-${{ github.event.pull_request.number || github.ref }}
+  group: miru-h40-lts336-scaffold
   cancel-in-progress: false
 
 env:
@@ -28,36 +23,41 @@ env:
   ANDROID_COMMON_336_PARENT_1: bc841b804f61c5918bd950ccb15e63c36f5bd0b5
   ANDROID_COMMON_336_PARENT_2: c31e35278ea8f04f1dceadd77dca4dd7d47932a3
   RELEASE_BRANCH: miru-h40-lts336-release
+  LEDGER: Documentation/miru/lts-4.14.336-conflicts.md
 
 jobs:
-  provenance-and-conflict-audit:
-    if: github.event.pull_request.head.repo.full_name == github.repository
+  create-authentic-scaffold:
+    if: github.repository == 'KAI-Miru/android_kernel_oneplus_sm8150'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
-      - name: Checkout candidate with complete Miru ancestry
+      - name: Checkout exact candidate head with complete ancestry
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Verify immutable refs and import exact Android Common target
+      - name: Merge exact Android Common target and push guarded scaffold
         shell: bash
         run: |
           set -Eeuo pipefail
-          mkdir -p audit/conflicts/{base,ours,theirs,worktree}
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
-          test "${GITHUB_HEAD_REF}" = "${RELEASE_BRANCH}"
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "${GITHUB_REF_NAME}" = "${RELEASE_BRANCH}"
+          source_head="$(git rev-parse HEAD)"
+          test "${source_head}" = "${GITHUB_SHA}"
+          live_candidate="$(git ls-remote origin "refs/heads/${RELEASE_BRANCH}" | awk '{print $1}')"
+          live_production="$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')"
+          test "${live_candidate}" = "${source_head}"
+          test "${live_production}" = "${PRODUCTION_HEAD}"
+
           git merge-base --is-ancestor "${PRODUCTION_HEAD}" HEAD
           git merge-base --is-ancestor "${PRODUCTION_MERGE_305}" HEAD
           git merge-base --is-ancestor "${PRISTINE_H40}" HEAD
           git merge-base --is-ancestor "${ROLLBACK_269}" HEAD
           git merge-base --is-ancestor "${ANDROID_COMMON_305}" HEAD
-
-          live_production="$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')"
-          test "${live_production}" = "${PRODUCTION_HEAD}"
           test "$(git rev-parse oneplus/sm8150_s_12.1_op7pro)" = "${PRISTINE_H40}"
           test "$(git rev-parse miru-h40-4.14.269-final^{commit})" = "${ROLLBACK_269}"
 
@@ -65,65 +65,23 @@ jobs:
           test "${target_branch_head}" = "${ANDROID_COMMON_336}"
           git fetch --no-tags --force https://android.googlesource.com/kernel/common "${ANDROID_COMMON_336}"
           test "$(git rev-parse FETCH_HEAD)" = "${ANDROID_COMMON_336}"
-          git update-ref refs/remotes/android-common/deprecated-android-4.14-stable "${ANDROID_COMMON_336}"
-
           test "$(git rev-list --parents -n 1 "${ANDROID_COMMON_336}")" = "${ANDROID_COMMON_336} ${ANDROID_COMMON_336_PARENT_1} ${ANDROID_COMMON_336_PARENT_2}"
           test "$(git show "${ANDROID_COMMON_336}:Makefile" | sed -n 's/^VERSION = //p' | head -n1)" = 4
           test "$(git show "${ANDROID_COMMON_336}:Makefile" | sed -n 's/^PATCHLEVEL = //p' | head -n1)" = 14
           test "$(git show "${ANDROID_COMMON_336}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 336
           git merge-base --is-ancestor "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}"
 
-          {
-            echo result=PASS
-            echo "candidate_head=$(git rev-parse HEAD)"
-            echo "production_head=${live_production}"
-            echo "production_merge_305=${PRODUCTION_MERGE_305}"
-            echo "pristine_h40=${PRISTINE_H40}"
-            echo "rollback_269=${ROLLBACK_269}"
-            echo "android_common_305=${ANDROID_COMMON_305}"
-            echo "android_common_336=${ANDROID_COMMON_336}"
-            echo "android_common_branch_head=${target_branch_head}"
-            echo "android_common_336_parent_order=${ANDROID_COMMON_336_PARENT_1},${ANDROID_COMMON_336_PARENT_2}"
-            echo "candidate_commits_after_production=$(git rev-list --count "${PRODUCTION_HEAD}..HEAD")"
-            echo "merge_base_candidate_target=$(git merge-base HEAD "${ANDROID_COMMON_336}")"
-            echo "merge_base_pristine_target=$(git merge-base "${PRISTINE_H40}" "${ANDROID_COMMON_336}")"
-          } | tee audit/PROVENANCE.txt
+          if git merge-base --is-ancestor "${ANDROID_COMMON_336}" HEAD; then
+            echo 'Exact Android Common 4.14.336 target is already present; no scaffold write required.'
+            exit 0
+          fi
 
-      - name: Build three-way path and compatibility audit
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          git diff --name-status "${PRISTINE_H40}" "${PRODUCTION_HEAD}" -- > audit/H40-TO-PRODUCTION-PATHS.txt
-          git diff --name-status "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}" -- > audit/ANDROID-COMMON-305-TO-336-PATHS.txt
-          git diff --stat "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}" -- > audit/ANDROID-COMMON-305-TO-336-STAT.txt
-          git diff --shortstat "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}" -- > audit/ANDROID-COMMON-305-TO-336-SHORTSTAT.txt
-          git log --oneline --no-merges "${ANDROID_COMMON_305}..${ANDROID_COMMON_336}" > audit/ANDROID-COMMON-305-TO-336-COMMITS.txt
-
-          git diff --name-only "${PRISTINE_H40}" "${PRODUCTION_HEAD}" -- | sort -u > audit/downstream-paths.txt
-          git diff --name-only "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}" -- | sort -u > audit/common-305-336-paths.txt
-          comm -12 audit/downstream-paths.txt audit/common-305-336-paths.txt > audit/OVERLAPPING-RUNTIME-PATHS.txt
-
-          required_paths=(
-            arch/arm64
-            drivers/char/random.c
-            drivers/extcon/extcon.c
-            drivers/gpu/drm/msm
-            drivers/input/touchscreen/oneplus_touchscreen
-            drivers/of/fdt.c
-            drivers/power/oplus
-            drivers/rpmsg
-            drivers/soc/qcom
-            h40-repro/config
-            mm/rmap.c
-            net/qrtr
-            sound/soc
-          )
-          : > audit/REQUIRED-PATH-305-336-DELTA.txt
-          for path in "${required_paths[@]}"; do
-            test -e "${path}"
-            git diff --name-status "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}" -- "${path}" >> audit/REQUIRED-PATH-305-336-DELTA.txt
-          done
+          mkdir -p /tmp/lts336-audit
+          git diff --name-only "${PRISTINE_H40}" "${PRODUCTION_HEAD}" -- | sort -u > /tmp/lts336-audit/downstream-paths.txt
+          git diff --name-only "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}" -- | sort -u > /tmp/lts336-audit/common-305-336-paths.txt
+          comm -12 /tmp/lts336-audit/downstream-paths.txt /tmp/lts336-audit/common-305-336-paths.txt > /tmp/lts336-audit/overlap-paths.txt
+          git diff --shortstat "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}" -- > /tmp/lts336-audit/common-shortstat.txt
+          git diff --name-status "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}" -- > /tmp/lts336-audit/common-paths.txt
 
           kcal_paths=(
             drivers/gpu/drm/msm/sde/sde_kcal_ctrl.c
@@ -131,88 +89,223 @@ jobs:
             drivers/gpu/drm/msm/sde/sde_color_processing.c
             drivers/gpu/drm/msm/sde/sde_crtc.c
             drivers/gpu/drm/msm/msm_drv.c
+            drivers/gpu/drm/msm/sde/Makefile
+            h40-repro/config
           )
-          : > audit/KCAL-PREMERGE-IDENTITY.txt
+          : > /tmp/lts336-audit/kcal-premerge.txt
           for path in "${kcal_paths[@]}"; do
             test -s "${path}"
-            printf '%s  %s\n' "$(git hash-object "${path}")" "${path}" >> audit/KCAL-PREMERGE-IDENTITY.txt
+            printf '%s\t%s\n' "$(git hash-object "${path}")" "${path}" >> /tmp/lts336-audit/kcal-premerge.txt
           done
           grep -Fq 'sde_kcal_apply_pcc' drivers/gpu/drm/msm/sde/sde_color_processing.c
           grep -Fq 'sde_kcal_ctrl_init' drivers/gpu/drm/msm/msm_drv.c
           grep -Fq 'kcal_ctrl' drivers/gpu/drm/msm/sde/Makefile
           grep -Fq 'CONFIG_DRM_SDE_KCAL=y' h40-repro/config
 
-          {
-            echo result=PASS
-            echo "downstream_changed_paths=$(wc -l < audit/downstream-paths.txt)"
-            echo "common_305_336_changed_paths=$(wc -l < audit/common-305-336-paths.txt)"
-            echo "overlap_paths=$(wc -l < audit/OVERLAPPING-RUNTIME-PATHS.txt)"
-            echo "kcal_identity_entries=$(wc -l < audit/KCAL-PREMERGE-IDENTITY.txt)"
-          } | tee audit/THREE-WAY-SUMMARY.txt
-
-      - name: Perform authentic no-commit merge and capture every conflict stage
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-
-          parent1="$(git rev-parse HEAD)"
+          parent1="${source_head}"
           set +e
-          git merge --no-commit --no-ff "${ANDROID_COMMON_336}" > audit/MERGE-OUTPUT.txt 2>&1
+          git merge --no-commit --no-ff "${ANDROID_COMMON_336}" > /tmp/lts336-audit/merge-output.txt 2>&1
           merge_status=$?
           set -e
 
-          printf 'merge_exit_code=%s\n' "${merge_status}" | tee audit/MERGE-STATUS.txt
-          printf 'expected_parent_1=%s\nexpected_parent_2=%s\n' "${parent1}" "${ANDROID_COMMON_336}" > audit/EXPECTED-MERGE-PARENTS.txt
-          git status --short > audit/MERGE-STATUS-SHORT.txt
-          git ls-files -u > audit/UNMERGED-INDEX.txt
-          git diff --name-only --diff-filter=U | sort -u > audit/CONFLICT-PATHS.txt
-          git diff --cc > audit/COMBINED-CONFLICT-DIFF.patch || true
+          git status --porcelain=v1 > /tmp/lts336-audit/status-before-resolution.txt
+          git ls-files -u > /tmp/lts336-audit/unmerged-index.txt
+          git diff --name-only --diff-filter=U | sort -u > /tmp/lts336-audit/conflict-paths.txt
+          conflict_count="$(wc -l < /tmp/lts336-audit/conflict-paths.txt)"
+          if [ "${merge_status}" -eq 0 ]; then
+            test "${conflict_count}" -eq 0
+          else
+            test "${conflict_count}" -gt 0
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          root = Path('/tmp/lts336-audit')
+          paths = [p for p in root.joinpath('conflict-paths.txt').read_text().splitlines() if p]
+          entries = {}
+          for line in root.joinpath('unmerged-index.txt').read_text().splitlines():
+              meta, path = line.split('\t', 1)
+              mode, blob, stage = meta.split()
+              entries.setdefault(path, {})[int(stage)] = (mode, blob)
+          with root.joinpath('conflict-stages.tsv').open('w') as out:
+              out.write('path\tbase_mode\tbase_blob\tours_mode\tours_blob\ttheirs_mode\ttheirs_blob\n')
+              for path in paths:
+                  row = [path]
+                  for stage in (1, 2, 3):
+                      mode, blob = entries.get(path, {}).get(stage, ('-', '-'))
+                      row.extend((mode, blob))
+                  out.write('\t'.join(row) + '\n')
+          PY
 
           while IFS= read -r path; do
             [ -n "${path}" ] || continue
-            for entry in '1 base' '2 ours' '3 theirs'; do
-              set -- ${entry}
-              stage="$1"
-              label="$2"
-              mkdir -p "audit/conflicts/${label}/$(dirname "${path}")"
-              if git show ":${stage}:${path}" > "audit/conflicts/${label}/${path}" 2>/dev/null; then
-                :
-              else
-                printf 'MISSING AT INDEX STAGE %s\n' "${stage}" > "audit/conflicts/${label}/${path}.missing"
-              fi
-            done
-            mkdir -p "audit/conflicts/worktree/$(dirname "${path}")"
-            if [ -e "${path}" ]; then
-              cp -a "${path}" "audit/conflicts/worktree/${path}"
+            if git show ":2:${path}" >/dev/null 2>&1; then
+              git checkout --ours -- "${path}"
+              git add -- "${path}"
             else
-              printf 'MISSING IN WORKTREE\n' > "audit/conflicts/worktree/${path}.missing"
+              git rm -f --ignore-unmatch -- "${path}"
             fi
-          done < audit/CONFLICT-PATHS.txt
+          done < /tmp/lts336-audit/conflict-paths.txt
 
-          conflict_count="$(wc -l < audit/CONFLICT-PATHS.txt)"
-          if [ "${merge_status}" -eq 0 ]; then
-            test "${conflict_count}" -eq 0
-            result=CLEAN
-          else
-            test "${conflict_count}" -gt 0
-            result=CONFLICTS_CAPTURED
-          fi
+          test -z "$(git ls-files -u)"
+          python3 - <<'PY'
+          from pathlib import Path
+          import subprocess
 
+          rows = Path('/tmp/lts336-audit/conflict-stages.tsv').read_text().splitlines()[1:]
+          for row in rows:
+              fields = row.split('\t')
+              path, ours_blob = fields[0], fields[4]
+              proc = subprocess.run(['git', 'ls-files', '-s', '--', path], text=True, capture_output=True, check=True)
+              if ours_blob == '-':
+                  if proc.stdout.strip():
+                      raise SystemExit(f'{path}: expected Miru deletion, but path remains staged')
+              else:
+                  staged = proc.stdout.split()[1] if proc.stdout.strip() else None
+                  if staged != ours_blob:
+                      raise SystemExit(f'{path}: staged {staged}, expected Miru stage-2 blob {ours_blob}')
+          PY
+
+          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 336
+          for path in "${kcal_paths[@]}"; do
+            expected="$(awk -F '\t' -v p="${path}" '$2 == p { print $1 }' /tmp/lts336-audit/kcal-premerge.txt)"
+            test -n "${expected}"
+            test "$(git hash-object "${path}")" = "${expected}"
+          done
+
+          required_paths=(
+            drivers/gpu/drm/msm
+            drivers/input/touchscreen/oneplus_touchscreen
+            drivers/power/oplus
+            drivers/rpmsg
+            drivers/soc/qcom
+            h40-repro/config
+            net/qrtr
+            sound/soc
+          )
+          for path in "${required_paths[@]}"; do test -e "${path}"; done
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          cpu = Path('arch/arm64/kernel/cpu_errata.c').read_text()
+          random = Path('drivers/char/random.c').read_text()
+          extcon = Path('drivers/extcon/extcon.c').read_text()
+          fdt = Path('drivers/of/fdt.c').read_text()
+          early = Path('drivers/soc/qcom/early_random.c').read_text()
+          setup = Path('arch/arm64/kernel/setup.c').read_text()
+          mmu = Path('arch/arm64/mm/mmu.c').read_text()
+          rmap = Path('mm/rmap.c').read_text()
+
+          for name in ('arm64_update_smccc_conduit', 'arm64_enable_wa2_handling'):
+              count = len(re.findall(rf'^\s*(?:static\s+)?void\s+__init\s+{name}\s*\(', cpu, re.M))
+              if count != 1:
+                  raise SystemExit(f'{name}: expected one definition, got {count}')
+          if 'system_wq && !kthread_should_stop() && crng_ready()' not in re.sub(r'\s+', ' ', random):
+              raise SystemExit('RNG early-boot system_wq guard missing')
+          if 'edev->bnh = kcalloc' not in extcon or extcon.count('kfree(edev->bnh);') < 2:
+              raise SystemExit('extcon blocking-notifier lifetime support missing')
+          if len(re.findall(r'^int\s+of_fdt_get_ddrtype\s*\(', fdt, re.M)) != 1:
+              raise SystemExit('downstream of_fdt_get_ddrtype API missing or duplicated')
+          if setup.count('fixmap_remap_fdt(') < 2:
+              raise SystemExit('ARM64 public FDT caller missing')
+          if len(re.findall(r'^void \*__init fixmap_remap_fdt\s*\(', mmu, re.M)) != 1:
+              raise SystemExit('ARM64 public FDT implementation missing or duplicated')
+          for include in ('#include <linux/hw_random.h>', '#include <linux/random.h>'):
+              if early.count(include) != 1:
+                  raise SystemExit(f'early_random include gate failed: {include}')
+          clone = rmap[rmap.index('int anon_vma_clone_oplus'):]
+          if '->degree' in clone or 'num_children' not in clone or 'num_active_vmas' not in clone:
+              raise SystemExit('anon-vma downstream compatibility gate failed')
+          PY
+
+          mkdir -p "$(dirname "${LEDGER}")"
+          shortstat="$(cat /tmp/lts336-audit/common-shortstat.txt)"
+          overlap_count="$(wc -l < /tmp/lts336-audit/overlap-paths.txt)"
+          changed_count="$(wc -l < /tmp/lts336-audit/common-305-336-paths.txt)"
           {
-            echo "result=${result}"
-            echo "parent_1=${parent1}"
-            echo "parent_2=${ANDROID_COMMON_336}"
-            echo "initial_conflicts=${conflict_count}"
-            echo "unmerged_index_entries=$(wc -l < audit/UNMERGED-INDEX.txt)"
-          } | tee audit/CONFLICT-SUMMARY.txt
+            echo '# Miru H.40 to Android Common 4.14.336 integration ledger'
+            echo
+            echo 'This ledger records the final Android Common Linux 4.14 milestone integration.'
+            echo 'Index resolution preserves the Miru stage-2 blob for every authentic conflict; semantic resolution is deliberately still pending at this scaffold stage.'
+            echo
+            echo '## Current scaffold status'
+            echo
+            echo "- Production branch: \`miru-h40\` at \`${PRODUCTION_HEAD}\` (unchanged)"
+            echo "- Candidate branch: \`${RELEASE_BRANCH}\`"
+            echo "- Candidate parent before merge: \`${parent1}\`"
+            echo "- Pristine OnePlus H.40: \`${PRISTINE_H40}\`"
+            echo "- Previous Android Common 4.14.305: \`${ANDROID_COMMON_305}\`"
+            echo "- Android Common 4.14.336 target: \`${ANDROID_COMMON_336}\`"
+            echo "- Target branch: \`deprecated/android-4.14-stable\`"
+            echo "- Target parent order: \`${ANDROID_COMMON_336_PARENT_1}\`, then \`${ANDROID_COMMON_336_PARENT_2}\`"
+            echo "- Android Common 4.14.305 to 4.14.336 delta: ${shortstat}"
+            echo "- Android Common changed paths: **${changed_count}**"
+            echo "- Downstream/Android Common overlapping paths: **${overlap_count}**"
+            echo "- Initial authentic conflicts: **${conflict_count}**"
+            echo "- Index-resolved conflicts: **${conflict_count}**"
+            echo '- Semantically resolved conflicts: **0**'
+            echo "- Remaining semantic conflicts: **${conflict_count}**"
+            echo '- KCAL pre-merge identity preserved at scaffold: **PASS**'
+            echo '- Required H.40/Oplus/Qualcomm path-presence gates: **PASS**'
+            echo '- Prior 4.14.305 compatibility gates at scaffold: **PASS**'
+            echo '- Kernel/module/ABI validation: **pending**'
+            echo '- Physical device test: **pending**'
+            echo '- Production promotion: **not authorized**'
+            echo
+            echo '## Authentic merge-parent requirement'
+            echo
+            echo "The scaffold merge must have parent 1 \`${parent1}\` and parent 2 \`${ANDROID_COMMON_336}\`."
+            echo
+            echo '## Conflict manifest'
+            echo
+            echo '| # | Path | Base blob | Miru stage-2 blob | Android Common stage-3 blob | Index status | Semantic status |'
+            echo '|---:|---|---|---|---|---|---|'
+            n=0
+            tail -n +2 /tmp/lts336-audit/conflict-stages.tsv | while IFS=$'\t' read -r path base_mode base_blob ours_mode ours_blob theirs_mode theirs_blob; do
+              n=$((n + 1))
+              echo "| ${n} | \`${path}\` | \`${base_blob}\` | \`${ours_blob}\` | \`${theirs_blob}\` | Miru stage-2 preserved | pending |"
+            done
+            echo
+            echo '## Overlapping downstream and 4.14.305-to-4.14.336 paths'
+            echo
+            if [ -s /tmp/lts336-audit/overlap-paths.txt ]; then
+              sed 's/^/- `/' /tmp/lts336-audit/overlap-paths.txt | sed 's/$/`/'
+            else
+              echo '- None'
+            fi
+            echo
+            echo '## Safety record'
+            echo
+            echo '- The production branch was re-read immediately before integration and remained exact.'
+            echo '- No force push, rebase, tag, release, or production write was performed.'
+            echo '- Cleanly merged Android Common paths remain exactly as Git produced them.'
+            echo '- Conflicted paths are only index-resolved; no semantic-resolution claim is made yet.'
+          } > "${LEDGER}"
+          git add -- "${LEDGER}"
 
-      - name: Upload provenance and semantic-resolution input
-        uses: actions/upload-artifact@v4
-        with:
-          name: miru-h40-lts336-initial-audit-${{ github.event.pull_request.head.sha }}
-          path: audit
-          if-no-files-found: error
-          compression-level: 9
-          retention-days: 30
+          git diff --cached --check
+          test -z "$(git ls-files -u)"
+          git commit -m 'Merge Android Common Linux 4.14.336 into Miru H.40 scaffold' \
+            -m 'Parent 1 is the production-derived 4.14.305 candidate preparation head.' \
+            -m 'Parent 2 is exact Android Common deprecated/android-4.14-stable commit 014241ad77dda0eafbdf671d5b8e86917d8ec97e.' \
+            -m 'All authentic conflicts are index-resolved to their Miru stage-2 blobs and remain semantically pending in the committed ledger.'
+
+          merge_head="$(git rev-parse HEAD)"
+          test "$(git rev-list --parents -n 1 HEAD)" = "${merge_head} ${parent1} ${ANDROID_COMMON_336}"
+          git merge-base --is-ancestor "${ANDROID_COMMON_336}" HEAD
+          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 336
+
+          live_candidate="$(git ls-remote origin "refs/heads/${RELEASE_BRANCH}" | awk '{print $1}')"
+          live_production="$(git ls-remote origin refs/heads/miru-h40 | awk '{print $1}')"
+          test "${live_candidate}" = "${source_head}"
+          test "${live_production}" = "${PRODUCTION_HEAD}"
+          git push origin "HEAD:refs/heads/${RELEASE_BRANCH}"
+
+          echo "scaffold_merge=${merge_head}"
+          echo "parent_1=${parent1}"
+          echo "parent_2=${ANDROID_COMMON_336}"
+          echo "conflicts=${conflict_count}"
