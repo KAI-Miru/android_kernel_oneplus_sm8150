@@ -41,6 +41,27 @@ jobs:
           test "$(git rev-parse refs/remotes/android-common/deprecated/android-4.14-stable)" = "014241ad77dda0eafbdf671d5b8e86917d8ec97e"
           git cat-file -e "4415bf5e08942aee6487946a3e0a50956ef68f1e^{commit}"
 
+      - name: Apply audited runtime-only marker guard
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p audit
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/miru/integrate_4.14.336.sh")
+          text = path.read_text()
+          old = "if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- \\\n"
+          new = "if git grep -n -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- \\\n"
+          if text.count(old) != 1:
+              raise SystemExit("expected exactly one broad merge-marker guard")
+          path.write_text(text.replace(old, new))
+          PY
+          bash -n scripts/miru/integrate_4.14.336.sh
+          git diff -- scripts/miru/integrate_4.14.336.sh > audit/runtime-marker-guard.patch
+          test -s audit/runtime-marker-guard.patch
+          grep -Fq "^(<<<<<<< .+|=======|>>>>>>> .+)$" scripts/miru/integrate_4.14.336.sh
+
       - name: Prepare and validate authentic merge
         id: integrate
         shell: bash
