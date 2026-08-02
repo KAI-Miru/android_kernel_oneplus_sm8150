@@ -1,0 +1,324 @@
+name: Miru H.40 Linux 4.14.336 USB diagnostic
+
+on:
+  pull_request:
+    branches: [miru-h40]
+    types: [synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: miru-h40-lts336-usbdiag-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  PRODUCTION_HEAD: a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee
+  ANDROID_COMMON_TARGET: 014241ad77dda0eafbdf671d5b8e86917d8ec97e
+  AUTHENTIC_MERGE: e0fc49a4660130692e6ac893f8119282b0192b85
+  VALIDATOR_SHA: 9db1ff57feb92e9bed955f0395d9ea298ae13906
+  VALIDATOR_BLOB: 6d5e44a57b611463b7f691710ccfb84e2e88123b
+  WLAN_HELPER_BLOB: f8db305e54123f3b9a768d4fc32a418785838bb6
+  MAKEFILE_BUILD_BLOB: ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3
+  PROVEN_GADGET_BLOB: 015201f84063803c8009885c7aae9ca7923ea48e
+  EXPECTED_CORE_BLOB: f2602eb6901f4ff2e7fbbad6bef2b9c560f7aadd
+  EXPECTED_RELEASE: 4.14.336-miru-h40-lts336-usbdiag1+
+  EXPECTED_LOCALVERSION: miru-h40-lts336-usbdiag1
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'miru-h40-lts336-release'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout exact USB diagnostic
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          fetch-depth: 0
+
+      - name: Checkout reviewed production validator
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.VALIDATOR_SHA }}
+          path: control
+          fetch-depth: 1
+
+      - name: Verify isolated DWC3 diagnostic
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
+          test "$(git -C control hash-object scripts/miru/ci_validate_4.14.305.sh)" = "${VALIDATOR_BLOB}"
+          test "$(git -C source hash-object scripts/miru/prepare_wlan_response_link.py)" = "${WLAN_HELPER_BLOB}"
+          test "$(git -C source hash-object scripts/Makefile.build)" = "${MAKEFILE_BUILD_BLOB}"
+          test "$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')" = "${PRODUCTION_HEAD}"
+
+          for ancestor in "${PRODUCTION_HEAD}" "${ANDROID_COMMON_TARGET}" "${AUTHENTIC_MERGE}"; do
+            git -C source merge-base --is-ancestor "${ancestor}" "${SOURCE_SHA}"
+          done
+
+          test "$(sed -n 's/^SUBLEVEL = //p' source/Makefile | head -n 1)" = 336
+          test -z "$(git -C source ls-files -u)"
+          git -C source diff --check "${AUTHENTIC_MERGE}" "${SOURCE_SHA}" --
+
+          cat > expected-diff.txt <<'EOF'
+          .github/workflows/miru-h40-build.yml
+          .github/workflows/miru-h40-usbdiag.yml
+          drivers/usb/dwc3/gadget.c
+          EOF
+          git -C source diff --name-only "${AUTHENTIC_MERGE}" "${SOURCE_SHA}" -- | sort > actual-diff.txt
+          cmp expected-diff.txt actual-diff.txt
+
+          runtime_paths=(arch block crypto drivers fs include init ipc kernel lib mm net security sound virt Kbuild Kconfig Makefile h40-repro/config)
+          printf '%s\n' drivers/usb/dwc3/gadget.c > expected-runtime-diff.txt
+          git -C source diff --name-only "${AUTHENTIC_MERGE}" "${SOURCE_SHA}" -- "${runtime_paths[@]}" | sort > actual-runtime-diff.txt
+          cmp expected-runtime-diff.txt actual-runtime-diff.txt
+
+          test "$(git -C source hash-object drivers/usb/dwc3/gadget.c)" = "${PROVEN_GADGET_BLOB}"
+          test "$(git -C source hash-object drivers/usb/dwc3/core.c)" = "${EXPECTED_CORE_BLOB}"
+          grep -Fq 'pm_runtime_get_sync(dwc->dev);' source/drivers/usb/dwc3/gadget.c
+          grep -Fq 'queue_work(dwc->dwc_wq, &dwc->bh_work);' source/drivers/usb/dwc3/gadget.c
+          ! grep -Fq 'if (pm_runtime_suspended(dwc->dev))' source/drivers/usb/dwc3/gadget.c
+
+          kcal_paths=(
+            drivers/gpu/drm/msm/sde/sde_kcal_ctrl.c
+            drivers/gpu/drm/msm/sde/sde_kcal_ctrl.h
+            drivers/gpu/drm/msm/sde/sde_color_processing.c
+            drivers/gpu/drm/msm/sde/sde_crtc.c
+            drivers/gpu/drm/msm/msm_drv.c
+            drivers/gpu/drm/msm/Makefile
+            h40-repro/config/GM1911_11_H.40.config
+          )
+          for path in "${kcal_paths[@]}"; do
+            test "$(git -C source rev-parse "${SOURCE_SHA}:${path}")" = \
+              "$(git -C source rev-parse "${AUTHENTIC_MERGE}:${path}")"
+          done
+
+          {
+            echo result=PASS
+            echo "source_sha=${SOURCE_SHA}"
+            echo "production_head=${PRODUCTION_HEAD}"
+            echo "diagnostic_change=drivers/usb/dwc3/gadget.c"
+            echo "diagnostic_blob=${PROVEN_GADGET_BLOB}"
+            echo "dwc3_core_blob=${EXPECTED_CORE_BLOB}"
+            echo "other_runtime_differences=0"
+            echo "production_write=NONE"
+          } | tee USB-DIAGNOSTIC-SOURCE.txt
+
+      - name: Adapt reviewed validator to USB diagnostic
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          validator=control/scripts/miru/ci_validate_4.14.305.sh
+          helper=source/scripts/miru/prepare_wlan_response_link.py
+
+          python3 - "${validator}" "${SOURCE_SHA}" "${EXPECTED_RELEASE}" "${EXPECTED_LOCALVERSION}" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          source_sha, release, localversion = sys.argv[2:]
+          text = path.read_text()
+          replacements = [
+              ("af61e9d6dfc33b7b46bfc608b20b6badf894ad23", source_sha),
+              ("61371a1024e341f434deaf61b79a05f73827260a", "a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee"),
+              ("b92a77e96dd54fd30f8f39c7eef23e76f211c515", "e0fc49a4660130692e6ac893f8119282b0192b85"),
+              ("4415bf5e08942aee6487946a3e0a50956ef68f1e", "014241ad77dda0eafbdf671d5b8e86917d8ec97e"),
+              (r"4\\.14\\.305", r"4\\.14\\.336"),
+              ("4.14.305", "4.14.336"),
+              ("lts305", "lts336"),
+              ("4.14.336-miru-h40-lts336-af61e9d-ci1+", release),
+              ("miru-h40-lts336-af61e9d-ci1", localversion),
+              ("= 305", "= 336"),
+              ('= "305"', '= "336"'),
+              ("- Initial authentic conflicts: **33**", "- Authentic conflicts: **14**"),
+              ("- Index-resolved conflicts: **33**", "- Integration status: **COMPLETE — authentic candidate merge created**"),
+              ("- Semantically resolved conflicts: **33**", "- Semantic resolutions: **14 of 14 complete**"),
+              ("- Remaining semantic conflicts: **0**", "- Production promotion: **not authorized**"),
+              ("conflicts=33/33", "conflicts=14/14"),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f"missing validator anchor: {old!r}")
+              text = text.replace(old, new)
+
+          if "305" in text or "lts305" in text:
+              stale = [f"{i}: {line}" for i, line in enumerate(text.splitlines(), 1)
+                       if "305" in line or "lts305" in line]
+              raise SystemExit("stale 305 validator tokens:\n" + "\n".join(stale))
+
+          exit_trap = "trap 'status=$?; echo \"exit_code=${status}\" > \"${REPORT_ROOT}/validation-exit-code.txt\"; exit \"${status}\"' EXIT\n"
+          err_trap = "trap 'rc=$?; printf \"failed_line=%s\\nfailed_command=%s\\nfailed_rc=%s\\n\" \"$LINENO\" \"$BASH_COMMAND\" \"$rc\" | tee \"${REPORT_ROOT}/validation-error.txt\" >&2' ERR\n"
+          if text.count(exit_trap) != 1:
+              raise SystemExit("validator EXIT trap mismatch")
+          text = text.replace(exit_trap, exit_trap + err_trap, 1)
+
+          build_call = "bash scripts/miru/ci_build_4.14.190.sh"
+          if text.count(build_call) != 1:
+              raise SystemExit("kernel build invocation missing or duplicated")
+          text = text.replace(build_call, "bash -x scripts/miru/ci_build_4.14.190.sh", 1)
+          path.write_text(text)
+          PY
+
+          python3 - "${helper}" "${MAKEFILE_BUILD_BLOB}" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          new_blob = sys.argv[2]
+          text = path.read_text()
+          old_blob = "74ce588c69513197a354ef0032c2145e91ee0641"
+          if text.count(old_blob) != 1 or new_blob in text:
+              raise SystemExit("WLAN helper identity mismatch")
+          path.write_text(text.replace(old_blob, new_blob, 1))
+          PY
+
+          bash -n "${validator}"
+          python3 -m py_compile "${helper}"
+          grep -Fq "SOURCE_SHA=${SOURCE_SHA}" "${validator}"
+          grep -Fq "EXPECTED_RELEASE=${EXPECTED_RELEASE}" "${validator}"
+          grep -Fq "KERNEL_LOCALVERSION=-${EXPECTED_LOCALVERSION}" "${validator}"
+          grep -Fq "grep -m1 '^Linux version 4\\\\.14\\\\.336-'" "${validator}"
+          grep -Fq "grep -Fq '= \"336\"' scripts/miru/ci_build_4.14.190.sh" "${validator}"
+          grep -Fq 'bash -x scripts/miru/ci_build_4.14.190.sh' "${validator}"
+
+      - name: Build USB diagnostic kernel and matching modules
+        id: build
+        shell: bash
+        run: |
+          set +e
+          bash control/scripts/miru/ci_validate_4.14.305.sh \
+            "${GITHUB_WORKSPACE}/source" "${GITHUB_WORKSPACE}/control"
+          status=$?
+          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
+          if [ "${status}" = 0 ]; then
+            echo result=success >> "${GITHUB_OUTPUT}"
+          else
+            echo result=failure >> "${GITHUB_OUTPUT}"
+          fi
+          exit 0
+
+      - name: Enforce USB diagnostic outputs
+        id: post
+        if: always() && steps.build.outputs.result == 'success'
+        shell: bash
+        run: |
+          set +e
+          (
+            set -Eeuo pipefail
+            out="${RUNNER_TEMP}/android-root/out/h40-kernel"
+            external="${RUNNER_TEMP}/miru-external-modules/dropin"
+            report="${GITHUB_WORKSPACE}/usbdiag-post"
+            mkdir -p "${report}"
+
+            test "$(tr -d '\n' < "${out}/include/config/kernel.release")" = "${EXPECTED_RELEASE}"
+            test -s "${out}/arch/arm64/boot/Image.gz-dtb"
+            grep -Fq 'CONFIG_MODVERSIONS=y' "${out}/.config"
+
+            mapfile -t in_tree < <(find "${out}" -type f -name '*.ko' | sort)
+            mapfile -t extmods < <(find "${external}" -maxdepth 1 -type f -name '*.ko' | sort)
+            test "${#in_tree[@]}" = 13
+            test "${#extmods[@]}" = 32
+
+            vermagic="${EXPECTED_RELEASE} SMP preempt mod_unload modversions aarch64"
+            for module in "${in_tree[@]}"; do
+              test "$(modinfo -F vermagic "${module}")" = "${vermagic}"
+            done
+            test "$(grep -F ": ${vermagic}" source/external-module-diagnostics/vermagic.txt | wc -l)" = 32
+            grep -Fq 'modules=32' source/external-module-diagnostics/MODULE-ABI-REPORT.txt
+            grep -Fq 'errors=0' source/external-module-diagnostics/MODULE-ABI-REPORT.txt
+
+            dtb_root="${out}/arch/arm64/boot/dts"
+            projects=(18821 19801 19863 18865 18857)
+            test "$(find "${dtb_root}" -type f -name '*.dtb' | wc -l)" = 5
+            for project in "${projects[@]}"; do
+              test -s "${dtb_root}/${project}/sm8150-v2-mtp.dtb"
+            done
+            test "$(find "${dtb_root}" -type f -name '*.dtbo' | wc -l)" = 0
+
+            {
+              echo result=PASS
+              echo "source_sha=${SOURCE_SHA}"
+              echo "kernel_release=${EXPECTED_RELEASE}"
+              echo "diagnostic_change=drivers/usb/dwc3/gadget.c"
+              echo "diagnostic_blob=${PROVEN_GADGET_BLOB}"
+              echo dtb_count=5
+              echo in_tree_modules=13
+              echo external_modules=32
+              echo external_abi_errors=0
+              echo "production_head=${PRODUCTION_HEAD}"
+              echo production_write=NONE
+            } | tee "${report}/RESULT.txt"
+          )
+          status=$?
+          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
+          if [ "${status}" = 0 ]; then
+            echo result=success >> "${GITHUB_OUTPUT}"
+          else
+            echo result=failure >> "${GITHUB_OUTPUT}"
+          fi
+          exit 0
+
+      - name: Assemble USB diagnostic package
+        if: always()
+        shell: bash
+        env:
+          BUILD_RESULT: ${{ steps.build.outputs.result }}
+          POST_RESULT: ${{ steps.post.outputs.result }}
+        run: |
+          set -Eeuo pipefail
+          package="${GITHUB_WORKSPACE}/usbdiag-package"
+          mkdir -p "${package}"
+          cp USB-DIAGNOSTIC-SOURCE.txt "${package}/"
+          test -d control/build-validation-result && cp -a control/build-validation-result "${package}/" || true
+          test -d source/build-diagnostics && cp -a source/build-diagnostics "${package}/" || true
+          test -d source/external-module-diagnostics && cp -a source/external-module-diagnostics "${package}/" || true
+          test -d usbdiag-post && cp -a usbdiag-post "${package}/" || true
+
+          if [ "${BUILD_RESULT:-}" = success ] && [ "${POST_RESULT:-}" = success ]; then
+            out="${RUNNER_TEMP}/android-root/out/h40-kernel"
+            external="${RUNNER_TEMP}/miru-external-modules/dropin"
+            mkdir -p "${package}/in-tree-modules" "${package}/external-modules"
+            cp "${out}/arch/arm64/boot/Image.gz-dtb" "${package}/"
+            find "${out}" -type f -name '*.ko' -exec cp {} "${package}/in-tree-modules/" \;
+            cp "${external}"/*.ko "${package}/external-modules/"
+            cat > "${package}/README.txt" <<EOF
+          USB-only diagnostic candidate
+          Kernel release: ${EXPECTED_RELEASE}
+          Source: ${SOURCE_SHA}
+          Change: drivers/usb/dwc3/gadget.c restored to proven 4.14.305 blob ${PROVEN_GADGET_BLOB}
+          Purpose: determine whether the 4.14.336 DWC3 pending-event runtime-PM change caused loss of USB data.
+          This candidate is not approved for production.
+          EOF
+          else
+            printf 'build=%s\npost=%s\n' "${BUILD_RESULT:-missing}" "${POST_RESULT:-missing}" > "${package}/FAILED.txt"
+          fi
+
+          (cd "${package}" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+
+      - name: Upload USB diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-4.14.336-lts336-usbdiag1
+          path: usbdiag-package
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+
+      - name: Enforce complete USB diagnostic validation
+        if: always()
+        shell: bash
+        env:
+          BUILD_RESULT: ${{ steps.build.outputs.result }}
+          POST_RESULT: ${{ steps.post.outputs.result }}
+        run: |
+          test "${BUILD_RESULT:-}" = success
+          test "${POST_RESULT:-}" = success
