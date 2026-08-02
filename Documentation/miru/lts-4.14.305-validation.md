@@ -8,11 +8,11 @@
 - Full kernel and module build: **PASS** — run `30701388376`
 - Three-way provenance audit: **PASS** — run `30714292944`
 - Physical boot on OnePlus 7 Pro: **PASS**
-- Clean final-identity release-candidate build: **pending**
-- Final full physical smoke test: **pending**
-- Production merge: **pending**
+- Clean final-identity release-candidate build: **PASS** — run `30718744153`
+- Final full physical smoke test: **PASS** — maintainer confirmed all required checks on 2026-08-02
+- Production merge: **pending explicit authorization**
 
-The boot-tested package passed the first OnePlus splash, reached the second boot screen, and completed Android boot. The final public suffix removes `bootfix`; therefore the `4.14.305-miru-h40-lts305-ci1+` package must complete one additional smoke test before promotion.
+The boot-tested package passed the first OnePlus splash, reached the second boot screen, and completed Android boot. The final public suffix removes `bootfix`; the separately built `4.14.305-miru-h40-lts305-ci1+` package then completed the full physical smoke test on the OnePlus 7 Pro with every required check passing.
 
 ## Exact identities and ancestry
 
@@ -29,6 +29,7 @@ The boot-tested package passed the first OnePlus splash, reached the second boot
 | Authentic merge parent 2 | `4415bf5e08942aee6487946a3e0a50956ef68f1e` |
 | Exact boot-tested kernel source | `53f76796d1b68260507a83968a4a4bee3b89754f` |
 | Matching external-module source | `125ff7d0153cbb3aaa8f9fd618c33b7f728d7798` |
+| Clean final release-candidate head | `7a720172326aac69dccb3becdb2f75b8a7ee9c29` |
 
 The production base, pristine H.40 commit, Android Common target, authentic two-parent integration merge, and exact boot-tested source are all retained in ancestry. The Common integration was not flattened or replaced by a synthetic snapshot.
 
@@ -54,6 +55,19 @@ The production base, pristine H.40 commit, Android Common target, authentic two-
 | Physical-test package | `8819278460` | `sha256:ad0f18ea4294cd44306244b255440581e868aa6902a5b5c0eef8ec367eb76260` |
 | Three-way audit | `8822867561` | `sha256:fdbc6eed9b41ff9a18e601d8acac9cf41890a5158a57165bcffe39f2f5329205` |
 
+## Clean final-identity release candidate
+
+- Actions run: `30718744153`
+- Release source: `7a720172326aac69dccb3becdb2f75b8a7ee9c29`
+- Kernel release: `4.14.305-miru-h40-lts305-ci1+`
+- Vermagic: `4.14.305-miru-h40-lts305-ci1+ SMP preempt mod_unload modversions aarch64`
+- Runtime source equivalence: **PASS** against `53f76796d1b68260507a83968a4a4bee3b89754f`
+- DTBs: exactly five in order `18821 19801 19863 18865 18857`
+- In-tree modules: `13/13`; external modules: `32/32`; ABI/MODVERSIONS errors: `0`
+- Final full-validation artifact: `8824429036` (`sha256:135f611b0b4a1e244cb2f98c09f2d46ca91335f067821f1115dda79984810ad5`)
+- Final release-candidate artifact: `8824428231` (`sha256:239f0b95d845ebfb24008b4069f1c473e96c2ee242749bb368c2453913140660`)
+- Final `Image.gz-dtb`: `ba4d7a598a094f46fb852f5d0e7c9d604eaa4b3a3e0dac506d64ef346f7033ad`
+
 ## Kernel and package SHA-256
 
 | Output | SHA-256 |
@@ -67,7 +81,7 @@ The production base, pristine H.40 commit, Android Common target, authentic two-
 | 32-module drop-in package | `9610010817179a2ed5e14def42da26b19cdaf35652d46a51f1b40f46ad8c5dc5` |
 | Module audit ZIP | `3756ed0a6057269d6310d99d88aae1e2c01b87fcd0dee62830788a374693b14e` |
 
-These hashes identify the successful `bootfix-ci1+` build. The final `lts305-ci1+` release-candidate workflow must publish a new complete checksum manifest, because changing the release string changes the produced binaries and module metadata.
+These hashes identify the successful `bootfix-ci1+` build. The final `lts305-ci1+` release candidate subsequently published its own checksum manifest and is recorded above with its artifact digests and final `Image.gz-dtb` hash.
 
 ## DTB validation
 
@@ -113,9 +127,9 @@ The isolated `audio_max98937` MODPOST log contains pre-existing warnings for:
 
 These warnings were already present in previous successful builds. They are not hidden or counted as a clean log. The final ELF-level audit still validated all 32 external modules and reported zero unresolved binary ABI/MODVERSIONS CRC errors.
 
-## Required final release-package smoke test
+## Completed final release-package smoke test
 
-Before promotion, verify the exact `4.14.305-miru-h40-lts305-ci1+` package on the OnePlus 7 Pro:
+On 2026-08-02, the maintainer confirmed that the exact `4.14.305-miru-h40-lts305-ci1+` package passed the full OnePlus 7 Pro smoke test:
 
 - Complete boot
 - Wi-Fi
@@ -130,4 +144,4 @@ Before promotion, verify the exact `4.14.305-miru-h40-lts305-ci1+` package on th
 - Suspend and wake
 - Reboot
 
-The clean run ID, artifact IDs/digests, test result, production merge SHA, post-merge run, and final tag target remain pending until each event has actually occurred.
+This closes all release-candidate technical and physical validation gates. Production `miru-h40` remains at `61371a1024e341f434deaf61b79a05f73827260a` until the maintainer gives separate explicit authorization for the required normal merge commit.

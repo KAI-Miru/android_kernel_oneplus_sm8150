@@ -704,3 +704,14 @@ Kernel and module outputs:
 - Clean reversal: **PASS** to the exact pre-resolution integration tree.
 - Audited source patch SHA-256: `96e49c8f5eb311d484f59e6b1853d16611ccf607d4c31b809ec575df6b670e57`.
 - Compilation: **not performed at maintainer request**.
+
+
+## Final release-candidate CI and physical smoke test
+
+- Clean release-candidate source: `7a720172326aac69dccb3becdb2f75b8a7ee9c29`.
+- Actions run `30718744153`: **PASS**. Source-equivalence, authentic-parent-order, conflict-ledger, five compatibility, kernel/DTB, 13 in-tree module, 32 external module, vermagic, MODVERSIONS and ABI gates all passed.
+- Full-validation artifact: `8824429036`, `sha256:135f611b0b4a1e244cb2f98c09f2d46ca91335f067821f1115dda79984810ad5`.
+- Release-candidate artifact: `8824428231`, `sha256:239f0b95d845ebfb24008b4069f1c473e96c2ee242749bb368c2453913140660`.
+- Final `Image.gz-dtb` SHA-256: `ba4d7a598a094f46fb852f5d0e7c9d604eaa4b3a3e0dac506d64ef346f7033ad`.
+- Final physical smoke test: **PASS** — on 2026-08-02 the maintainer confirmed complete boot, Wi-Fi, cellular signal/data, maximum-volume audio, NFC, 90 Hz, fingerprint/HBM, AOD, charging, USB/ADB, suspend/wake and reboot on the OnePlus 7 Pro.
+- The release branch's runtime kernel paths remain byte-identical to boot-tested source `53f76796d1b68260507a83968a4a4bee3b89754f`. Production `miru-h40` remains at `61371a1024e341f434deaf61b79a05f73827260a` pending separate explicit authorization for the normal merge commit.

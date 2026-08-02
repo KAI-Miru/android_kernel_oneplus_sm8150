@@ -20,9 +20,10 @@ Miru H.40 is a maintained kernel line for the OnePlus 7 Pro (`guacamole`), based
 | ABI/MODVERSIONS result | 0 errors |
 | Three-way audit | PASS — run `30714292944` |
 | Proven full build | PASS — run `30701388376` |
-| Physical OnePlus 7 Pro boot | PASS — first splash passed, second boot screen reached, Android boot completed |
+| Clean final-identity build | PASS — run `30718744153` |
+| Final release-package smoke test | PASS — maintainer confirmed every required check on the OnePlus 7 Pro |
 | KCAL | Retained |
-| Production merge | Pending final release-candidate CI and physical smoke test |
+| Production merge | Pending explicit authorization for a normal merge commit |
 
 The three-way audit compared pristine OnePlus H.40, booted Miru Linux 4.14.305, and Android Common Linux 4.14.305. It found all 2,777 Common commits in ancestry, all 36 stable endpoint merges, all 33 semantic conflicts resolved, zero remaining conflicts, zero unexpected Common-only kernel-source mismatches, and no missing H.40 vendor paths or config symbols.
 
@@ -32,7 +33,7 @@ The permanent workflow is [`.github/workflows/miru-h40-build.yml`](.github/workf
 
 The exact boot-tested source was validated in Actions run `30701388376`. Its full-validation artifact is `8819279714` (`sha256:1ddcd8603ddbbc9a3e1d29a7cb1a61b7e1b95864b15eb801e1c13ce52c061aa9`) and its physical-test artifact is `8819278460` (`sha256:ad0f18ea4294cd44306244b255440581e868aa6902a5b5c0eef8ec367eb76260`). The authoritative three-way audit is run `30714292944`, artifact `8822867561` (`sha256:fdbc6eed9b41ff9a18e601d8acac9cf41890a5158a57165bcffe39f2f5329205`).
 
-The clean `lts305-ci1+` release-candidate workflow run and final production merge are intentionally recorded as pending until they have actually passed and occurred. They will be added after validation rather than predicted here.
+The clean `4.14.305-miru-h40-lts305-ci1+` release-candidate workflow passed in Actions run `30718744153`. Its full-validation artifact is `8824429036` (`sha256:135f611b0b4a1e244cb2f98c09f2d46ca91335f067821f1115dda79984810ad5`) and its release-candidate artifact is `8824428231` (`sha256:239f0b95d845ebfb24008b4069f1c473e96c2ee242749bb368c2453913140660`). The maintainer then confirmed the complete final release-package smoke test on the OnePlus 7 Pro. Production promotion remains deliberately pending until explicit authorization for the normal merge commit.
 
 ## Source references
 

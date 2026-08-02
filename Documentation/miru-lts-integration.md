@@ -4,7 +4,7 @@ This document records production LTS milestones for the OnePlus 7 Pro Miru H.40 
 
 ## Milestone 5: Linux 4.14.305
 
-Status: **exact source built and device-booted; clean release candidate prepared; production promotion pending final CI and smoke testing**.
+Status: **clean final release candidate CI-validated and device-confirmed; production promotion awaits explicit authorization**.
 
 This milestone advances Miru H.40 from Linux 4.14.269 to Android Common Linux 4.14.305 while preserving pristine OnePlus H.40 ancestry, the authentic two-parent Android Common integration, all downstream Oplus/Qualcomm functionality, and KCAL.
 
@@ -21,10 +21,11 @@ This milestone advances Miru H.40 from Linux 4.14.269 to Android Common Linux 4.
 | Final public release | `4.14.305-miru-h40-lts305-ci1+` |
 | Semantic conflicts | `33` initial / `33` resolved / `0` remaining |
 | Proven full build | PASS — run `30701388376` |
+| Clean final-identity build | PASS — run `30718744153` |
 | Three-way audit | PASS — run `30714292944` |
 | Module result | 13 in-tree + 32 external; ABI/MODVERSIONS errors `0` |
-| Device validation | PASS — exact source completed Android boot on OnePlus 7 Pro |
-| Production merge | Pending |
+| Device validation | PASS — final `4.14.305-miru-h40-lts305-ci1+` package fully working on the OnePlus 7 Pro |
+| Production merge | Pending explicit authorization |
 
 ### Completed evidence
 
@@ -34,14 +35,15 @@ This milestone advances Miru H.40 from Linux 4.14.269 to Android Common Linux 4.
 - The final source retains the RNG early-boot guard, extcon notifier lifetime repair, ARM64 SMCCC callbacks, public FDT path with downstream DDR-type API, and Qualcomm early-random includes.
 - Run `30701388376` built the kernel, exact five production DTBs, 13 in-tree modules, and 32 external modules with matching vermagic and zero binary ABI/MODVERSIONS errors.
 - Run `30714292944` found zero missing Common commits, zero unexpected Common-only kernel-source mismatches, and zero missing H.40 vendor paths or config symbols.
+- Clean final-identity run `30718744153` passed source-equivalence, exact DTB, in-tree and external module, vermagic, MODVERSIONS and ABI gates. Its artifacts are `8824429036` (full validation) and `8824428231` (release candidate).
 - Exact source `53f76796d1b68260507a83968a4a4bee3b89754f` passed physical boot. Runtime source on the clean release branch remains byte-identical to that source.
+- The maintainer completed the final `4.14.305-miru-h40-lts305-ci1+` package smoke test on the OnePlus 7 Pro: complete boot, Wi-Fi, cellular signal/data, maximum-volume audio, NFC, 90 Hz, fingerprint/HBM, AOD, charging, USB/ADB, suspend/wake and reboot all passed.
 
-### Remaining promotion gates
+### Remaining promotion gate
 
-- Complete the permanent clean `4.14.305-miru-h40-lts305-ci1+` workflow run.
-- Perform the final release-package physical smoke test.
-- Open and normally merge the production PR with the release head pinned.
-- Validate the actual production merge, finalize documentation, create the release tag/assets, and only then delete obsolete branches.
+- Wait for the maintainer's explicit authorization to merge PR #86.
+- After authorization, merge the pinned release head into `miru-h40` with a normal merge commit only—never squash, rebase or force-push.
+- Validate the actual production merge and finalize its documentation. No GitHub Release or new tag is created in this promotion.
 
 See the 4.14.305 [validation record](miru/lts-4.14.305-validation.md), [conflict ledger](miru/lts-4.14.305-conflicts.md), [boot-regression record](miru/lts-4.14.305-boot-regression.md), and [user-facing changelog](miru/lts-4.14.305-changelog.md).
 
