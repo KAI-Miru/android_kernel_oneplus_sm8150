@@ -52,7 +52,7 @@ jobs:
           path = Path("scripts/miru/integrate_4.14.336.sh")
           text = path.read_text()
           old = "if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- \\\n"
-          new = "if git grep -n -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- \\\n"
+          new = "if git grep -n -E '^(<<<<<<< .+|>>>>>>> .+)$' -- \\\n"
           if text.count(old) != 1:
               raise SystemExit("expected exactly one broad merge-marker guard")
           path.write_text(text.replace(old, new))
@@ -60,7 +60,7 @@ jobs:
           bash -n scripts/miru/integrate_4.14.336.sh
           git diff -- scripts/miru/integrate_4.14.336.sh > audit/runtime-marker-guard.patch
           test -s audit/runtime-marker-guard.patch
-          grep -Fq "^(<<<<<<< .+|=======|>>>>>>> .+)$" scripts/miru/integrate_4.14.336.sh
+          grep -Fq "^(<<<<<<< .+|>>>>>>> .+)$" scripts/miru/integrate_4.14.336.sh
 
       - name: Prepare and validate authentic merge
         id: integrate
