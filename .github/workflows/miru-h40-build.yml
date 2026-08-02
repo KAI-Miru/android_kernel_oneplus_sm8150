@@ -28,32 +28,35 @@ jobs:
     if: github.head_ref == 'miru-h40-lts336-release'
     runs-on: ubuntu-24.04
     timeout-minutes: 180
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_SHA }}
           path: source
           fetch-depth: 0
 
-      - uses: actions/checkout@v4
+      - name: Checkout reviewed validator
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.VALIDATOR_SHA }}
           path: control
           fetch-depth: 1
 
-      - name: Verify immutable source and semantic integration
+      - name: Verify immutable integration, semantics, and KCAL
         shell: bash
         run: |
           set -Eeuo pipefail
           test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
           test "$(git -C control hash-object scripts/miru/ci_validate_4.14.305.sh)" = "${VALIDATOR_BLOB}"
-          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40 | awk 'NR==1{print $1}')" = "${PRODUCTION_HEAD}"
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40 | awk 'NR == 1 {print $1}')" = "${PRODUCTION_HEAD}"
           git -C source merge-base --is-ancestor "${PRODUCTION_HEAD}" "${SOURCE_SHA}"
           git -C source merge-base --is-ancestor "${ANDROID_COMMON_TARGET}" "${SOURCE_SHA}"
           git -C source merge-base --is-ancestor "${AUTHENTIC_MERGE}" "${SOURCE_SHA}"
-          test "$(git -C source rev-list --parents -n1 "${AUTHENTIC_MERGE}")" = \
+          test "$(git -C source rev-list --parents -n 1 "${AUTHENTIC_MERGE}")" = \
             "${AUTHENTIC_MERGE} ${AUTHENTIC_PARENT_1} ${ANDROID_COMMON_TARGET}"
-          test "$(sed -n 's/^SUBLEVEL = //p' source/Makefile | head -n1)" = 336
+          test "$(sed -n 's/^SUBLEVEL = //p' source/Makefile | head -n 1)" = 336
           test -z "$(git -C source ls-files -u)"
           git -C source diff --check "${AUTHENTIC_MERGE}" "${SOURCE_SHA}" --
           test "$(git -C source diff --name-only "${AUTHENTIC_MERGE}" "${SOURCE_SHA}" -- | sort)" = \
@@ -66,7 +69,7 @@ jobs:
           test "$(grep -c '^PASS' SEMANTIC-GATES.txt)" = 40
           (cd source && perl -c scripts/checkpatch.pl) |& tee CHECKPATCH-PERL.txt
 
-          kcal=(
+          kcal_paths=(
             drivers/gpu/drm/msm/sde/sde_kcal_ctrl.c
             drivers/gpu/drm/msm/sde/sde_kcal_ctrl.h
             drivers/gpu/drm/msm/sde/sde_color_processing.c
@@ -76,34 +79,36 @@ jobs:
             h40-repro/config/GM1911_11_H.40.config
           )
           : > KCAL-IDENTITY.txt
-          for path in "${kcal[@]}"; do
-            a="$(git -C source rev-parse "${AUTHENTIC_MERGE}:${path}")"
-            b="$(git -C source rev-parse "${SOURCE_SHA}:${path}")"
-            test "${a}" = "${b}"
-            echo "${b} ${path}" >> KCAL-IDENTITY.txt
+          for path in "${kcal_paths[@]}"; do
+            expected="$(git -C source rev-parse "${AUTHENTIC_MERGE}:${path}")"
+            actual="$(git -C source rev-parse "${SOURCE_SHA}:${path}")"
+            test "${actual}" = "${expected}"
+            printf '%s  %s\n' "${actual}" "${path}" >> KCAL-IDENTITY.txt
           done
 
-      - name: Adapt reviewed validator to 4.14.336
+      - name: Adapt and instrument reviewed validator
         shell: bash
         run: |
           set -Eeuo pipefail
           validator=control/scripts/miru/ci_validate_4.14.305.sh
+          helper=source/scripts/miru/prepare_wlan_response_link.py
+
           python3 - "${validator}" "${SOURCE_SHA}" "${EXPECTED_RELEASE}" "${EXPECTED_LOCALVERSION}" <<'PY'
           from pathlib import Path
           import sys
 
           path = Path(sys.argv[1])
-          sha, release, local = sys.argv[2:]
+          source_sha, release, localversion = sys.argv[2:]
           text = path.read_text()
           replacements = [
-              ("af61e9d6dfc33b7b46bfc608b20b6badf894ad23", sha),
+              ("af61e9d6dfc33b7b46bfc608b20b6badf894ad23", source_sha),
               ("61371a1024e341f434deaf61b79a05f73827260a", "a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee"),
               ("b92a77e96dd54fd30f8f39c7eef23e76f211c515", "e0fc49a4660130692e6ac893f8119282b0192b85"),
               ("4415bf5e08942aee6487946a3e0a50956ef68f1e", "014241ad77dda0eafbdf671d5b8e86917d8ec97e"),
               ("4.14.305", "4.14.336"),
               ("lts305", "lts336"),
               ("4.14.336-miru-h40-lts336-af61e9d-ci1+", release),
-              ("miru-h40-lts336-af61e9d-ci1", local),
+              ("miru-h40-lts336-af61e9d-ci1", localversion),
               ("= 305", "= 336"),
               ('= "305"', '= "336"'),
               ("- Initial authentic conflicts: **33**", "- Authentic conflicts: **14**"),
@@ -121,17 +126,25 @@ jobs:
           err_trap = "trap 'rc=$?; printf \"failed_line=%s\\nfailed_command=%s\\nfailed_rc=%s\\n\" \"$LINENO\" \"$BASH_COMMAND\" \"$rc\" | tee \"${REPORT_ROOT}/validation-error.txt\" >&2' ERR\n"
           if text.count(exit_trap) != 1:
               raise SystemExit("validator EXIT trap mismatch")
-          path.write_text(text.replace(exit_trap, exit_trap + err_trap, 1))
+          text = text.replace(exit_trap, exit_trap + err_trap, 1)
+
+          build_call = "bash scripts/miru/ci_build_4.14.190.sh"
+          if text.count(build_call) != 1:
+              raise SystemExit("kernel build invocation missing or duplicated")
+          text = text.replace(build_call, "bash -x scripts/miru/ci_build_4.14.190.sh", 1)
+          path.write_text(text)
           PY
 
-          python3 - source/scripts/miru/prepare_wlan_response_link.py <<'PY'
+          python3 - "${helper}" <<'PY'
           from pathlib import Path
-          path = Path('source/scripts/miru/prepare_wlan_response_link.py')
+          import sys
+
+          path = Path(sys.argv[1])
           text = path.read_text()
-          old = '74ce588c69513197a354ef0032c2145e91ee0641'
-          new = 'ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3'
+          old = "74ce588c69513197a354ef0032c2145e91ee0641"
+          new = "ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3"
           if text.count(old) != 1 or new in text:
-              raise SystemExit('WLAN helper identity mismatch')
+              raise SystemExit("WLAN helper identity mismatch")
           path.write_text(text.replace(old, new, 1))
           PY
 
@@ -139,20 +152,25 @@ jobs:
           grep -Fq "EXPECTED_RELEASE=${EXPECTED_RELEASE}" "${validator}"
           grep -Fq "KERNEL_LOCALVERSION=-${EXPECTED_LOCALVERSION}" "${validator}"
           grep -Fq "grep -Fq '= \"336\"' scripts/miru/ci_build_4.14.190.sh" "${validator}"
+          grep -Fq 'bash -x scripts/miru/ci_build_4.14.190.sh' "${validator}"
 
-      - name: Build kernel and matching modules
+      - name: Build kernel, DTBs, and matching modules
         id: build
         shell: bash
         run: |
           set +e
           bash control/scripts/miru/ci_validate_4.14.305.sh \
             "${GITHUB_WORKSPACE}/source" "${GITHUB_WORKSPACE}/control"
-          rc=$?
-          echo "rc=${rc}" >> "${GITHUB_OUTPUT}"
-          if [ "${rc}" = 0 ]; then echo result=success >> "${GITHUB_OUTPUT}"; else echo result=failure >> "${GITHUB_OUTPUT}"; fi
+          status=$?
+          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
+          if [ "${status}" = 0 ]; then
+            echo result=success >> "${GITHUB_OUTPUT}"
+          else
+            echo result=failure >> "${GITHUB_OUTPUT}"
+          fi
           exit 0
 
-      - name: Verify release, DTBs, modules, vermagic, MODVERSIONS, and ABI
+      - name: Enforce release, DTBs, vermagic, MODVERSIONS, and ABI
         id: post
         if: always() && steps.build.outputs.result == 'success'
         shell: bash
@@ -161,61 +179,105 @@ jobs:
           (
             set -Eeuo pipefail
             out="${RUNNER_TEMP}/android-root/out/h40-kernel"
-            ext="${RUNNER_TEMP}/miru-external-modules/dropin"
+            artifacts="${RUNNER_TEMP}/android-root/out/h40-artifacts"
+            external="${RUNNER_TEMP}/miru-external-modules/dropin"
             report="${GITHUB_WORKSPACE}/post-validation"
             mkdir -p "${report}"
-            test "$(tr -d '\n' < "${out}/include/config/kernel.release")" = "${EXPECTED_RELEASE}"
+            exec > >(tee "${report}/console.log") 2>&1
 
-            mapfile -t intmods < <(find "${out}" -type f -name '*.ko' | sort)
-            mapfile -t extmods < <(find "${ext}" -maxdepth 1 -type f -name '*.ko' | sort)
-            test "${#intmods[@]}" = 13
+            test "$(tr -d '\n' < "${out}/include/config/kernel.release")" = "${EXPECTED_RELEASE}"
+            grep -Fq 'CONFIG_MODVERSIONS=y' "${out}/.config"
+            grep -Fq '# CONFIG_MODULE_SIG_FORCE is not set' "${out}/.config"
+            for rel in arch/arm64/boot/Image arch/arm64/boot/Image.gz \
+              arch/arm64/boot/Image.gz-dtb vmlinux System.map Module.symvers .config; do
+              test -s "${out}/${rel}"
+            done
+
+            mapfile -t in_tree < <(find "${out}" -type f -name '*.ko' | sort)
+            mapfile -t extmods < <(find "${external}" -maxdepth 1 -type f -name '*.ko' | sort)
+            test "${#in_tree[@]}" = 13
             test "${#extmods[@]}" = 32
+
             vermagic="${EXPECTED_RELEASE} SMP preempt mod_unload modversions aarch64"
-            for module in "${intmods[@]}"; do test "$(modinfo -F vermagic "${module}")" = "${vermagic}"; done
+            : > "${report}/IN-TREE-VERMAGIC.txt"
+            for module in "${in_tree[@]}"; do
+              actual="$(modinfo -F vermagic "${module}")"
+              test "${actual}" = "${vermagic}"
+              echo "${module#${out}/}: ${actual}" >> "${report}/IN-TREE-VERMAGIC.txt"
+            done
             test "$(grep -F ": ${vermagic}" source/external-module-diagnostics/vermagic.txt | wc -l)" = 32
+            grep -Fq 'modules=32' source/external-module-diagnostics/MODULE-ABI-REPORT.txt
             grep -Fq 'errors=0' source/external-module-diagnostics/MODULE-ABI-REPORT.txt
 
-            python3 - "${out}/Module.symvers" "${report}/IN-TREE-MODVERSIONS.txt" "${intmods[@]}" <<'PY'
+            python3 - "${out}/Module.symvers" "${report}/IN-TREE-MODVERSIONS.txt" "${in_tree[@]}" <<'PY'
           from pathlib import Path
-          import subprocess, sys
-          sym = {p[1]: int(p[0], 16) for line in Path(sys.argv[1]).read_text().splitlines() if len(p := line.split()) >= 2}
-          errors=[]
-          for mod in map(Path, sys.argv[3:]):
-              for line in subprocess.check_output(['modprobe','--dump-modversions',str(mod)], text=True).splitlines():
-                  p=line.split()
-                  if len(p)==2 and sym.get(p[1]) != int(p[0],16): errors.append(f'{mod}: {p[1]}')
-          Path(sys.argv[2]).write_text(f'modules={len(sys.argv)-3}\nerrors={len(errors)}\n'+'\n'.join(errors))
-          if errors: raise SystemExit('\n'.join(errors))
+          import subprocess
+          import sys
+
+          exports = {}
+          for line in Path(sys.argv[1]).read_text().splitlines():
+              fields = line.split()
+              if len(fields) >= 2:
+                  exports[fields[1]] = int(fields[0], 16)
+          errors = []
+          modules = [Path(p) for p in sys.argv[3:]]
+          for module in modules:
+              output = subprocess.check_output(["modprobe", "--dump-modversions", str(module)], text=True)
+              for line in output.splitlines():
+                  fields = line.split()
+                  if len(fields) != 2:
+                      continue
+                  actual = int(fields[0], 16)
+                  expected = exports.get(fields[1])
+                  if expected != actual:
+                      errors.append(f"{module}: {fields[1]}")
+          Path(sys.argv[2]).write_text(
+              f"modules={len(modules)}\nerrors={len(errors)}\n" + "\n".join(errors) + "\n"
+          )
+          if errors:
+              raise SystemExit("\n".join(errors))
           PY
 
-            root="${out}/arch/arm64/boot/dts"
+            dtb_root="${out}/arch/arm64/boot/dts"
             projects=(18821 19801 19863 18865 18857)
-            test "$(find "${root}" -type f -name '*.dtb' | wc -l)" = 5
+            test "$(find "${dtb_root}" -type f -name '*.dtb' | wc -l)" = 5
             dtbs=()
-            for p in "${projects[@]}"; do dtb="${root}/${p}/sm8150-v2-mtp.dtb"; test -s "${dtb}"; dtbs+=("${dtb}"); done
-            test "$(find "${root}" -type f -name '*.dtbo' | wc -l)" = 0
+            for project in "${projects[@]}"; do
+              dtb="${dtb_root}/${project}/sm8150-v2-mtp.dtb"
+              test -s "${dtb}"
+              dtbs+=("${dtb}")
+            done
+            test "$(find "${dtb_root}" -type f -name '*.dtbo' | wc -l)" = 0
             cat "${out}/arch/arm64/boot/Image.gz" "${dtbs[@]}" > "${report}/expected-Image.gz-dtb"
             cmp "${report}/expected-Image.gz-dtb" "${out}/arch/arm64/boot/Image.gz-dtb"
             rm "${report}/expected-Image.gz-dtb"
 
             {
               echo result=PASS
-              echo "source=${SOURCE_SHA}"
-              echo "release=${EXPECTED_RELEASE}"
-              echo dtbs=5
-              echo in_tree_modules=13
-              echo external_modules=32
+              echo "source_sha=${SOURCE_SHA}"
+              echo "production_head=${PRODUCTION_HEAD}"
+              echo "android_common_target=${ANDROID_COMMON_TARGET}"
+              echo "authentic_merge=${AUTHENTIC_MERGE}"
+              echo "kernel_release=${EXPECTED_RELEASE}"
+              echo 'dtb_order=18821 19801 19863 18865 18857'
+              echo dtb_count=5
+              echo in_tree_module_count=13
+              echo external_module_count=32
               echo abi_errors=0
             } > "${report}/SUMMARY.txt"
-            find "${RUNNER_TEMP}/android-root/out/h40-artifacts" -type f -print0 | sort -z | xargs -0 sha256sum > "${report}/KERNEL-SHA256.txt"
-            find "${ext}" -type f -print0 | sort -z | xargs -0 sha256sum > "${report}/MODULES-SHA256.txt"
+            find "${artifacts}" -type f -print0 | sort -z | xargs -0 sha256sum > "${report}/KERNEL-SHA256.txt"
+            find "${external}" -type f -print0 | sort -z | xargs -0 sha256sum > "${report}/MODULES-SHA256.txt"
           )
-          rc=$?
-          echo "rc=${rc}" >> "${GITHUB_OUTPUT}"
-          if [ "${rc}" = 0 ]; then echo result=success >> "${GITHUB_OUTPUT}"; else echo result=failure >> "${GITHUB_OUTPUT}"; fi
+          status=$?
+          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
+          if [ "${status}" = 0 ]; then
+            echo result=success >> "${GITHUB_OUTPUT}"
+          else
+            echo result=failure >> "${GITHUB_OUTPUT}"
+          fi
           exit 0
 
-      - name: Package and upload diagnostics
+      - name: Assemble diagnostic and release-candidate packages
         if: always()
         shell: bash
         env:
@@ -223,22 +285,43 @@ jobs:
           POST_RESULT: ${{ steps.post.outputs.result }}
         run: |
           set -Eeuo pipefail
-          mkdir -p packages/full packages/release
-          cp -a SEMANTIC-GATES.txt CHECKPATCH-PERL.txt KCAL-IDENTITY.txt packages/full/ 2>/dev/null || true
-          cp -a control/build-validation-result packages/full/validator 2>/dev/null || true
-          cp -a source/build-diagnostics packages/full/kernel-logs 2>/dev/null || true
-          cp -a source/external-module-diagnostics packages/full/module-logs 2>/dev/null || true
-          cp -a post-validation packages/full/ 2>/dev/null || true
-          echo "build=${BUILD_RESULT:-missing} post=${POST_RESULT:-missing}" > packages/full/STATUS.txt
+          out="${RUNNER_TEMP}/android-root/out/h40-kernel"
+          external="${RUNNER_TEMP}/miru-external-modules/dropin"
+          root="${GITHUB_WORKSPACE}/packages"
+          full="${root}/full-validation"
+          release="${root}/release-candidate"
+          mkdir -p "${full}" "${release}"
+
+          cp -a SEMANTIC-GATES.txt CHECKPATCH-PERL.txt KCAL-IDENTITY.txt "${full}/" 2>/dev/null || true
+          cp -a control/build-validation-result "${full}/validator" 2>/dev/null || true
+          cp -a source/build-diagnostics "${full}/kernel-logs" 2>/dev/null || true
+          cp -a source/external-module-diagnostics "${full}/module-logs" 2>/dev/null || true
+          cp -a post-validation "${full}/" 2>/dev/null || true
+          printf 'build=%s\npost=%s\nrun=%s\n' \
+            "${BUILD_RESULT:-missing}" "${POST_RESULT:-missing}" "${GITHUB_RUN_ID}" \
+            > "${full}/STATUS.txt"
 
           if [ "${BUILD_RESULT:-}" = success ] && [ "${POST_RESULT:-}" = success ]; then
-            out="${RUNNER_TEMP}/android-root/out/h40-kernel"
-            cp "${out}/arch/arm64/boot/Image.gz-dtb" packages/release/
-            cp "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.336.7z" packages/release/
-            cp "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.336-audit.zip" packages/release/
-            cp post-validation/*.txt packages/release/
-            (cd packages/release && sha256sum * > SHA256SUMS)
-            (cd packages && zip -q -9 -r miru-h40-4.14.336-lts336-ci1-release-candidate.zip release)
+            mkdir -p "${release}/in-tree-modules" "${release}/external-modules"
+            cp "${out}/arch/arm64/boot/Image.gz-dtb" "${release}/"
+            cp "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.336.7z" \
+              "${release}/external-modules/"
+            cp "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.336-audit.zip" \
+              "${release}/external-modules/"
+            while IFS= read -r -d '' module; do
+              rel="${module#${out}/}"
+              mkdir -p "${release}/in-tree-modules/$(dirname "${rel}")"
+              cp "${module}" "${release}/in-tree-modules/${rel}"
+            done < <(find "${out}" -type f -name '*.ko' -print0)
+            cp post-validation/*.txt "${release}/"
+            cat > "${release}/README.txt" <<EOF
+          Miru H.40 Linux 4.14.336 release candidate
+          Kernel release: ${EXPECTED_RELEASE}
+          Source: ${SOURCE_SHA}
+          Requires physical OnePlus 7 Pro validation before production promotion.
+          EOF
+            (cd "${release}" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
+            (cd "${root}" && zip -q -9 -r miru-h40-4.14.336-lts336-ci1-release-candidate.zip release-candidate)
           fi
 
       - name: Upload release candidate
@@ -256,13 +339,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: miru-h40-4.14.336-lts336-ci1-full-validation
-          path: packages/full
+          path: packages/full-validation
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
 
       - name: Enforce complete validation
         if: always()
+        shell: bash
         run: |
           test "${{ steps.build.outputs.result }}" = success
           test "${{ steps.post.outputs.result }}" = success
