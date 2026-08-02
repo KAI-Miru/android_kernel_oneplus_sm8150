@@ -157,13 +157,14 @@ jobs:
             drivers/gpu/drm/msm/sde/sde_crtc.c
             drivers/gpu/drm/msm/msm_drv.c
             drivers/gpu/drm/msm/sde/Makefile
-            h40-repro/config
+            h40-repro/config/GM1911_11_H.40.config
           )
           : > "${audit}/kcal-premerge.tsv"
           for path in "${kcal_paths[@]}"; do
             test -s "${path}"
             printf '%s\t%s\n' "$(git hash-object "${path}")" "${path}" >> "${audit}/kcal-premerge.tsv"
           done
+          echo 'premerge_identity_inventory=PASS'
 
           set +e
           git merge --no-commit --no-ff "${ANDROID_COMMON_336}" > "${audit}/merge-output.txt" 2>&1
@@ -237,7 +238,7 @@ jobs:
           done
           grep -Fq 'sde_kcal_apply_pcc' drivers/gpu/drm/msm/sde/sde_color_processing.c
           grep -Fq 'sde_kcal_ctrl_init' drivers/gpu/drm/msm/msm_drv.c
-          grep -Fq 'CONFIG_DRM_SDE_KCAL=y' h40-repro/config
+          grep -Fq 'CONFIG_DRM_SDE_KCAL=y' h40-repro/config/GM1911_11_H.40.config
 
           required_paths=(
             drivers/gpu/drm/msm
