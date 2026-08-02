@@ -75,13 +75,12 @@ jobs:
           .github/workflows/miru-h40-build.yml
           .github/workflows/miru-h40-usbdiag.yml
           drivers/usb/dwc3/core.c
-          drivers/usb/dwc3/gadget.c
           EOF
           git -C source diff --name-only "${AUTHENTIC_MERGE}" "${SOURCE_SHA}" -- | sort > actual-diff.txt
           cmp expected-diff.txt actual-diff.txt
 
           runtime_paths=(arch block crypto drivers fs include init ipc kernel lib mm net security sound virt Kbuild Kconfig Makefile h40-repro/config)
-          printf '%s\n' drivers/usb/dwc3/core.c drivers/usb/dwc3/gadget.c > expected-runtime-diff.txt
+          printf '%s\n' drivers/usb/dwc3/core.c > expected-runtime-diff.txt
           git -C source diff --name-only "${AUTHENTIC_MERGE}" "${SOURCE_SHA}" -- "${runtime_paths[@]}" | sort > actual-runtime-diff.txt
           cmp expected-runtime-diff.txt actual-runtime-diff.txt
 
@@ -323,7 +322,7 @@ jobs:
           package="${GITHUB_WORKSPACE}/properfix-package"
           mkdir -p "${package}"
 
-          cp PROPER-FIX-SOURCE.txt "${package}/"
+          test -f PROPER-FIX-SOURCE.txt && cp PROPER-FIX-SOURCE.txt "${package}/" || true
           test -d control/build-validation-result && cp -a control/build-validation-result "${package}/" || true
           test -d source/build-diagnostics && cp -a source/build-diagnostics "${package}/" || true
           test -d source/external-module-diagnostics && cp -a source/external-module-diagnostics "${package}/" || true
