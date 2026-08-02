@@ -34,4 +34,4 @@ The exact successful source is `53f76796d1b68260507a83968a4a4bee3b89754f`. It re
 
 ## Release implication
 
-The successful physical package used `4.14.305-miru-h40-lts305-bootfix-ci1+`. The public `4.14.305-miru-h40-lts305-ci1+` package then passed its own complete OnePlus 7 Pro smoke test, including boot, radio/data, maximum-volume audio, NFC, 90 Hz, fingerprint/HBM, AOD, charging, USB/ADB, suspend/wake and reboot. The runtime C source is unchanged; production promotion now awaits only separate explicit authorization for the normal merge commit.
+The successful physical package used `4.14.305-miru-h40-lts305-bootfix-ci1+`. The public `4.14.305-miru-h40-lts305-ci1+` package then passed its own complete OnePlus 7 Pro smoke test, including boot, radio/data, maximum-volume audio, NFC, 90 Hz, fingerprint/HBM, AOD, charging, USB/ADB, suspend/wake and reboot. The runtime C source is unchanged; PR #86 was then promoted by normal merge `489177590738e082a37e17fc9ef9290e4f168058`, and permanent production run `30735235333` passed.

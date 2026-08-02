@@ -1,10 +1,10 @@
 # Miru H.40 LTS integration
 
-This document records production LTS milestones for the OnePlus 7 Pro Miru H.40 kernel. The permanent production branch is `miru-h40`; milestone integration branches are temporary and may be deleted after merge and tagging.
+This document records production LTS milestones for the OnePlus 7 Pro Miru H.40 kernel. The permanent production branch is `miru-h40`; milestone integration branches are temporary and may be retained or deleted after production promotion. This 4.14.305 promotion creates no GitHub Release or tag.
 
 ## Milestone 5: Linux 4.14.305
 
-Status: **clean final release candidate CI-validated and device-confirmed; production promotion awaits explicit authorization**.
+Status: **completed: production-merged, permanent-CI-validated, and device-confirmed on 2026-08-02**.
 
 This milestone advances Miru H.40 from Linux 4.14.269 to Android Common Linux 4.14.305 while preserving pristine OnePlus H.40 ancestry, the authentic two-parent Android Common integration, all downstream Oplus/Qualcomm functionality, and KCAL.
 
@@ -25,7 +25,7 @@ This milestone advances Miru H.40 from Linux 4.14.269 to Android Common Linux 4.
 | Three-way audit | PASS — run `30714292944` |
 | Module result | 13 in-tree + 32 external; ABI/MODVERSIONS errors `0` |
 | Device validation | PASS — final `4.14.305-miru-h40-lts305-ci1+` package fully working on the OnePlus 7 Pro |
-| Production merge | Pending explicit authorization |
+| Production merge | PASS — PR #86 normal merge `489177590738e082a37e17fc9ef9290e4f168058`; permanent production run `30735235333` |
 
 ### Completed evidence
 
@@ -39,11 +39,12 @@ This milestone advances Miru H.40 from Linux 4.14.269 to Android Common Linux 4.
 - Exact source `53f76796d1b68260507a83968a4a4bee3b89754f` passed physical boot. Runtime source on the clean release branch remains byte-identical to that source.
 - The maintainer completed the final `4.14.305-miru-h40-lts305-ci1+` package smoke test on the OnePlus 7 Pro: complete boot, Wi-Fi, cellular signal/data, maximum-volume audio, NFC, 90 Hz, fingerprint/HBM, AOD, charging, USB/ADB, suspend/wake and reboot all passed.
 
-### Remaining promotion gate
+### Completed production promotion
 
-- Wait for the maintainer's explicit authorization to merge PR #86.
-- After authorization, merge the pinned release head into `miru-h40` with a normal merge commit only—never squash, rebase or force-push.
-- Validate the actual production merge and finalize its documentation. No GitHub Release or new tag is created in this promotion.
+- The maintainer explicitly authorized PR #86 and GitHub merged it normally as `489177590738e082a37e17fc9ef9290e4f168058` on 2026-08-02; its parents are the frozen 4.14.269 production base and the pinned release head.
+- Permanent production run `30735235333` passed against that exact merge, including source-equivalence, kernel, exact DTB, 13 in-tree module, 32 external module, vermagic, MODVERSIONS and ABI gates.
+- The final production artifacts are `8829611852` (`sha256:3ba09b58525413576e131e0729dc4bd6167859ef46ca80a1f0f6d83a7a8c6462`) and `8829611260` (`sha256:fff5fb95e6fb923497a5dca043050fa0da12a44822567493ffa3a839dfd97096`).
+- No GitHub Release or new tag was created.
 
 See the 4.14.305 [validation record](miru/lts-4.14.305-validation.md), [conflict ledger](miru/lts-4.14.305-conflicts.md), [boot-regression record](miru/lts-4.14.305-boot-regression.md), and [user-facing changelog](miru/lts-4.14.305-changelog.md).
 

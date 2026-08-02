@@ -10,7 +10,7 @@
 - Physical boot on OnePlus 7 Pro: **PASS**
 - Clean final-identity release-candidate build: **PASS** — run `30718744153`
 - Final full physical smoke test: **PASS** — maintainer confirmed all required checks on 2026-08-02
-- Production merge: **pending explicit authorization**
+- Production merge: **PASS** — PR #86 normal merge `489177590738e082a37e17fc9ef9290e4f168058`; permanent production run `30735235333`
 
 The boot-tested package passed the first OnePlus splash, reached the second boot screen, and completed Android boot. The final public suffix removes `bootfix`; the separately built `4.14.305-miru-h40-lts305-ci1+` package then completed the full physical smoke test on the OnePlus 7 Pro with every required check passing.
 
@@ -19,6 +19,7 @@ The boot-tested package passed the first OnePlus splash, reached the second boot
 | Role | Revision |
 |---|---|
 | Immutable 4.14.269 production base | `61371a1024e341f434deaf61b79a05f73827260a` |
+| Production 4.14.305 merge | `489177590738e082a37e17fc9ef9290e4f168058` (PR #86 normal merge) |
 | Permanent 4.14.269 rollback tag | `miru-h40-4.14.269-final` |
 | Pristine OnePlus H.40 | `180d787684d5965be5145bcfbf666ed427b4ea18` |
 | Android Common 4.14.305 | `4415bf5e08942aee6487946a3e0a50956ef68f1e` |
@@ -67,6 +68,15 @@ The production base, pristine H.40 commit, Android Common target, authentic two-
 - Final full-validation artifact: `8824429036` (`sha256:135f611b0b4a1e244cb2f98c09f2d46ca91335f067821f1115dda79984810ad5`)
 - Final release-candidate artifact: `8824428231` (`sha256:239f0b95d845ebfb24008b4069f1c473e96c2ee242749bb368c2453913140660`)
 - Final `Image.gz-dtb`: `ba4d7a598a094f46fb852f5d0e7c9d604eaa4b3a3e0dac506d64ef346f7033ad`
+
+## Production merge validation
+
+- Production normal merge: `489177590738e082a37e17fc9ef9290e4f168058` (PR #86), with parents `61371a1024e341f434deaf61b79a05f73827260a` and `86f6931f83803587bc335220d27cab86a2e43bd6`.
+- Permanent workflow: **PASS** — run `30735235333` at the exact production merge.
+- Source equivalence, authentic parent order, cleanup, five compatibility areas, exact five DTBs, 13 in-tree modules, 32 external modules, vermagic, MODVERSIONS and ABI checks all passed.
+- Production full-validation artifact: `8829611852` (`sha256:3ba09b58525413576e131e0729dc4bd6167859ef46ca80a1f0f6d83a7a8c6462`).
+- Production release-candidate artifact: `8829611260` (`sha256:fff5fb95e6fb923497a5dca043050fa0da12a44822567493ffa3a839dfd97096`); inner package SHA-256: `86401309cfe9c46904eee47ccfbdfc6d1ecd99f1d038c571cacb1bead25527a4`.
+- Production `Image.gz-dtb` SHA-256: `53ddcffe41a045a428a889a80a0514bdc372f77c7763a50185f90ded80a857fb`.
 
 ## Kernel and package SHA-256
 
@@ -144,4 +154,4 @@ On 2026-08-02, the maintainer confirmed that the exact `4.14.305-miru-h40-lts305
 - Suspend and wake
 - Reboot
 
-This closes all release-candidate technical and physical validation gates. Production `miru-h40` remains at `61371a1024e341f434deaf61b79a05f73827260a` until the maintainer gives separate explicit authorization for the required normal merge commit.
+This closes all release-candidate technical and physical validation gates. The maintainer then authorized PR #86, which was promoted to `miru-h40` by normal merge `489177590738e082a37e17fc9ef9290e4f168058`; permanent run `30735235333` passed. No GitHub Release or new tag was created.

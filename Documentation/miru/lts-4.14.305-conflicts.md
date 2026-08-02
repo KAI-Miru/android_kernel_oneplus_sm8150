@@ -26,7 +26,7 @@ introduced by cleanly merged changes.
 - Physical device testing: **PASS**
 - Boot/runtime testing: **PASS**
 - Flashing: **PASS**
-- Production merge: **pending until the clean final-identity package passes CI and the final smoke test**
+- Production merge: **PASS** — PR #86 normal merge `489177590738e082a37e17fc9ef9290e4f168058`; permanent production run `30735235333` passed
 
 ## Mandatory baseline verification
 

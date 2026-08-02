@@ -1,14 +1,14 @@
 # Miru H.40 kernel for OnePlus 7 Pro
 
-Miru H.40 is a maintained kernel line for the OnePlus 7 Pro (`guacamole`), based on the official OnePlus GM1911_11_H.40 Android 12 source. The clean Linux 4.14.305 release candidate preserves the original H.40/Oplus ancestry, Android Common ancestry, KCAL support, and the exact runtime source that completed Android boot on the device.
+Miru H.40 is a maintained kernel line for the OnePlus 7 Pro (`guacamole`), based on the official OnePlus GM1911_11_H.40 Android 12 source. Linux 4.14.305 is now the production Miru H.40 line. It preserves the original H.40/Oplus ancestry, Android Common ancestry, KCAL support, and the exact runtime source that completed Android boot on the device.
 
-## Linux 4.14.305 release candidate
+## Linux 4.14.305 production release
 
 | Item | Value |
 |---|---|
 | Target production kernel | Linux 4.14.305 |
-| Live production before promotion | Linux 4.14.269 at `61371a1024e341f434deaf61b79a05f73827260a` |
-| Release branch | `miru-h40-lts305-release` |
+| Previous production baseline | Linux 4.14.269 at `61371a1024e341f434deaf61b79a05f73827260a` |
+| Promotion source branch | `miru-h40-lts305-release` |
 | Exact boot-tested source ancestor | `53f76796d1b68260507a83968a4a4bee3b89754f` |
 | Final public release identity | `4.14.305-miru-h40-lts305-ci1+` |
 | Expected vermagic | `4.14.305-miru-h40-lts305-ci1+ SMP preempt mod_unload modversions aarch64` |
@@ -23,7 +23,7 @@ Miru H.40 is a maintained kernel line for the OnePlus 7 Pro (`guacamole`), based
 | Clean final-identity build | PASS — run `30718744153` |
 | Final release-package smoke test | PASS — maintainer confirmed every required check on the OnePlus 7 Pro |
 | KCAL | Retained |
-| Production merge | Pending explicit authorization for a normal merge commit |
+| Production merge | **PASS** — PR #86 normal merge `489177590738e082a37e17fc9ef9290e4f168058`; permanent production run `30735235333` |
 
 The three-way audit compared pristine OnePlus H.40, booted Miru Linux 4.14.305, and Android Common Linux 4.14.305. It found all 2,777 Common commits in ancestry, all 36 stable endpoint merges, all 33 semantic conflicts resolved, zero remaining conflicts, zero unexpected Common-only kernel-source mismatches, and no missing H.40 vendor paths or config symbols.
 
@@ -33,11 +33,12 @@ The permanent workflow is [`.github/workflows/miru-h40-build.yml`](.github/workf
 
 The exact boot-tested source was validated in Actions run `30701388376`. Its full-validation artifact is `8819279714` (`sha256:1ddcd8603ddbbc9a3e1d29a7cb1a61b7e1b95864b15eb801e1c13ce52c061aa9`) and its physical-test artifact is `8819278460` (`sha256:ad0f18ea4294cd44306244b255440581e868aa6902a5b5c0eef8ec367eb76260`). The authoritative three-way audit is run `30714292944`, artifact `8822867561` (`sha256:fdbc6eed9b41ff9a18e601d8acac9cf41890a5158a57165bcffe39f2f5329205`).
 
-The clean `4.14.305-miru-h40-lts305-ci1+` release-candidate workflow passed in Actions run `30718744153`. Its full-validation artifact is `8824429036` (`sha256:135f611b0b4a1e244cb2f98c09f2d46ca91335f067821f1115dda79984810ad5`) and its release-candidate artifact is `8824428231` (`sha256:239f0b95d845ebfb24008b4069f1c473e96c2ee242749bb368c2453913140660`). The maintainer then confirmed the complete final release-package smoke test on the OnePlus 7 Pro. Production promotion remains deliberately pending until explicit authorization for the normal merge commit.
+The clean `4.14.305-miru-h40-lts305-ci1+` release-candidate workflow passed in Actions run `30718744153`. Its full-validation artifact is `8824429036` (`sha256:135f611b0b4a1e244cb2f98c09f2d46ca91335f067821f1115dda79984810ad5`) and its release-candidate artifact is `8824428231` (`sha256:239f0b95d845ebfb24008b4069f1c473e96c2ee242749bb368c2453913140660`). The maintainer then confirmed the complete final release-package smoke test on the OnePlus 7 Pro. The normal PR #86 merge `489177590738e082a37e17fc9ef9290e4f168058` then passed permanent production run `30735235333`; its full-validation artifact is `8829611852` (`sha256:3ba09b58525413576e131e0729dc4bd6167859ef46ca80a1f0f6d83a7a8c6462`) and its release-candidate package artifact is `8829611260` (`sha256:fff5fb95e6fb923497a5dca043050fa0da12a44822567493ffa3a839dfd97096`).
 
 ## Source references
 
 - Permanent production branch: `miru-h40`
+- Production 4.14.305 merge: `489177590738e082a37e17fc9ef9290e4f168058` (PR #86 normal merge)
 - 4.14.269 rollback tag: `miru-h40-4.14.269-final`
 - Exact boot-tested 4.14.305 source: `53f76796d1b68260507a83968a4a4bee3b89754f`
 - Android Common 4.14.305 target: `4415bf5e08942aee6487946a3e0a50956ef68f1e`
