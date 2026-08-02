@@ -59,6 +59,8 @@ jobs:
                   "    grep -Fq 'sde_kcal_get_generation' drivers/gpu/drm/msm/sde/sde_color_processing.c\n",
               "    grep -Fq 'CONFIG_DRM_SDE_KCAL=y' h40-repro/config/GM1911_11_H.40.config\n":
                   "    grep -Fq 'CONFIG_DRM_MSM_KCAL_CTRL=y' h40-repro/config/GM1911_11_H.40.config\n",
+              "        drivers/input/touchscreen/oneplus_touchscreen\n":
+                  "        drivers/input/touchscreen/oplus_touchscreen\n",
           }
           for old, new in replacements.items():
               if text.count(old) != 1:
@@ -72,6 +74,10 @@ jobs:
           grep -Fq "^(<<<<<<< .+|>>>>>>> .+)$" scripts/miru/integrate_4.14.336.sh
           grep -Fq "sde_cp_crtc_kcal_update_locked" scripts/miru/integrate_4.14.336.sh
           grep -Fq "CONFIG_DRM_MSM_KCAL_CTRL=y" scripts/miru/integrate_4.14.336.sh
+          grep -Fq "drivers/input/touchscreen/oplus_touchscreen" scripts/miru/integrate_4.14.336.sh
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          test "$(git config user.name)" = "github-actions[bot]"
 
       - name: Prepare and validate authentic merge
         id: integrate
