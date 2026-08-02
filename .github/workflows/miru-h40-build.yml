@@ -26,6 +26,7 @@ env:
   ANDROID_COMMON_336: 014241ad77dda0eafbdf671d5b8e86917d8ec97e
   ANDROID_COMMON_336_PARENT_1: bc841b804f61c5918bd950ccb15e63c36f5bd0b5
   ANDROID_COMMON_336_PARENT_2: c31e35278ea8f04f1dceadd77dca4dd7d47932a3
+  ANDROID_COMMON_BRANCH: deprecated/android-4.14-stable
   RELEASE_BRANCH: miru-h40-lts336-release
   SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
   LEDGER: Documentation/miru/lts-4.14.336-conflicts.md
@@ -45,33 +46,33 @@ jobs:
           ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 0
 
-      - name: Create guarded authentic merge scaffold
+      - name: Verify live refs and exact Android Common target
         shell: bash
         run: |
           set -Eeuo pipefail
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
 
-          source_head="$(git rev-parse HEAD)"
-          test "${source_head}" = "${SOURCE_SHA}"
-          test "${GITHUB_HEAD_REF}" = "${RELEASE_BRANCH}"
+          check_eq() {
+            local label="$1" actual="$2" expected="$3"
+            printf '%s.actual=%s\n%s.expected=%s\n' "${label}" "${actual}" "${label}" "${expected}"
+            test "${actual}" = "${expected}"
+          }
 
           read_ref() {
             git ls-remote origin "$1" | awk 'NR == 1 {print $1}'
           }
 
-          live_candidate="$(read_ref "refs/heads/${RELEASE_BRANCH}")"
-          live_production="$(read_ref refs/heads/miru-h40)"
-          live_h40="$(read_ref refs/heads/oneplus/sm8150_s_12.1_op7pro)"
+          source_head="$(git rev-parse HEAD)"
+          check_eq source_head "${source_head}" "${SOURCE_SHA}"
+          check_eq head_ref "${GITHUB_HEAD_REF}" "${RELEASE_BRANCH}"
+          check_eq live_candidate "$(read_ref "refs/heads/${RELEASE_BRANCH}")" "${source_head}"
+          check_eq live_production "$(read_ref refs/heads/miru-h40)" "${PRODUCTION_HEAD}"
+          check_eq live_h40 "$(read_ref refs/heads/oneplus/sm8150_s_12.1_op7pro)" "${PRISTINE_H40}"
+
           live_rollback="$(read_ref 'refs/tags/miru-h40-4.14.269-final^{}')"
           if [ -z "${live_rollback}" ]; then
             live_rollback="$(read_ref refs/tags/miru-h40-4.14.269-final)"
           fi
-
-          test "${live_candidate}" = "${source_head}"
-          test "${live_production}" = "${PRODUCTION_HEAD}"
-          test "${live_h40}" = "${PRISTINE_H40}"
-          test "${live_rollback}" = "${ROLLBACK_269}"
+          check_eq live_rollback "${live_rollback}" "${ROLLBACK_269}"
 
           for commit in \
             "${PRODUCTION_HEAD}" \
@@ -80,23 +81,62 @@ jobs:
             "${ROLLBACK_269}" \
             "${ANDROID_COMMON_305}"; do
             git cat-file -e "${commit}^{commit}"
+            printf 'local_commit.%s=PASS\n' "${commit}"
           done
 
-          git merge-base --is-ancestor "${PRODUCTION_HEAD}" HEAD
-          git merge-base --is-ancestor "${PRODUCTION_MERGE_305}" HEAD
-          git merge-base --is-ancestor "${PRISTINE_H40}" HEAD
-          git merge-base --is-ancestor "${ROLLBACK_269}" HEAD
-          git merge-base --is-ancestor "${ANDROID_COMMON_305}" HEAD
+          for ancestor in \
+            "${PRODUCTION_HEAD}" \
+            "${PRODUCTION_MERGE_305}" \
+            "${PRISTINE_H40}" \
+            "${ROLLBACK_269}" \
+            "${ANDROID_COMMON_305}"; do
+            git merge-base --is-ancestor "${ancestor}" HEAD
+            printf 'candidate_ancestor.%s=PASS\n' "${ancestor}"
+          done
 
-          target_branch_head="$(git ls-remote https://android.googlesource.com/kernel/common refs/heads/deprecated/android-4.14-stable | awk 'NR == 1 {print $1}')"
-          test "${target_branch_head}" = "${ANDROID_COMMON_336}"
-          git fetch --no-tags --force https://android.googlesource.com/kernel/common "${ANDROID_COMMON_336}"
-          test "$(git rev-parse FETCH_HEAD)" = "${ANDROID_COMMON_336}"
-          test "$(git rev-list --parents -n 1 "${ANDROID_COMMON_336}")" = "${ANDROID_COMMON_336} ${ANDROID_COMMON_336_PARENT_1} ${ANDROID_COMMON_336_PARENT_2}"
-          test "$(git show "${ANDROID_COMMON_336}:Makefile" | sed -n 's/^VERSION = //p' | head -n1)" = 4
-          test "$(git show "${ANDROID_COMMON_336}:Makefile" | sed -n 's/^PATCHLEVEL = //p' | head -n1)" = 14
-          test "$(git show "${ANDROID_COMMON_336}:Makefile" | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 336
+          remote_branch="refs/heads/${ANDROID_COMMON_BRANCH}"
+          local_branch="refs/remotes/android-common/${ANDROID_COMMON_BRANCH}"
+          advertised="$(git ls-remote https://android.googlesource.com/kernel/common "${remote_branch}" | awk 'NR == 1 {print $1}')"
+          check_eq android_common_advertised "${advertised}" "${ANDROID_COMMON_336}"
+
+          git fetch --no-tags --force https://android.googlesource.com/kernel/common \
+            "+${remote_branch}:${local_branch}"
+          fetched="$(git rev-parse "${local_branch}^{commit}")"
+          check_eq android_common_fetched "${fetched}" "${ANDROID_COMMON_336}"
+
+          mapfile -t parents < <(git cat-file -p "${ANDROID_COMMON_336}" | sed -n 's/^parent //p')
+          printf 'android_common_parent_count=%s\n' "${#parents[@]}"
+          test "${#parents[@]}" -eq 2
+          check_eq android_common_parent_1 "${parents[0]}" "${ANDROID_COMMON_336_PARENT_1}"
+          check_eq android_common_parent_2 "${parents[1]}" "${ANDROID_COMMON_336_PARENT_2}"
+
+          target_version="$(git show "${ANDROID_COMMON_336}:Makefile" | awk '$1 == "VERSION" && $2 == "=" {print $3; exit}')"
+          target_patchlevel="$(git show "${ANDROID_COMMON_336}:Makefile" | awk '$1 == "PATCHLEVEL" && $2 == "=" {print $3; exit}')"
+          target_sublevel="$(git show "${ANDROID_COMMON_336}:Makefile" | awk '$1 == "SUBLEVEL" && $2 == "=" {print $3; exit}')"
+          printf 'android_common_version=%s.%s.%s\n' "${target_version}" "${target_patchlevel}" "${target_sublevel}"
+          check_eq target_version "${target_version}" 4
+          check_eq target_patchlevel "${target_patchlevel}" 14
+          check_eq target_sublevel "${target_sublevel}" 336
+
           git merge-base --is-ancestor "${ANDROID_COMMON_305}" "${ANDROID_COMMON_336}"
+          echo 'android_common_305_ancestor=PASS'
+          echo 'exact_target_gate=PASS'
+
+      - name: Create guarded authentic merge scaffold
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+
+          read_ref() {
+            git ls-remote origin "$1" | awk 'NR == 1 {print $1}'
+          }
+
+          source_head="$(git rev-parse HEAD)"
+          test "${source_head}" = "${SOURCE_SHA}"
+          test "$(read_ref "refs/heads/${RELEASE_BRANCH}")" = "${source_head}"
+          test "$(read_ref refs/heads/miru-h40)" = "${PRODUCTION_HEAD}"
 
           if git merge-base --is-ancestor "${ANDROID_COMMON_336}" HEAD; then
             echo 'Android Common 4.14.336 is already present; scaffold creation is a no-op.'
@@ -134,6 +174,7 @@ jobs:
           git ls-files -u > "${audit}/unmerged-index.txt"
           git diff --name-only --diff-filter=U | sort -u > "${audit}/conflict-paths.txt"
           conflict_count="$(wc -l < "${audit}/conflict-paths.txt")"
+          printf 'merge_exit_code=%s\ninitial_conflicts=%s\n' "${merge_status}" "${conflict_count}"
           if [ "${merge_status}" -eq 0 ]; then
             test "${conflict_count}" -eq 0
           else
@@ -142,6 +183,7 @@ jobs:
 
           python3 - <<'PY'
           from pathlib import Path
+
           root = Path('/tmp/lts336-audit')
           paths = root.joinpath('conflict-paths.txt').read_text().splitlines()
           stages = {}
@@ -172,6 +214,7 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import subprocess
+
           rows = Path('/tmp/lts336-audit/conflict-stages.tsv').read_text().splitlines()[1:]
           for row in rows:
               fields = row.split('\t')
@@ -210,7 +253,7 @@ jobs:
             test -e "${path}"
           done
 
-          scaffold_sublevel="$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)"
+          scaffold_sublevel="$(awk '$1 == "SUBLEVEL" && $2 == "=" {print $3; exit}' Makefile)"
           makefile_conflict=no
           if grep -Fxq Makefile "${audit}/conflict-paths.txt"; then
             makefile_conflict=yes
@@ -232,6 +275,7 @@ jobs:
             echo "- Production: \`${PRODUCTION_HEAD}\` (unchanged)"
             echo "- Candidate parent 1: \`${source_head}\`"
             echo "- Android Common parent 2: \`${ANDROID_COMMON_336}\`"
+            echo "- Target branch: \`${ANDROID_COMMON_BRANCH}\`"
             echo "- Target parent order: \`${ANDROID_COMMON_336_PARENT_1}\`, \`${ANDROID_COMMON_336_PARENT_2}\`"
             echo "- 4.14.305 to 4.14.336 delta: ${shortstat}"
             echo "- Android Common changed paths: **${changed_count}**"
