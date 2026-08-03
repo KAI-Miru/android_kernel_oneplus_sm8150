@@ -1,14 +1,299 @@
-name: Miru H.40 Linux 4.14.336 validated release workflow
+name: Miru H.40 Linux 4.14.336 properfix production builder
 
 on:
+  pull_request:
+    branches: [miru-h40]
+    types: [synchronize]
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: miru-h40-lts336-properfix-production-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+env:
+  PRODUCTION_HEAD: a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee
+  ANDROID_COMMON_TARGET: 014241ad77dda0eafbdf671d5b8e86917d8ec97e
+  AUTHENTIC_MERGE: e0fc49a4660130692e6ac893f8119282b0192b85
+  AUTHENTIC_PARENT_1: 94d2f7f9ac571047c961addbc73aa703b5762293
+  VALIDATOR_SHA: 9db1ff57feb92e9bed955f0395d9ea298ae13906
+  VALIDATOR_BLOB: 6d5e44a57b611463b7f691710ccfb84e2e88123b
+  WLAN_HELPER_BLOB: f8db305e54123f3b9a768d4fc32a418785838bb6
+  MAKEFILE_BUILD_BLOB: ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3
+  EXPECTED_CORE_BLOB: c32b5820619cf1db39d7cd91a48c7a8e62a05d78
+  EXPECTED_RELEASE: 4.14.336-miru-h40-lts336-properfix1+
+  EXPECTED_LOCALVERSION: miru-h40-lts336-properfix1
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
-  preserved:
-    if: ${{ false }}
+  build:
+    if: >-
+      github.event_name != 'pull_request' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+       github.head_ref == 'miru-h40-lts336-release')
     runs-on: ubuntu-24.04
+    timeout-minutes: 180
+
     steps:
-      - run: echo "Full release validation is preserved at commit 4e66a4c01e00b5ac6def9ca5f02be8f8683c621b; automatic runs are disabled during physical regression isolation."
+      - name: Checkout exact fixed candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          path: source
+          fetch-depth: 0
+
+      - name: Checkout tested production validator
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.VALIDATOR_SHA }}
+          path: control
+          fetch-depth: 1
+
+      - name: Verify production immutability and narrow USB fix
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
+          test "$(git -C control hash-object scripts/miru/ci_validate_4.14.305.sh)" = "${VALIDATOR_BLOB}"
+          test "$(git -C source hash-object scripts/miru/prepare_wlan_response_link.py)" = "${WLAN_HELPER_BLOB}"
+          test "$(git -C source hash-object scripts/Makefile.build)" = "${MAKEFILE_BUILD_BLOB}"
+          test "$(git -C source hash-object drivers/usb/dwc3/core.c)" = "${EXPECTED_CORE_BLOB}"
+          test "$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')" = "${PRODUCTION_HEAD}"
+
+          for ancestor in "${PRODUCTION_HEAD}" "${ANDROID_COMMON_TARGET}" "${AUTHENTIC_MERGE}"; do
+            git -C source merge-base --is-ancestor "${ancestor}" "${SOURCE_SHA}"
+          done
+          test "$(git -C source rev-list --parents -n 1 "${AUTHENTIC_MERGE}")" = \
+            "${AUTHENTIC_MERGE} ${AUTHENTIC_PARENT_1} ${ANDROID_COMMON_TARGET}"
+          test "$(sed -n 's/^SUBLEVEL = //p' source/Makefile | head -n 1)" = 336
+          test -z "$(git -C source ls-files -u)"
+          git -C source diff --check "${AUTHENTIC_MERGE}" "${SOURCE_SHA}" --
+
+          printf '%s\n' \
+            .github/workflows/miru-h40-build.yml \
+            drivers/usb/dwc3/core.c \
+            | sort > expected-candidate-diff.txt
+          git -C source diff --name-only "${AUTHENTIC_MERGE}" "${SOURCE_SHA}" -- \
+            | sort > actual-candidate-diff.txt
+          cmp expected-candidate-diff.txt actual-candidate-diff.txt
+
+          ledger=source/Documentation/miru/lts-4.14.336-conflicts.md
+          grep -Fq -- '- Integration status: **COMPLETE — authentic candidate merge created**' "${ledger}"
+          grep -Fq -- '- Authentic conflicts: **14**' "${ledger}"
+          grep -Fq -- '- Semantic resolutions: **14 of 14 complete**' "${ledger}"
+          grep -Fq -- '- Production promotion: **not authorized**' "${ledger}"
+
+          (cd source && python3 scripts/miru/audit_4.14.336_semantics.py) | tee SEMANTIC-GATES.txt
+          grep -Fq 'semantic_gate_count=40' SEMANTIC-GATES.txt
+          test "$(grep -c '^PASS' SEMANTIC-GATES.txt)" = 40
+
+          {
+            echo result=PASS
+            echo "source_sha=${SOURCE_SHA}"
+            echo "production_head=${PRODUCTION_HEAD}"
+            echo "authentic_merge=${AUTHENTIC_MERGE}"
+            echo "core_blob=${EXPECTED_CORE_BLOB}"
+            echo candidate_diff=workflow+drivers/usb/dwc3/core.c
+            echo semantic_gates=40/40
+            echo production_write=NONE
+          } | tee SOURCE-VALIDATION.txt
+
+      - name: Adapt tested production validator to 4.14.336 properfix1
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          validator=control/scripts/miru/ci_validate_4.14.305.sh
+          helper=source/scripts/miru/prepare_wlan_response_link.py
+
+          python3 - "${validator}" "${SOURCE_SHA}" "${EXPECTED_RELEASE}" "${EXPECTED_LOCALVERSION}" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          source_sha, release, localversion = sys.argv[2:]
+          text = path.read_text()
+
+          replacements = [
+              ("af61e9d6dfc33b7b46bfc608b20b6badf894ad23", source_sha),
+              ("61371a1024e341f434deaf61b79a05f73827260a", "a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee"),
+              ("b92a77e96dd54fd30f8f39c7eef23e76f211c515", "e0fc49a4660130692e6ac893f8119282b0192b85"),
+              ("4415bf5e08942aee6487946a3e0a50956ef68f1e", "014241ad77dda0eafbdf671d5b8e86917d8ec97e"),
+              (r"4\\.14\\.305", r"4\\.14\\.336"),
+              ("4.14.305", "4.14.336"),
+              ("lts305", "lts336"),
+              ("4.14.336-miru-h40-lts336-af61e9d-ci1+", release),
+              ("miru-h40-lts336-af61e9d-ci1", localversion),
+              ("= 305", "= 336"),
+              ('= "305"', '= "336"'),
+              ("- Initial authentic conflicts: **33**", "- Authentic conflicts: **14**"),
+              ("- Index-resolved conflicts: **33**", "- Integration status: **COMPLETE — authentic candidate merge created**"),
+              ("- Semantically resolved conflicts: **33**", "- Semantic resolutions: **14 of 14 complete**"),
+              ("- Remaining semantic conflicts: **0**", "- Production promotion: **not authorized**"),
+              ("conflicts=33/33", "conflicts=14/14"),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f"missing validator anchor: {old!r}")
+              text = text.replace(old, new)
+
+          if "305" in text or "lts305" in text:
+              stale = [
+                  f"{line_no}: {line}"
+                  for line_no, line in enumerate(text.splitlines(), 1)
+                  if "305" in line or "lts305" in line
+              ]
+              raise SystemExit("stale 305 validator tokens:\n" + "\n".join(stale))
+
+          exit_trap = "trap 'status=$?; echo \"exit_code=${status}\" > \"${REPORT_ROOT}/validation-exit-code.txt\"; exit \"${status}\"' EXIT\n"
+          err_trap = "trap 'rc=$?; printf \"failed_line=%s\\nfailed_command=%s\\nfailed_rc=%s\\n\" \"$LINENO\" \"$BASH_COMMAND\" \"$rc\" | tee \"${REPORT_ROOT}/validation-error.txt\" >&2' ERR\n"
+          if text.count(exit_trap) != 1:
+              raise SystemExit("validator EXIT trap mismatch")
+          text = text.replace(exit_trap, exit_trap + err_trap, 1)
+
+          build_call = "bash scripts/miru/ci_build_4.14.190.sh"
+          if text.count(build_call) != 1:
+              raise SystemExit("kernel build invocation missing or duplicated")
+          text = text.replace(build_call, "bash -x scripts/miru/ci_build_4.14.190.sh", 1)
+          path.write_text(text)
+          PY
+
+          python3 - "${helper}" "${MAKEFILE_BUILD_BLOB}" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          new_blob = sys.argv[2]
+          text = path.read_text()
+          old_blob = "74ce588c69513197a354ef0032c2145e91ee0641"
+          if text.count(old_blob) != 1 or new_blob in text:
+              raise SystemExit("WLAN helper identity mismatch")
+          path.write_text(text.replace(old_blob, new_blob, 1))
+          PY
+
+          bash -n "${validator}"
+          python3 -m py_compile "${helper}"
+          grep -Fq "SOURCE_SHA=${SOURCE_SHA}" "${validator}"
+          grep -Fq "EXPECTED_RELEASE=${EXPECTED_RELEASE}" "${validator}"
+          grep -Fq "KERNEL_LOCALVERSION=-${EXPECTED_LOCALVERSION}" "${validator}"
+          grep -Fq 'bash -x scripts/miru/ci_build_4.14.190.sh' "${validator}"
+
+      - name: Build with tested production kernel and module builder
+        id: build
+        shell: bash
+        run: |
+          set +e
+          bash control/scripts/miru/ci_validate_4.14.305.sh \
+            "${GITHUB_WORKSPACE}/source" "${GITHUB_WORKSPACE}/control"
+          status=$?
+          echo "exit_code=${status}" >> "${GITHUB_OUTPUT}"
+          if [ "${status}" = 0 ]; then
+            echo result=success >> "${GITHUB_OUTPUT}"
+          else
+            echo result=failure >> "${GITHUB_OUTPUT}"
+          fi
+          exit 0
+
+      - name: Assemble verified properfix1 candidate
+        id: package
+        if: always() && steps.build.outputs.result == 'success'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          out="${RUNNER_TEMP}/android-root/out/h40-kernel"
+          external="${RUNNER_TEMP}/miru-external-modules/dropin"
+          dtb_root="${out}/arch/arm64/boot/dts"
+          package="${GITHUB_WORKSPACE}/packages/release-candidate"
+          projects=(18821 19801 19863 18865 18857)
+
+          rm -rf "${package}"
+          mkdir -p "${package}/kernel" "${package}/modules/in-tree" \
+            "${package}/modules/external" "${package}/dtb" "${package}/evidence"
+
+          test "$(tr -d '\n' < "${out}/include/config/kernel.release")" = "${EXPECTED_RELEASE}"
+          test -s "${out}/arch/arm64/boot/Image.gz-dtb"
+          test -s "${out}/Module.symvers"
+
+          cp "${out}/arch/arm64/boot/Image.gz-dtb" "${package}/kernel/"
+          cp "${out}/include/config/kernel.release" "${package}/kernel/"
+          cp "${out}/Module.symvers" "${package}/kernel/"
+
+          mapfile -t in_tree < <(find "${out}" -type f -name '*.ko' | sort)
+          mapfile -t extmods < <(find "${external}" -maxdepth 1 -type f -name '*.ko' | sort)
+          test "${#in_tree[@]}" = 13
+          test "${#extmods[@]}" = 32
+
+          for module in "${in_tree[@]}"; do
+            rel="${module#${out}/}"
+            mkdir -p "${package}/modules/in-tree/$(dirname "${rel}")"
+            cp "${module}" "${package}/modules/in-tree/${rel}"
+          done
+          cp "${extmods[@]}" "${package}/modules/external/"
+
+          for project in "${projects[@]}"; do
+            mkdir -p "${package}/dtb/${project}"
+            cp "${dtb_root}/${project}/sm8150-v2-mtp.dtb" "${package}/dtb/${project}/"
+          done
+          test "$(find "${package}/dtb" -type f -name '*.dtb' | wc -l)" = 5
+          test "$(find "${dtb_root}" -type f -name '*.dtbo' | wc -l)" = 0
+
+          cp SOURCE-VALIDATION.txt SEMANTIC-GATES.txt \
+            expected-candidate-diff.txt actual-candidate-diff.txt "${package}/evidence/"
+          cp -a control/build-validation-result "${package}/evidence/production-validator"
+          cp -a source/build-diagnostics "${package}/evidence/kernel-build"
+          cp -a source/external-module-diagnostics "${package}/evidence/external-modules"
+
+          {
+            echo result=PASS
+            echo "source_sha=${SOURCE_SHA}"
+            echo "kernel_release=${EXPECTED_RELEASE}"
+            echo in_tree_modules=13
+            echo external_modules=32
+            echo dtb_count=5
+            echo dtbo_count=0
+            echo builder=production-validator
+            echo physical_validation=pending
+            echo production_write=NONE
+          } > "${package}/VALIDATED-CANDIDATE.txt"
+
+          (
+            cd "${package}"
+            find . -type f ! -name SHA256SUMS -print0 | sort -z | \
+              xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
+
+          mkdir -p "${GITHUB_WORKSPACE}/packages"
+          tar -C "${GITHUB_WORKSPACE}/packages" -czf \
+            "${GITHUB_WORKSPACE}/packages/miru-h40-4.14.336-properfix1-production-builder.tar.gz" \
+            release-candidate
+          echo result=success >> "${GITHUB_OUTPUT}"
+
+      - name: Upload properfix1 candidate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-4.14.336-properfix1-production-builder
+          path: packages/miru-h40-4.14.336-properfix1-production-builder.tar.gz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+      - name: Upload full validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-4.14.336-properfix1-production-validation
+          path: packages/release-candidate/evidence
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 30
+
+      - name: Enforce successful production-builder result
+        if: always()
+        shell: bash
+        run: |
+          test "${{ steps.build.outputs.result }}" = success
+          test "${{ steps.package.outputs.result }}" = success
