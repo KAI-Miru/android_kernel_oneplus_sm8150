@@ -329,7 +329,8 @@ jobs:
           fi
           exit 0
 
-      - name: Assemble proper-fix package
+      - name: Assemble and verify proper-fix package
+        id: package
         if: always()
         shell: bash
         env:
@@ -337,69 +338,90 @@ jobs:
           POST_RESULT: ${{ steps.post.outputs.result }}
         run: |
           set -Eeuo pipefail
+          test "${BUILD_RESULT:-}" = success
+          test "${POST_RESULT:-}" = success
+
           package="${GITHUB_WORKSPACE}/properfix-package"
-          mkdir -p "${package}"
+          out="${RUNNER_TEMP}/android-root/out/h40-kernel"
+          external="${RUNNER_TEMP}/miru-external-modules/dropin"
+          dtb_root="${out}/arch/arm64/boot/dts"
+          projects=(18821 19801 19863 18865 18857)
 
-          test -f PROPER-FIX-SOURCE.txt && cp PROPER-FIX-SOURCE.txt "${package}/" || true
-          test -d control/build-validation-result && cp -a control/build-validation-result "${package}/" || true
-          test -d source/build-diagnostics && cp -a source/build-diagnostics "${package}/" || true
-          test -d source/external-module-diagnostics && cp -a source/external-module-diagnostics "${package}/" || true
-          test -d properfix-post && cp -a properfix-post "${package}/" || true
+          rm -rf "${package}"
+          mkdir -p "${package}/kernel" "${package}/modules/in-tree" \
+            "${package}/modules/external" "${package}/archives" "${package}/dtb"
 
-          if [ "${BUILD_RESULT:-}" = success ]; then
-            out="${RUNNER_TEMP}/android-root/out/h40-kernel"
-            artifacts="${RUNNER_TEMP}/android-root/out/h40-artifacts"
-            external="${RUNNER_TEMP}/miru-external-modules/dropin"
-            dtb_root="${out}/arch/arm64/boot/dts"
-            projects=(18821 19801 19863 18865 18857)
+          test -s "${out}/arch/arm64/boot/Image.gz-dtb"
+          test -s "${out}/include/config/kernel.release"
+          test -s "${out}/Module.symvers"
+          test -d "${external}"
+          test "$(tr -d '\n' < "${out}/include/config/kernel.release")" = "${EXPECTED_RELEASE}"
 
-            test -s "${out}/arch/arm64/boot/Image.gz-dtb"
-            test -s "${out}/arch/arm64/boot/Image.gz"
-            test -s "${out}/include/config/kernel.release"
-            test -s "${out}/Module.symvers"
-            test -d "${external}"
-            test -d "${artifacts}"
-            for archive in in-tree-modules.tar.gz external-modules.tar.gz dtb-5-set.tar.gz; do
-              test -s "${artifacts}/${archive}"
-            done
+          cp "${out}/arch/arm64/boot/Image.gz-dtb" "${package}/kernel/"
+          cp "${out}/include/config/kernel.release" "${package}/kernel/"
+          cp "${out}/Module.symvers" "${package}/kernel/"
 
-            mkdir -p "${package}/kernel" "${package}/modules/external" \
-              "${package}/archives" "${package}/dtb"
-            cp "${out}/arch/arm64/boot/Image.gz-dtb" "${package}/kernel/"
-            cp "${out}/arch/arm64/boot/Image.gz" "${package}/kernel/"
-            cp "${out}/include/config/kernel.release" "${package}/kernel/"
-            cp "${out}/Module.symvers" "${package}/kernel/"
-            cp -a "${external}/." "${package}/modules/external/"
-            cp "${artifacts}/in-tree-modules.tar.gz" "${package}/archives/"
-            cp "${artifacts}/external-modules.tar.gz" "${package}/archives/"
-            cp "${artifacts}/dtb-5-set.tar.gz" "${package}/archives/"
-            for project in "${projects[@]}"; do
-              mkdir -p "${package}/dtb/${project}"
-              cp "${dtb_root}/${project}/sm8150-v2-mtp.dtb" \
-                "${package}/dtb/${project}/"
-            done
-          fi
+          mapfile -t in_tree < <(find "${out}" -type f -name '*.ko' | sort)
+          mapfile -t extmods < <(find "${external}" -maxdepth 1 -type f -name '*.ko' | sort)
+          test "${#in_tree[@]}" = 13
+          test "${#extmods[@]}" = 32
+
+          for module in "${in_tree[@]}"; do
+            rel="${module#${out}/}"
+            mkdir -p "${package}/modules/in-tree/$(dirname "${rel}")"
+            cp "${module}" "${package}/modules/in-tree/${rel}"
+          done
+          cp "${extmods[@]}" "${package}/modules/external/"
+
+          for project in "${projects[@]}"; do
+            mkdir -p "${package}/dtb/${project}"
+            cp "${dtb_root}/${project}/sm8150-v2-mtp.dtb" \
+              "${package}/dtb/${project}/"
+          done
+
+          test "$(find "${package}/modules/in-tree" -type f -name '*.ko' | wc -l)" = 13
+          test "$(find "${package}/modules/external" -type f -name '*.ko' | wc -l)" = 32
+          test "$(find "${package}/dtb" -type f -name '*.dtb' | wc -l)" = 5
+          test "$(find "${package}/dtb" -type f -name '*.dtbo' | wc -l)" = 0
+
+          tar -C "${package}/modules/in-tree" -czf \
+            "${package}/archives/in-tree-modules.tar.gz" .
+          tar -C "${package}/modules/external" -czf \
+            "${package}/archives/external-modules.tar.gz" .
+          tar -C "${package}/dtb" -czf \
+            "${package}/archives/dtb-5-set.tar.gz" .
+
+          cp PROPER-FIX-SOURCE.txt "${package}/"
+          cp -a control/build-validation-result "${package}/"
+          cp -a source/build-diagnostics "${package}/"
+          cp -a source/external-module-diagnostics "${package}/"
+          cp -a properfix-post "${package}/"
 
           {
-            echo "build_result=${BUILD_RESULT:-missing}"
-            echo "post_result=${POST_RESULT:-missing}"
+            echo result=PASS
+            echo flashable_candidate=yes
+            echo physical_validation=pending
             echo "source_sha=${SOURCE_SHA}"
             echo "workflow_head=${PR_HEAD}"
             echo "vendor_sha=${VENDOR_SHA}"
-            echo "expected_release=${EXPECTED_RELEASE}"
-          } > "${package}/STATUS.txt"
+            echo "kernel_release=${EXPECTED_RELEASE}"
+            echo image=kernel/Image.gz-dtb
+            echo in_tree_modules=13
+            echo external_modules=32
+            echo dtb_count=5
+            echo production_write=NONE
+          } > "${package}/VALIDATED-CANDIDATE.txt"
 
-          if [ "${BUILD_RESULT:-}" = success ] && [ "${POST_RESULT:-}" = success ]; then
-            {
-              echo result=PASS
-              echo flashable_candidate=yes
-              echo physical_validation=pending
-              echo production_write=NONE
-            } > "${package}/VALIDATED-CANDIDATE.txt"
-          fi
+          (
+            cd "${package}"
+            find . -type f ! -name SHA256SUMS -print0 | sort -z | \
+              xargs -0 sha256sum > SHA256SUMS
+            sha256sum -c SHA256SUMS
+          )
 
-          find "${package}" -type f ! -name SHA256SUMS -print0 | sort -z | \
-            xargs -0 sha256sum > "${package}/SHA256SUMS"
+          test -s "${package}/kernel/Image.gz-dtb"
+          test "$(tr -d '\n' < "${package}/kernel/kernel.release")" = "${EXPECTED_RELEASE}"
+          echo result=success >> "${GITHUB_OUTPUT}"
 
       - name: Upload proper-fix candidate
         if: always()
@@ -417,6 +439,8 @@ jobs:
         env:
           BUILD_RESULT: ${{ steps.build.outputs.result }}
           POST_RESULT: ${{ steps.post.outputs.result }}
+          PACKAGE_RESULT: ${{ steps.package.outputs.result }}
         run: |
           test "${BUILD_RESULT:-}" = success
           test "${POST_RESULT:-}" = success
+          test "${PACKAGE_RESULT:-}" = success
