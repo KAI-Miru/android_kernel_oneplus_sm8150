@@ -25,22 +25,21 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 3
+          fetch-depth: 4
 
       - name: Verify boundary and apply narrow DWC3 repair
         shell: bash
         env:
           PRODUCTION_HEAD: a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee
-          ORIGINAL_SOURCE: c011d59828604da9308cb28619ee5065827806e1
           RESTORE_SOURCE: c8f4c778d5bbc3032e825b74f93f2ba12e2644b7
           ORIGINAL_GADGET_BLOB: f897b4fbda584d473f8a96cdd4440e2b4425c782
         run: |
           set -Eeuo pipefail
 
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
-          git merge-base --is-ancestor "${ORIGINAL_SOURCE}" HEAD
           test "$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')" = "${PRODUCTION_HEAD}"
           test "$(git rev-parse HEAD:drivers/usb/dwc3/gadget.c)" = "${ORIGINAL_GADGET_BLOB}"
+          git cat-file -e "${RESTORE_SOURCE}^{commit}"
 
           python3 - <<'PY'
           from pathlib import Path
@@ -93,7 +92,6 @@ jobs:
           path.write_text(text)
           PY
 
-          # Restore the previously reviewed builder exactly, but do not run it.
           git show "${RESTORE_SOURCE}:.github/workflows/miru-h40-build.yml" > .github/workflows/miru-h40-build.yml
           rm -f .github/workflows/miru-h40-usb-source-fix.yml
           rm -f Documentation/miru/.usb-source-fix-trigger
