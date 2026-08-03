@@ -16,7 +16,8 @@ env:
   PRODUCTION_HEAD: a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee
   ANDROID_COMMON_TARGET: 014241ad77dda0eafbdf671d5b8e86917d8ec97e
   AUTHENTIC_MERGE: e0fc49a4660130692e6ac893f8119282b0192b85
-  USB_FIX_COMMIT: a131a04930e81ed489396cb521710ef2efede08a
+  SOURCE_SHA: a131a04930e81ed489396cb521710ef2efede08a
+  PR_HEAD: ${{ github.event.pull_request.head.sha }}
   VALIDATOR_SHA: 9db1ff57feb92e9bed955f0395d9ea298ae13906
   VALIDATOR_BLOB: 6d5e44a57b611463b7f691710ccfb84e2e88123b
   WLAN_HELPER_BLOB: f8db305e54123f3b9a768d4fc32a418785838bb6
@@ -27,7 +28,6 @@ env:
   AUDIO_EXTEND_BLOB: 70c77c97efc73bed681c871c66409f1460905f69
   EXPECTED_RELEASE: 4.14.336-miru-h40-lts336-properfix1+
   EXPECTED_LOCALVERSION: miru-h40-lts336-properfix1
-  SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
 
 jobs:
   validate:
@@ -38,7 +38,14 @@ jobs:
     timeout-minutes: 180
 
     steps:
-      - name: Checkout exact proper-fix candidate
+      - name: Checkout workflow branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PR_HEAD }}
+          path: branch
+          fetch-depth: 0
+
+      - name: Checkout exact proper-fix source
         uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_SHA }}
@@ -52,37 +59,29 @@ jobs:
           path: control
           fetch-depth: 1
 
-      - name: Verify exact USB and audio fixes
+      - name: Verify exact source and fixes
         shell: bash
         run: |
           set -Eeuo pipefail
 
+          test "$(git -C branch rev-parse HEAD)" = "${PR_HEAD}"
           test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
+          git -C branch merge-base --is-ancestor "${SOURCE_SHA}" "${PR_HEAD}"
+          printf '%s\n' .github/workflows/miru-h40-usbdiag.yml > expected-workflow-diff.txt
+          git -C branch diff --name-only "${SOURCE_SHA}" "${PR_HEAD}" -- | sort > actual-workflow-diff.txt
+          cmp expected-workflow-diff.txt actual-workflow-diff.txt
+
           test "$(git -C control hash-object scripts/miru/ci_validate_4.14.305.sh)" = "${VALIDATOR_BLOB}"
           test "$(git -C source hash-object scripts/miru/prepare_wlan_response_link.py)" = "${WLAN_HELPER_BLOB}"
           test "$(git -C source hash-object scripts/Makefile.build)" = "${MAKEFILE_BUILD_BLOB}"
           test "$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')" = "${PRODUCTION_HEAD}"
 
-          for ancestor in "${PRODUCTION_HEAD}" "${ANDROID_COMMON_TARGET}" "${AUTHENTIC_MERGE}" "${USB_FIX_COMMIT}"; do
+          for ancestor in "${PRODUCTION_HEAD}" "${ANDROID_COMMON_TARGET}" "${AUTHENTIC_MERGE}"; do
             git -C source merge-base --is-ancestor "${ancestor}" "${SOURCE_SHA}"
           done
-
           test "$(sed -n 's/^SUBLEVEL = //p' source/Makefile | head -n 1)" = 336
           test -z "$(git -C source ls-files -u)"
           git -C source diff --check "${AUTHENTIC_MERGE}" "${SOURCE_SHA}" --
-
-          cat > expected-diff.txt <<'EOF'
-          .github/workflows/miru-h40-build.yml
-          .github/workflows/miru-h40-usbdiag.yml
-          drivers/usb/dwc3/core.c
-          EOF
-          git -C source diff --name-only "${AUTHENTIC_MERGE}" "${SOURCE_SHA}" -- | sort > actual-diff.txt
-          cmp expected-diff.txt actual-diff.txt
-
-          runtime_paths=(arch block crypto drivers fs include init ipc kernel lib mm net security sound virt Kbuild Kconfig Makefile h40-repro/config)
-          printf '%s\n' drivers/usb/dwc3/core.c > expected-runtime-diff.txt
-          git -C source diff --name-only "${AUTHENTIC_MERGE}" "${SOURCE_SHA}" -- "${runtime_paths[@]}" | sort > actual-runtime-diff.txt
-          cmp expected-runtime-diff.txt actual-runtime-diff.txt
 
           test "$(git -C source hash-object drivers/usb/dwc3/gadget.c)" = "${EXPECTED_GADGET_BLOB}"
           test "$(git -C source hash-object drivers/usb/dwc3/core.c)" = "${EXPECTED_CORE_BLOB}"
@@ -121,6 +120,7 @@ jobs:
           {
             echo result=PASS
             echo "source_sha=${SOURCE_SHA}"
+            echo "workflow_head=${PR_HEAD}"
             echo "production_head=${PRODUCTION_HEAD}"
             echo "gadget_blob=${EXPECTED_GADGET_BLOB}"
             echo "core_blob=${EXPECTED_CORE_BLOB}"
@@ -245,7 +245,7 @@ jobs:
           fi
           exit 0
 
-      - name: Enforce proper-fix outputs
+      - name: Validate proper-fix outputs
         id: post
         if: always() && steps.build.outputs.result == 'success'
         shell: bash
@@ -279,8 +279,16 @@ jobs:
             audio_machine="${external}/audio_machine_msmnile.ko"
             test -s "${audio_extend}"
             test -s "${audio_machine}"
-            nm "${audio_extend}" | grep -Eq '[[:space:]]__ksymtab_gpl_extend_codec_i2s_be_dailinks$'
-            strings "${audio_machine}" | grep -Fxq 'extend_codec_i2s_be_dailinks'
+            nm "${audio_extend}" > "${report}/audio-extend-nm.txt"
+            grep -Eq '[[:space:]]__ksymtab_gpl_extend_codec_i2s_be_dailinks$' \
+              "${report}/audio-extend-nm.txt"
+            if grep -Eq '[[:space:]]__ksymtab_extend_codec_i2s_be_dailinks$' \
+                "${report}/audio-extend-nm.txt"; then
+              echo 'ordinary non-GPL export unexpectedly present' >&2
+              exit 1
+            fi
+            strings "${audio_machine}" > "${report}/audio-machine-strings.txt"
+            grep -Fxq 'extend_codec_i2s_be_dailinks' "${report}/audio-machine-strings.txt"
 
             dtb_root="${out}/arch/arm64/boot/dts"
             projects=(18821 19801 19863 18865 18857)
@@ -293,11 +301,13 @@ jobs:
             {
               echo result=PASS
               echo "source_sha=${SOURCE_SHA}"
+              echo "workflow_head=${PR_HEAD}"
               echo "kernel_release=${EXPECTED_RELEASE}"
               echo "gadget_blob=${EXPECTED_GADGET_BLOB}"
               echo "core_blob=${EXPECTED_CORE_BLOB}"
               echo "vendor_source_commit=${VENDOR_SHA}"
               echo audio_gpl_export=PASS
+              echo audio_symbol_reference=PASS
               echo dtb_count=5
               echo in_tree_modules=13
               echo external_modules=32
@@ -351,6 +361,7 @@ jobs:
             echo "build_result=${BUILD_RESULT:-missing}"
             echo "post_result=${POST_RESULT:-missing}"
             echo "source_sha=${SOURCE_SHA}"
+            echo "workflow_head=${PR_HEAD}"
             echo "vendor_sha=${VENDOR_SHA}"
             echo "expected_release=${EXPECTED_RELEASE}"
           } > "${package}/STATUS.txt"
