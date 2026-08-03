@@ -1,110 +1,16 @@
-name: Miru H.40 USB source-only repair
+name: Miru H.40 Linux 4.14.336 builder preserved
 
 on:
-  pull_request:
-    branches: [miru-h40]
-    types: [synchronize]
+  workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: miru-h40-lts336-properfix-production-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  contents: read
 
 jobs:
-  repair:
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.head_ref == 'miru-h40-lts336-release'
+  preserved:
+    if: ${{ false }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
-
     steps:
-      - name: Checkout exact candidate
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 1
-
-      - name: Apply and verify narrow DWC3 repair
-        shell: bash
-        env:
-          PRODUCTION_HEAD: a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee
-          ORIGINAL_GADGET_BLOB: f897b4fbda584d473f8a96cdd4440e2b4425c782
-        run: |
-          set -Eeuo pipefail
-
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
-          test "$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')" = "${PRODUCTION_HEAD}"
-          test "$(git rev-parse HEAD:drivers/usb/dwc3/gadget.c)" = "${ORIGINAL_GADGET_BLOB}"
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('drivers/usb/dwc3/gadget.c')
-          text = path.read_text()
-
-          suspended = '''\tif (pm_runtime_suspended(dwc->dev)) {
-          \t\tdwc->pending_events = true;
-          \t\t/*
-          \t\t * Trigger runtime resume. The get() function will be balanced
-          \t\t * after processing the pending events in
-          \t\t * dwc3_gadget_process_pending_events().
-          \t\t */
-          \t\tpm_runtime_get(dwc->dev);
-          \t\tdisable_irq_nosync(dwc->irq_gadget);
-          \t\treturn IRQ_HANDLED;
-          \t}
-          
-          '''
-          if text.count(suspended) != 1:
-              raise SystemExit('suspended-event block identity mismatch')
-          text = text.replace(suspended, '', 1)
-
-          current = '''\t\tif (dwc3_check_event_buf(dwc->ev_buf) == IRQ_WAKE_THREAD)
-          \t\t\tdwc3_thread_interrupt(dwc->irq_gadget, dwc->ev_buf);
-          \t\tpm_runtime_put(dwc->dev);
-          '''
-          restored = '''\t\tdwc3_interrupt(dwc->irq_gadget, dwc->ev_buf);
-          '''
-          if text.count(current) != 1:
-              raise SystemExit('pending-event helper identity mismatch')
-          text = text.replace(current, restored, 1)
-
-          if 'pm_runtime_suspended(dwc->dev)' in text:
-              raise SystemExit('stale suspended-event gate remains')
-
-          expected = '''void dwc3_gadget_process_pending_events(struct dwc3 *dwc)
-          {
-          \tif (dwc->pending_events) {
-          \t\tdwc3_interrupt(dwc->irq_gadget, dwc->ev_buf);
-          \t\tdwc->pending_events = false;
-          \t\tenable_irq(dwc->irq_gadget);
-          \t}
-          }
-          '''
-          if text.count(expected) != 1:
-              raise SystemExit('final pending-event helper mismatch')
-
-          path.write_text(text)
-          PY
-
-          git diff --check
-          test "$(git diff --numstat -- drivers/usb/dwc3/gadget.c | awk '{print $1}')" = 1
-          test "$(git diff --numstat -- drivers/usb/dwc3/gadget.c | awk '{print $2}')" = 15
-
-      - name: Commit gadget source only
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add drivers/usb/dwc3/gadget.c
-          git diff --cached --check
-          test "$(git diff --cached --name-only)" = "drivers/usb/dwc3/gadget.c"
-          git commit \
-            -m "usb: dwc3: drop suspended-event path incompatible with Qualcomm glue [skip ci]" \
-            -m "Linux 4.14.336 defers gadget IRQ handling while the DWC3 child is runtime-suspended, disables irq_gadget, and waits for generic child resume. Qualcomm glue owns the hardware PM transition and can bypass that completion path, leaving the UDC permanently not attached. Remove only that incompatible path and retain the rest of the genuine 4.14.336 gadget implementation."
-          git push origin HEAD:miru-h40-lts336-release
+      - run: |
+          echo "The reviewed properfix1 production builder is preserved at commit c8f4c778d5bbc3032e825b74f93f2ba12e2644b7."
+          echo "Automatic and manual builds are intentionally disabled while the new USB source fix remains unbuilt and physically untested."
