@@ -1,0 +1,4 @@
+source=c011d59828604da9308cb28619ee5065827806e1
+scope=drivers/usb/dwc3/gadget.c
+mode=source-only
+builder=disabled-by-closed-pr
