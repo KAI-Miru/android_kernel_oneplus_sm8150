@@ -1,9 +1,10 @@
 name: Miru H.40 USB source-only fix
 
 on:
-  pull_request:
-    branches: [miru-h40]
-    types: [ready_for_review]
+  push:
+    branches: [miru-h40-lts336-release]
+    paths:
+      - Documentation/miru/.usb-source-fix-trigger
 
 permissions:
   contents: write
@@ -14,33 +15,36 @@ concurrency:
 
 jobs:
   patch:
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.head_ref == 'miru-h40-lts336-release'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
 
     steps:
-      - name: Checkout exact candidate head
+      - name: Checkout exact trigger head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Verify immutable boundary and helper-only staging commit
+      - name: Verify immutable boundary and source-only staging state
         shell: bash
         env:
-          EXPECTED_PARENT: c011d59828604da9308cb28619ee5065827806e1
+          EXPECTED_SOURCE: c011d59828604da9308cb28619ee5065827806e1
           PRODUCTION_HEAD: a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee
         run: |
           set -Eeuo pipefail
 
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
-          test "$(git rev-parse HEAD^)" = "${EXPECTED_PARENT}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_SOURCE}" HEAD
           test "$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')" = "${PRODUCTION_HEAD}"
-          test "$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40-lts336-release | awk 'NR == 1 {print $1}')" = "$(git rev-parse HEAD)"
-          test "$(git diff --name-only "${EXPECTED_PARENT}" HEAD | wc -l)" = 1
-          test "$(git diff --name-only "${EXPECTED_PARENT}" HEAD)" = ".github/workflows/miru-h40-usb-source-fix.yml"
+          test "$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40-lts336-release | awk 'NR == 1 {print $1}')" = "${GITHUB_SHA}"
+
+          printf '%s\n' \
+            .github/workflows/miru-h40-usb-source-fix.yml \
+            Documentation/miru/.usb-source-fix-trigger \
+            | sort > expected-staging-files.txt
+          git diff --name-only "${EXPECTED_SOURCE}" HEAD | sort > actual-staging-files.txt
+          cmp expected-staging-files.txt actual-staging-files.txt
+
           test "$(git rev-parse HEAD:drivers/usb/dwc3/gadget.c)" = "f897b4fbda584d473f8a96cdd4440e2b4425c782"
 
       - name: Drop the incompatible suspended-event path
@@ -100,12 +104,14 @@ jobs:
           PY
 
           rm .github/workflows/miru-h40-usb-source-fix.yml
+          rm Documentation/miru/.usb-source-fix-trigger
 
           git diff --check
           mapfile -t changed < <(git diff --name-only | sort)
-          test "${#changed[@]}" = 2
+          test "${#changed[@]}" = 3
           test "${changed[0]}" = ".github/workflows/miru-h40-usb-source-fix.yml"
-          test "${changed[1]}" = "drivers/usb/dwc3/gadget.c"
+          test "${changed[1]}" = "Documentation/miru/.usb-source-fix-trigger"
+          test "${changed[2]}" = "drivers/usb/dwc3/gadget.c"
 
           test "$(git diff --numstat -- drivers/usb/dwc3/gadget.c | awk '{print $1}')" = 1
           test "$(git diff --numstat -- drivers/usb/dwc3/gadget.c | awk '{print $2}')" = 15
@@ -118,7 +124,9 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add drivers/usb/dwc3/gadget.c .github/workflows/miru-h40-usb-source-fix.yml
+          git add drivers/usb/dwc3/gadget.c \
+            .github/workflows/miru-h40-usb-source-fix.yml \
+            Documentation/miru/.usb-source-fix-trigger
           git commit \
             -m "usb: dwc3: drop suspended-event path incompatible with Qualcomm glue [skip ci]" \
             -m "Linux 4.14.336 defers gadget IRQ handling when the DWC3 child is marked runtime-suspended, disables irq_gadget, and waits for generic child resume. Qualcomm glue owns the hardware PM transition and can bypass that completion path, leaving the UDC permanently not attached. Remove only that incompatible path and restore the retained Qualcomm pending-event helper; keep the rest of the genuine 4.14.336 gadget implementation."
