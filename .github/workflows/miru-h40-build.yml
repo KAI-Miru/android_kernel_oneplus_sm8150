@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 4
+          fetch-depth: 5
 
       - name: Verify boundary and apply narrow DWC3 repair
         shell: bash
@@ -108,10 +108,8 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add drivers/usb/dwc3/gadget.c \
-            .github/workflows/miru-h40-build.yml \
-            .github/workflows/miru-h40-usb-source-fix.yml \
-            Documentation/miru/.usb-source-fix-trigger
+          git add -u
+          git diff --cached --check
           git commit \
             -m "usb: dwc3: drop suspended-event path incompatible with Qualcomm glue [skip ci]" \
             -m "Linux 4.14.336 defers gadget IRQ handling while the DWC3 child is runtime-suspended, disables irq_gadget, and waits for generic child resume. Qualcomm glue owns the hardware PM transition and can bypass that completion path, leaving the UDC permanently not attached. Remove only that incompatible path and retain the rest of the genuine 4.14.336 gadget implementation."
