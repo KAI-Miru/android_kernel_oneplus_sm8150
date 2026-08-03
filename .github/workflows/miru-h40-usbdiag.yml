@@ -280,11 +280,15 @@ jobs:
             test -s "${audio_extend}"
             test -s "${audio_machine}"
             nm "${audio_extend}" > "${report}/audio-extend-nm.txt"
-            grep -Eq '[[:space:]]__ksymtab_gpl_extend_codec_i2s_be_dailinks$' \
+            grep -Eq '[[:space:]]__ksymtab_extend_codec_i2s_be_dailinks$' \
               "${report}/audio-extend-nm.txt"
-            if grep -Eq '[[:space:]]__ksymtab_extend_codec_i2s_be_dailinks$' \
-                "${report}/audio-extend-nm.txt"; then
-              echo 'ordinary non-GPL export unexpectedly present' >&2
+            readelf --wide --section-headers "${audio_extend}" \
+              > "${report}/audio-extend-sections.txt"
+            grep -Fq '___ksymtab_gpl+extend_codec_i2s_be_dailinks' \
+              "${report}/audio-extend-sections.txt"
+            if grep -Fq '___ksymtab+extend_codec_i2s_be_dailinks' \
+                "${report}/audio-extend-sections.txt"; then
+              echo 'ordinary non-GPL export section unexpectedly present' >&2
               exit 1
             fi
             strings "${audio_machine}" > "${report}/audio-machine-strings.txt"
@@ -342,21 +346,40 @@ jobs:
           test -d source/external-module-diagnostics && cp -a source/external-module-diagnostics "${package}/" || true
           test -d properfix-post && cp -a properfix-post "${package}/" || true
 
-          if [ "${BUILD_RESULT:-}" = success ] && [ "${POST_RESULT:-}" = success ]; then
+          if [ "${BUILD_RESULT:-}" = success ]; then
             out="${RUNNER_TEMP}/android-root/out/h40-kernel"
             artifacts="${RUNNER_TEMP}/android-root/out/h40-artifacts"
             external="${RUNNER_TEMP}/miru-external-modules/dropin"
+            dtb_root="${out}/arch/arm64/boot/dts"
+            projects=(18821 19801 19863 18865 18857)
 
-            mkdir -p "${package}/kernel" "${package}/modules"
+            test -s "${out}/arch/arm64/boot/Image.gz-dtb"
+            test -s "${out}/arch/arm64/boot/Image.gz"
+            test -s "${out}/include/config/kernel.release"
+            test -s "${out}/Module.symvers"
+            test -d "${external}"
+            test -d "${artifacts}"
+            for archive in in-tree-modules.tar.gz external-modules.tar.gz dtb-5-set.tar.gz; do
+              test -s "${artifacts}/${archive}"
+            done
+
+            mkdir -p "${package}/kernel" "${package}/modules/external" \
+              "${package}/archives" "${package}/dtb"
             cp "${out}/arch/arm64/boot/Image.gz-dtb" "${package}/kernel/"
             cp "${out}/arch/arm64/boot/Image.gz" "${package}/kernel/"
             cp "${out}/include/config/kernel.release" "${package}/kernel/"
             cp "${out}/Module.symvers" "${package}/kernel/"
-            cp -a "${external}/." "${package}/modules/"
-            test -d "${artifacts}" && cp -a "${artifacts}" "${package}/kernel/" || true
+            cp -a "${external}/." "${package}/modules/external/"
+            cp "${artifacts}/in-tree-modules.tar.gz" "${package}/archives/"
+            cp "${artifacts}/external-modules.tar.gz" "${package}/archives/"
+            cp "${artifacts}/dtb-5-set.tar.gz" "${package}/archives/"
+            for project in "${projects[@]}"; do
+              mkdir -p "${package}/dtb/${project}"
+              cp "${dtb_root}/${project}/sm8150-v2-mtp.dtb" \
+                "${package}/dtb/${project}/"
+            done
           fi
 
-          find "${package}" -type f -print0 | sort -z | xargs -0 sha256sum > "${package}/SHA256SUMS"
           {
             echo "build_result=${BUILD_RESULT:-missing}"
             echo "post_result=${POST_RESULT:-missing}"
@@ -366,6 +389,18 @@ jobs:
             echo "expected_release=${EXPECTED_RELEASE}"
           } > "${package}/STATUS.txt"
 
+          if [ "${BUILD_RESULT:-}" = success ] && [ "${POST_RESULT:-}" = success ]; then
+            {
+              echo result=PASS
+              echo flashable_candidate=yes
+              echo physical_validation=pending
+              echo production_write=NONE
+            } > "${package}/VALIDATED-CANDIDATE.txt"
+          fi
+
+          find "${package}" -type f ! -name SHA256SUMS -print0 | sort -z | \
+            xargs -0 sha256sum > "${package}/SHA256SUMS"
+
       - name: Upload proper-fix candidate
         if: always()
         uses: actions/upload-artifact@v4
@@ -373,6 +408,7 @@ jobs:
           name: miru-h40-4.14.336-lts336-properfix1
           path: properfix-package
           if-no-files-found: error
+          compression-level: 0
           retention-days: 30
 
       - name: Enforce complete proper-fix validation
