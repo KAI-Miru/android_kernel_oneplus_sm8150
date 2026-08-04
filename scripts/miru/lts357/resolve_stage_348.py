@@ -63,9 +63,14 @@ conversion = aio.index("container_of(iocb, struct aio_kiocb, common)")
 if guard >= conversion or "WARN_ON_ONCE(!list_empty(&req->ki_list))" not in aio:
     raise SystemExit("fs/aio.c: reviewed AIO ordering/assertion missing")
 
-# Miru also already carries the huge-page-head fix in the downstream three-
-# argument try_to_unmap() API. Keep that semantic equivalent rather than
-# replacing the Android/MM signature with generic OpenELA text.
+# OpenELA fixes huge-page handling by unmapping the head rather than the
+# poisoned tail page. Adapt that change to Qualcomm's downstream three-argument
+# try_to_unmap() API instead of importing the generic two-argument form.
+replace(
+    "mm/memory-failure.c",
+    "\tunmap_success = try_to_unmap(p, ttu, NULL);\n",
+    "\tunmap_success = try_to_unmap(hpage, ttu, NULL);\n",
+)
 memory_failure = Path("mm/memory-failure.c").read_text()
 if "try_to_unmap(hpage, ttu, NULL)" not in memory_failure:
     raise SystemExit("mm/memory-failure.c: huge-page-head unmap fix missing")
@@ -140,7 +145,7 @@ Initial textual conflicts: **4**. Remaining conflicts: **0**.
 | Path | OpenELA intent / provenance | Miru divergence | LineageOS reference | Final Miru resolution | Class | Compile impact | Runtime risk / validation |
 |---|---|---|---|---|---|---|---|
 | `fs/aio.c` | `9b033ffdc449` checks `IOCB_AIO_RW` before converting a generic `kiocb` to `aio_kiocb`. | Stage 1 already applied the safety ordering and retained Miru's active-request assertion. | Identical to the current Miru implementation. | Keep Miru; assert guard-before-conversion and active-list sanity. | not applicable | AIO core | Medium: Android asynchronous I/O; compile and AIO semantic gates. |
-| `mm/memory-failure.c` | `fd783c9a2045` unmaps the huge-page head rather than a tail page. | Miru already uses `hpage` with the downstream three-argument `try_to_unmap(..., NULL)` API. | Identical to Miru. | Keep the downstream API and assert that the tail-page call is absent. | not applicable | HW-poison MM | Low on phone runtime, high correctness; object compile and exact-call gate. |
+| `mm/memory-failure.c` | `fd783c9a2045` unmaps the huge-page head rather than a poisoned tail page. | Miru still unmaps `p` through Qualcomm's downstream three-argument `try_to_unmap(..., NULL)` API. | Uses the huge-page head in the generic implementation. | Change the target to `hpage` while preserving the downstream third argument and surrounding Android MM behavior. | adapted | HW-poison MM | Low on phone runtime, high correctness; source gate and configuration-aware validation. |
 | `mm/page_alloc.c` | OpenELA prevents direct/retry compaction when the GFP mask disallows compaction. | Qualcomm/OPlus adds healthinfo timing and LMK-aware retry behavior throughout this slow path. | Contains the generic compaction gate amid a differently evolved allocator. | Add `can_compact` to the three OpenELA decision points while preserving OPlus telemetry and LMK retries. | adapted | Core allocator | High: allocation latency, reclaim and LMK. Compile allocator and validate memory pressure later. |
 | `net/core/filter.c` | `19b468b254ac` rejects SCTP `GSO_BY_FRAGS` and uses checked GSO-size helpers in BPF protocol translation/net-header adjustment. | Miru uses an older Android BPF implementation; LineageOS has thousands of lines of later unrelated BPF changes. | Semantic fix present, but complete-file adoption would import unrelated Android-generation changes. | Replace only the four affected helper bodies with the exact OpenELA implementations. | adapted | BPF/network core | High: VPN/firewall/tether paths. Compile, assert SCTP rejection and checked GSO helpers. |
 
