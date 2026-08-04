@@ -22,6 +22,8 @@ replacements = {
     "4.14.356-openela-miru-h40-lts356-stage5+":
         "4.14.357-openela-miru-h40-lts357-stage6+",
     "-miru-h40-lts356-stage5": "-miru-h40-lts357-stage6",
+    'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = 356':
+        'test "$(sed -n \'s/^SUBLEVEL = //p\' Makefile | head -n1)" = 357',
 }
 for old, new in replacements.items():
     count = source.count(old)
