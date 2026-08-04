@@ -21,6 +21,18 @@ if text.count(old_inputs) != 1:
     raise SystemExit("checkpoint input block missing or duplicated")
 text = text.replace(old_inputs, new_inputs, 1)
 
+compiler_anchor = '''    "REAL_CC=${CLANG_DIR}/bin/clang" CLANG_TRIPLE=aarch64-linux-gnu-
+    "PYTHON=${AOSP_BUILD_TOOLS}/bin/py2-cmd" HOSTCC=gcc HOSTCXX=g++ LOCALVERSION=+
+'''
+compiler_replacement = '''    "REAL_CC=${CLANG_DIR}/bin/clang" CLANG_TRIPLE=aarch64-linux-gnu-
+    "PYTHON=${AOSP_BUILD_TOOLS}/bin/py2-cmd"
+    "CC=${AOSP_BUILD_TOOLS}/bin/py2-cmd ${kernel_dir}/scripts/gcc-wrapper.py ${CLANG_DIR}/bin/clang"
+    HOSTCC=gcc HOSTCXX=g++ LOCALVERSION=+ V=1
+'''
+if text.count(compiler_anchor) != 1:
+    raise SystemExit("compiler argument anchor missing or duplicated")
+text = text.replace(compiler_anchor, compiler_replacement, 1)
+
 old_topology = '''git merge-base --is-ancestor "${PRODUCTION}" "${STAGE340}"
 git merge-base --is-ancestor "${STAGE340}" "${STAGE344}"
 test "$(git rev-list --parents -n1 "${STAGE340}")" = "${STAGE340} $(git rev-list --parents -n1 "${STAGE340}" | awk '{print $2}') ${OPENELA340}"
@@ -37,7 +49,18 @@ anchor = '''  make -C "${kernel_dir}" "${make_args[@]}" olddefconfig prepare mod
 
   for target in "$@"; do
 '''
-replacement = '''  make -C "${kernel_dir}" "${make_args[@]}" olddefconfig prepare modules_prepare
+replacement = '''  compiler_probe="${RUNNER_TEMP}/${label}-stackprotector.o"
+  "${AOSP_BUILD_TOOLS}/bin/py2-cmd" \
+    "${kernel_dir}/scripts/gcc-wrapper.py" \
+    "${CLANG_DIR}/bin/clang" \
+    -Werror -fstack-protector-strong -c -x c /dev/null \
+    -o "${compiler_probe}"
+  test -s "${compiler_probe}"
+  rm -f "${compiler_probe}"
+  printf 'checkpoint_compiler label=%s cc=%s wrapper=%s\\n' \
+    "${label}" "${CLANG_DIR}/bin/clang" "${kernel_dir}/scripts/gcc-wrapper.py"
+
+  make -C "${kernel_dir}" "${make_args[@]}" olddefconfig prepare modules_prepare
 
   grep -Fq '# CONFIG_MEMORY_FAILURE is not set' "${out_dir}/.config" || {
     echo 'stage348: CONFIG_MEMORY_FAILURE boundary mismatch' >&2
@@ -85,7 +108,7 @@ new_checks = '''  for target in "$@"; do
   expected_release="${version}.${patchlevel}.${makefile_sublevel}${extraversion}${expected_localversion}+"
   release_file="$(cat "${out_dir}/include/config/kernel.release")"
   release_make="$(make -s -C "${kernel_dir}" "${make_args[@]}" kernelrelease)"
-  printf 'checkpoint_release label=%s config=%s file=%s make=%s expected=%s\\n' \\
+  printf 'checkpoint_release label=%s config=%s file=%s make=%s expected=%s\\n' \
     "${label}" "${config_localversion}" "${release_file}" "${release_make}" "${expected_release}"
   if [[ "${makefile_sublevel}" != "${sublevel}" ]]; then
     echo "checkpoint_makefile_sublevel_mismatch=${label}:${makefile_sublevel}:${sublevel}" >&2
