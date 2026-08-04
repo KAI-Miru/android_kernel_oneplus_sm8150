@@ -62,6 +62,14 @@ struct fscrypt_operations {
 	int (*get_context)(struct inode *inode, void *ctx, size_t len);
 	int (*set_context)(struct inode *inode, const void *ctx, size_t len,
 			   void *fs_data);
+#ifdef CONFIG_OPLUS_FEATURE_OF2FS
+	/*
+	 * OF2FS is an external H.40 source subtree that still supplies this
+	 * legacy test-dummy-encryption callback.  Keep the source interface
+	 * available; current fscrypt callers use get_dummy_context() below.
+	 */
+	bool (*dummy_context)(struct inode *inode);
+#endif
 	const union fscrypt_context *(*get_dummy_context)(
 		struct super_block *sb);
 	bool (*empty_dir)(struct inode *inode);
