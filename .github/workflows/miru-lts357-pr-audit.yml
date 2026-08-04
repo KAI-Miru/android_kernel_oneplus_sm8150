@@ -1,0 +1,37 @@
+name: Miru H.40 OpenELA 4.14.357 PR audit
+
+on:
+  pull_request:
+    branches: [miru-h40]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: miru-h40-lts357-pr-audit-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  bounded-merge-audit:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'miru-h40-lts357-integration'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Run bounded four-state merge audit
+        shell: bash
+        run: bash scripts/miru/lts357/bounded_merge_audit.sh
+
+      - name: Upload bounded merge evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-lts357-bounded-merge-audit-${{ github.event.pull_request.head.sha }}
+          path: audit
+          if-no-files-found: error
+          retention-days: 30
