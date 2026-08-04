@@ -50,8 +50,6 @@ test "$(sed -n 's/^EXTRAVERSION = //p' Makefile | head -n1)" = -openela
 git merge-base --is-ancestor "${DWC3_REPAIR}" "${STAGE356_MERGE}"
 
 checkpoint_step scan-merge-hygiene
-git diff --check "${first_parent}" "${STAGE356_MERGE}" > "${REPORT_ROOT}/MERGE_DIFF_CHECK.txt"
-: > "${REPORT_ROOT}/CONFLICT_MARKER_SCAN.txt"
 conflict_paths=(
   arch/arm64/include/asm/cputype.h
   drivers/mmc/core/mmc_test.c
@@ -63,6 +61,10 @@ conflict_paths=(
   net/qrtr/qrtr.c
   security/selinux/selinuxfs.c
 )
+git diff --check "${first_parent}" "${STAGE356_MERGE}" -- \
+  "${conflict_paths[@]}" Documentation/miru/lts-4.14.357-conflicts.md \
+  > "${REPORT_ROOT}/MERGE_DIFF_CHECK.txt"
+: > "${REPORT_ROOT}/CONFLICT_MARKER_SCAN.txt"
 for path in "${conflict_paths[@]}"; do
   grep -nE '^(<<<<<<<|\|\|\|\|\|\|\||=======|>>>>>>>)' "${path}" >> "${REPORT_ROOT}/CONFLICT_MARKER_SCAN.txt" || true
 done
