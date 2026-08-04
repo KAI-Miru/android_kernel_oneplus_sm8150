@@ -1,8 +1,9 @@
 name: Miru H.40 OpenELA stage 1 merge to 4.14.340
 
 on:
-  push:
-    branches: [miru-h40-lts357-integration]
+  pull_request:
+    branches: [miru-h40]
+    types: [opened, reopened, synchronize]
     paths:
       - '.github/workflows/miru-lts357-stage340.yml'
       - 'scripts/miru/lts357/resolve_stage_340.py'
@@ -16,6 +17,7 @@ concurrency:
 
 env:
   INTEGRATION_BRANCH: miru-h40-lts357-integration
+  SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
   IMMUTABLE_PRODUCTION: eb9451c0a1639e1aa49ee094681f98df0545f797
   OPENELA_PREVIOUS: c31e35278ea8f04f1dceadd77dca4dd7d47932a3
   OPENELA_TARGET: 9b7ef2749ffa187d86acd0033327338c0fc299bf
@@ -25,6 +27,7 @@ env:
 
 jobs:
   merge-stage-340:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'miru-h40-lts357-integration'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -39,10 +42,10 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${GITHUB_REF_NAME}" = "${INTEGRATION_BRANCH}"
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "${GITHUB_HEAD_REF}" = "${INTEGRATION_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${SOURCE_SHA}"
           remote_head="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/heads/${INTEGRATION_BRANCH}" | awk 'NR==1{print $1}')"
-          test "${remote_head}" = "${GITHUB_SHA}"
+          test "${remote_head}" = "${SOURCE_SHA}"
           production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR==1{print $1}')"
           test "${production}" = "${IMMUTABLE_PRODUCTION}"
           modules="$(git ls-remote https://github.com/KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150.git "refs/heads/${MODULES_BRANCH}" | awk 'NR==1{print $1}')"
@@ -95,8 +98,6 @@ jobs:
           test -z "$(git ls-files -u)"
           git diff --cached --check
           test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 340
-          test ! -e drivers/android/binder_alloc.c.rej
-          test ! -e drivers/android/binder_alloc.c.orig
           test -z "$(find . -path ./.git -prune -o -type f \( -name '*.orig' -o -name '*.rej' \) -print)"
           if git grep -nE '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- . \
               ':!Documentation/miru/lts-4.14.357-conflicts.md' \
@@ -135,7 +136,7 @@ jobs:
           production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR==1{print $1}')"
           test "${production}" = "${IMMUTABLE_PRODUCTION}"
           remote_head="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" "refs/heads/${INTEGRATION_BRANCH}" | awk 'NR==1{print $1}')"
-          test "${remote_head}" = "${GITHUB_SHA}"
+          test "${remote_head}" = "${SOURCE_SHA}"
           git push origin "HEAD:refs/heads/${INTEGRATION_BRANCH}"
           test "$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR==1{print $1}')" = "${IMMUTABLE_PRODUCTION}"
 
@@ -143,7 +144,7 @@ jobs:
         if: always() && env.already_integrated == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-openela-stage340-${{ github.sha }}
+          name: miru-h40-openela-stage340-${{ env.SOURCE_SHA }}
           path: integration-evidence/stage-340
           if-no-files-found: error
           retention-days: 30
