@@ -1,0 +1,182 @@
+name: Miru H.40 OpenELA stage 352 guarded merge and checkpoint
+
+on:
+  pull_request:
+    branches: [miru-h40]
+    types: [opened, reopened, synchronize]
+    paths:
+      - '.github/workflows/miru-lts357-stage352-executor.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: miru-h40-lts357-stage352-executor
+  cancel-in-progress: false
+
+env:
+  IMMUTABLE_PRODUCTION: eb9451c0a1639e1aa49ee094681f98df0545f797
+  OPENELA_BASE: c31e35278ea8f04f1dceadd77dca4dd7d47932a3
+  OPENELA_348: ef4cb0aa8addc73e6257039a17061cb1766b7477
+  OPENELA_352: 6da009d8de389742d55219ebed50378f53937a5b
+  STAGE348_MERGE: 2be978e53f5bddc97eb1ebc2a8da987b1c762b1f
+  STAGE348_SOURCE: cf6da7a583920c5923c7f55ebb803b2007e11109
+  MODULES_SHA: 3216c08bb3f97f865eb055296ea8034e1744caef
+  FORBIDDEN_MODULES_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
+  DWC3_REPAIR: a3192f52549713424a5d8352e4be381ca84434a0
+
+jobs:
+  stage352:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'miru-h40-lts357-integration' &&
+      github.base_ref == 'miru-h40' &&
+      github.event.pull_request.draft == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout exact integration head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Validate scripts before any merge
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m py_compile scripts/miru/lts357/resolve_stage_352.py
+          bash -n scripts/miru/lts357/run_compile_checkpoint_352.sh
+
+      - name: Execute exact merge, validate, compile and guarded-push
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -Eeuo pipefail
+          evidence="${GITHUB_WORKSPACE}/integration-evidence/stage-352-executor"
+          mkdir -p "${evidence}"
+          trap 'rc=$?; printf "exit_code=%s\nproduction_write=NONE\n" "${rc}" > "${evidence}/EXIT.txt"; exit "${rc}"' EXIT
+
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40-lts357-integration | awk 'NR==1{print $1}')" = "${EXPECTED_HEAD}"
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40 | awk 'NR==1{print $1}')" = "${IMMUTABLE_PRODUCTION}"
+          live_modules="$(git ls-remote https://github.com/KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150.git refs/heads/oneplus/sm8150_s_12.1_op7pro | awk 'NR==1{print $1}')"
+          test "${live_modules}" = "${MODULES_SHA}"
+          test "${live_modules}" != "${FORBIDDEN_MODULES_SHA}"
+
+          git merge-base --is-ancestor "${IMMUTABLE_PRODUCTION}" "${STAGE348_MERGE}"
+          git merge-base --is-ancestor "${STAGE348_MERGE}" "${STAGE348_SOURCE}"
+          git merge-base --is-ancestor "${STAGE348_SOURCE}" "${EXPECTED_HEAD}"
+          stage348_parents="$(git rev-list --parents -n1 "${STAGE348_MERGE}")"
+          test "$(printf '%s\n' "${stage348_parents}" | awk '{print NF-1}')" = 2
+          test "$(printf '%s\n' "${stage348_parents}" | awk '{print $3}')" = "${OPENELA_348}"
+          git merge-base --is-ancestor "${DWC3_REPAIR}" "${EXPECTED_HEAD}"
+
+          git config user.name 'Miru H.40 OpenELA Integration'
+          git config user.email '110590275+KAI-Miru@users.noreply.github.com'
+          git remote add openela https://github.com/openela/kernel-lts.git
+          git fetch --no-tags openela "${OPENELA_BASE}" "${OPENELA_348}" "${OPENELA_352}" refs/tags/v4.14.352-openela:refs/tags/v4.14.352-openela
+          test "$(git rev-parse "${OPENELA_352}^{commit}")" = "${OPENELA_352}"
+          test "$(git rev-parse 'refs/tags/v4.14.352-openela^{commit}')" = "${OPENELA_352}"
+          git merge-base --is-ancestor "${OPENELA_BASE}" "${OPENELA_348}"
+          git merge-base --is-ancestor "${OPENELA_348}" "${OPENELA_352}"
+          if git merge-base --is-ancestor "${OPENELA_352}" HEAD; then
+            echo 'stage 352 target is already an ancestor' >&2
+            exit 1
+          fi
+          test "$(git show ${OPENELA_352}:Makefile | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 352
+          test "$(git show ${OPENELA_352}:.elts/config.yaml | sed -n 's/^version: //p')" = 4.14.352
+          test "$(git show ${OPENELA_352}:.elts/config.yaml | sed -n 's/^base: //p')" = 4.14.336
+
+          # Prove why the earlier DWC3/CX18 prediction cannot be the exact inventory.
+          test "$(git rev-parse ${OPENELA_348}:drivers/usb/dwc3/core.c)" = "$(git rev-parse ${OPENELA_352}:drivers/usb/dwc3/core.c)"
+          test "$(git rev-parse ${OPENELA_348}:drivers/media/pci/cx18/cx18-streams.c)" = "$(git rev-parse ${OPENELA_352}:drivers/media/pci/cx18/cx18-streams.c)"
+
+          printf '%s\n' \
+            arch/arm/include/asm/uaccess.h \
+            fs/f2fs/segment.c \
+            fs/f2fs/super.c \
+            > "${evidence}/expected-conflicts.txt"
+
+          set +e
+          git merge --no-ff --no-commit "${OPENELA_352}" > "${evidence}/merge.stdout" 2> "${evidence}/merge.stderr"
+          merge_rc=$?
+          set -e
+          test "${merge_rc}" = 1
+          git diff --name-only --diff-filter=U | sort > "${evidence}/initial-conflicts.txt"
+          diff -u "${evidence}/expected-conflicts.txt" "${evidence}/initial-conflicts.txt"
+
+          python3 scripts/miru/lts357/resolve_stage_352.py
+          git add \
+            arch/arm/include/asm/uaccess.h \
+            fs/f2fs/segment.c \
+            fs/f2fs/super.c \
+            Documentation/miru/lts-4.14.357-conflicts.md
+          test -z "$(git diff --name-only --diff-filter=U)"
+          test -z "$(git ls-files -u)"
+          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- ':!Documentation/miru/lts-4.14.357-conflicts.md'; then
+            echo 'conflict markers remain' >&2
+            exit 1
+          fi
+          if find . -type f \( -name '*.orig' -o -name '*.rej' \) -print -quit | grep -q .; then
+            echo 'temporary resolver files remain' >&2
+            exit 1
+          fi
+          test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 352
+          test "$(sed -n 's/^EXTRAVERSION = //p' Makefile | head -n1)" = -openela
+          ! grep -q '__GUP_CLOBBER_' arch/arm/include/asm/uaccess.h
+          test "$(grep -Fc '__asmbl_clobber("ip"), "lr", "cc"' arch/arm/include/asm/uaccess.h)" = 2
+          grep -Fq 'f2fs_err(sbi, "invalid journal entries nats %u sits %u\n",' fs/f2fs/segment.c
+          grep -Fq 'f2fs_err(sbi, "Failed to initialize F2FS segment manager (%d)",' fs/f2fs/super.c
+          grep -Fq 'f2fs_err(sbi, "Failed to initialize F2FS node manager (%d)",' fs/f2fs/super.c
+          grep -Fq 'dwc3_interrupt(dwc->irq_gadget, dwc->ev_buf);' drivers/usb/dwc3/gadget.c
+
+          git commit \
+            -m 'Merge OpenELA eLTS Linux 4.14.352 into Miru H.40' \
+            -m 'Second parent: 6da009d8de389742d55219ebed50378f53937a5b' \
+            -m 'Resolve the exact audited ARM uaccess and F2FS conflicts while preserving the Qualcomm DWC3 direct-dispatch repair.'
+          stage352_merge="$(git rev-parse HEAD)"
+          parents="$(git rev-list --parents -n1 "${stage352_merge}")"
+          test "$(printf '%s\n' "${parents}" | awk '{print NF-1}')" = 2
+          test "$(printf '%s\n' "${parents}" | awk '{print $2}')" = "${EXPECTED_HEAD}"
+          test "$(printf '%s\n' "${parents}" | awk '{print $3}')" = "${OPENELA_352}"
+          git merge-base --is-ancestor "${DWC3_REPAIR}" "${stage352_merge}"
+          test -z "$(git status --porcelain)"
+
+          STAGE352_MERGE="${stage352_merge}" EXPECTED_REMOTE_HEAD="${EXPECTED_HEAD}" \
+            bash scripts/miru/lts357/run_compile_checkpoint_352.sh
+
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40 | awk 'NR==1{print $1}')" = "${IMMUTABLE_PRODUCTION}"
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40-lts357-integration | awk 'NR==1{print $1}')" = "${EXPECTED_HEAD}"
+          git push \
+            --force-with-lease=refs/heads/miru-h40-lts357-integration:${EXPECTED_HEAD} \
+            origin HEAD:refs/heads/miru-h40-lts357-integration
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40-lts357-integration | awk 'NR==1{print $1}')" = "${stage352_merge}"
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40 | awk 'NR==1{print $1}')" = "${IMMUTABLE_PRODUCTION}"
+
+          {
+            echo result=PASS
+            echo "pre_merge_head=${EXPECTED_HEAD}"
+            echo "stage352_merge=${stage352_merge}"
+            echo "openela_second_parent=${OPENELA_352}"
+            echo "conflict_count=3"
+            echo 'conflict=arch/arm/include/asm/uaccess.h'
+            echo 'conflict=fs/f2fs/segment.c'
+            echo 'conflict=fs/f2fs/super.c'
+            echo "modules_sha=${MODULES_SHA}"
+            echo 'kernel_release=4.14.352-openela-miru-h40-lts352-stage4+'
+            echo production_write=NONE
+            echo exit_code=0
+          } | tee "${evidence}/SUMMARY.txt"
+
+      - name: Upload stage 352 merge and checkpoint evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-openela-stage352-${{ github.event.pull_request.head.sha }}
+          path: integration-evidence
+          if-no-files-found: error
+          retention-days: 30
