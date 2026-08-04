@@ -12,8 +12,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: miru-h40-lts357-real-integration
-  cancel-in-progress: false
+  group: miru-h40-lts357-real-integration-pr
+  cancel-in-progress: true
 
 env:
   INTEGRATION_BRANCH: miru-h40-lts357-integration
