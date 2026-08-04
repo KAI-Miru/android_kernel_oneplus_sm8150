@@ -32,3 +32,30 @@ Initial textual conflicts: **6**. Remaining conflicts: **0**.
 - F2FS whiteout cross-directory link update is present;
 - hibernation acquire/release pairs are present;
 - no merge markers, `.orig`, `.rej` or unmerged index entries remain.
+
+## Stage 2 — 4.14.340 to 4.14.344
+
+OpenELA parent: `7a22fc46cc7a72d72b6dfdcbbc46e18c9f2caab0`
+
+Initial textual conflicts: **7**. Remaining conflicts: **0**.
+
+| Path | OpenELA intent / provenance | Miru divergence | LineageOS reference | Final Miru resolution | Class | Compile impact | Runtime risk / validation |
+|---|---|---|---|---|---|---|---|
+| `drivers/android/binder.c` | `abd2c4dd7791` adds Android `process_todo`; `aaf0101b79c4` signals epoll threads queueing self-work. | Miru already carries the complete Android `process_todo` redesign plus Qualcomm/OPlus Binder code; only the self-wakeup was absent. | Has the wakeup, plus later waiting-thread assertions unrelated to this OpenELA range. | Preserve Miru Binder and add the guarded `wake_up_interruptible_sync()` before setting `process_todo`. | adapted | Android Binder IPC | High: boot and app IPC. Validate self-work wakeup, Android ABI, OPlus hooks and Binder stress. |
+| `fs/select.c` | `70137872f87a` marks `do_select()` `noinline_for_stack` to avoid excessive Clang stack allocation. | The Android tree already has the attribute using split declaration formatting. | Reformats the declaration and also contains unrelated later time64/freezer work. | Keep Miru text; assert the attribute remains. | not applicable | poll/select core | Low: semantic fix already present; Clang object/full build gate. |
+| `include/net/netns/ipv4.h` | `759b99e2744b` makes `sysctl_tcp_early_retrans` network-namespace scoped. | Miru adds `sysctl_tcp_default_init_rwnd` and OPlus random-timestamp state nearby. | Includes the field but also unrelated later per-net TCP state. | Add only `sysctl_tcp_early_retrans`, retaining all Miru/OPlus fields. | adapted | IPv4 namespace ABI | Medium: netns layout and TCP sysctl behavior. |
+| `net/ipv4/sysctl_net_ipv4.c` | `759b99e2744b` moves `tcp_early_retrans` from the global table to the per-net table. | Miru has additional TCP controls and OPlus timestamp controls. | Carries the per-net entry plus unrelated later sysctl changes. | Remove the global entry and add the `init_net.ipv4`-based per-net entry without disturbing downstream controls. | adapted | IPv4 sysctl registration | Medium: boot-time sysctl registration and per-net writes. |
+| `net/ipv4/tcp_ipv4.c` | `759b99e2744b` initializes each namespace's early-retrans value to 3. | Miru initializes default receive window and OPlus random timestamps in the same block. | Includes the initializer among later TCP changes. | Add only the early-retrans initializer and retain downstream initialization. | adapted | TCP namespace init | Medium: TCP behavior and namespace creation. |
+| `net/netfilter/xt_owner.c` | `c5bb4c9e5197` protects `sk_socket`/file access; `aaeb68749011` adds supplementary-group matching. | OPlus extends owner matching to LOCAL_IN and recovers sockets through qtaguid-specific logic. | Uses the generic LOCAL_OUT/POST_ROUTING implementation and drops the OPlus path. | Keep OPlus socket recovery and LOCAL_IN hooks, then add callback-lock lifetime protection, balanced unlocks and supplementary groups. | adapted | Android firewall/netfilter | High: UID firewall, data policy and inbound OPlus matching. Validate rules, networking and lock balance. |
+| `sound/usb/stream.c` | `684d0dfc0167` stops parsing channel bits after all allocated channels are filled. | Miru's USB-audio channel-map parser has a downstream control-flow layout. | Adds the same bound in that layout. | Add a `c == chmap->channels` stop while preserving Miru parsing. | adapted | USB audio | Low for built-in phone audio; compile and USB-audio channel-map test. |
+
+### Stage 2 semantic gates
+
+- exact seven-path conflict inventory and exact OpenELA second parent;
+- Binder `process_todo` retained and epoll self-work wakeup added;
+- `do_select()` remains `noinline_for_stack` for Clang;
+- `tcp_early_retrans` field, per-net sysctl entry and default initializer agree;
+- OPlus `XT_OWNER` LOCAL_IN path remains, with callback-lock and supplementary-group handling;
+- USB channel-map writes stop at the allocated channel count;
+- Qualcomm-safe DWC3 direct pending-event dispatch and GPL audio export remain intact;
+- no unmerged entries, conflict headers, `.orig` or `.rej` files remain.
