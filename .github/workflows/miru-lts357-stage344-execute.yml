@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/miru-lts357-stage344-execute.yml'
       - 'scripts/miru/lts357/resolve_stage_344.py'
+      - 'scripts/miru/lts357/run_stage_344_resolver.py'
 
 permissions:
   contents: write
@@ -88,7 +89,7 @@ jobs:
           sed -i 's/^          //' "${out}/expected-conflicts.txt"
           cmp "${out}/expected-conflicts.txt" "${out}/initial-conflicts.txt"
 
-          python3 scripts/miru/lts357/resolve_stage_344.py
+          python3 scripts/miru/lts357/run_stage_344_resolver.py
           git add -A
           test -z "$(git ls-files -u)"
           git diff --cached --check
@@ -107,6 +108,7 @@ jobs:
           grep -Fq 'net->ipv4.sysctl_tcp_early_retrans = 3;' net/ipv4/tcp_ipv4.c
           grep -Fq 'OPLUS_FEATURE_XTOWNER_INPUT' net/netfilter/xt_owner.c
           grep -Fq 'read_lock_bh(&sk->sk_callback_lock);' net/netfilter/xt_owner.c
+          grep -Fq 'read_unlock_bh(&sk->sk_callback_lock);' net/netfilter/xt_owner.c
           grep -Fq 'XT_OWNER_SUPPL_GROUPS' net/netfilter/xt_owner.c
           grep -Fq 'NF_INET_LOCAL_IN' net/netfilter/xt_owner.c
           grep -Fq 'if (c == chmap->channels)' sound/usb/stream.c
