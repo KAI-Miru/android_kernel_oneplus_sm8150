@@ -96,7 +96,7 @@ if source.count(anchor) != 1:
 source = source.replace(anchor, semantic)
 
 for stale in (
-    "OPENELA356", "STAGE356_MERGE", "stage356_merge",
+    "OPENELA356", '${STAGE356_MERGE}', "stage356_merge",
     "compile-checkpoint-356", "android-stage356", "lts356-stage5",
 ):
     if stale in source:
