@@ -39,10 +39,34 @@ git merge-base --is-ancestor "${STAGE340}" "${STAGE344}"
 test "$(git rev-list --parents -n1 "${STAGE340}")" = "${STAGE340} $(git rev-list --parents -n1 "${STAGE340}" | awk '{print $2}') ${OPENELA340}"
 test "$(git rev-list --parents -n1 "${STAGE344}")" = "${STAGE344} $(git rev-list --parents -n1 "${STAGE344}" | awk '{print $2}') ${OPENELA344}"
 '''
-new_topology = '''git merge-base --is-ancestor "${PRODUCTION}" "${STAGE348_MERGE}"
-git merge-base --is-ancestor "${STAGE348_MERGE}" "${STAGE348_SOURCE}"
-test "$(git rev-list --parents -n1 "${STAGE348_MERGE}")" = "${STAGE348_MERGE} $(git rev-list --parents -n1 "${STAGE348_MERGE}" | awk '{print $2}') ${OPENELA348}"
-test "$(git diff --name-only "${STAGE348_MERGE}" "${STAGE348_SOURCE}")" = scripts/Makefile.extrawarn
+new_topology = '''if ! git merge-base --is-ancestor "${PRODUCTION}" "${STAGE348_MERGE}"; then
+  echo "checkpoint_topology_error=production-not-ancestor:${PRODUCTION}:${STAGE348_MERGE}" >&2
+  exit 1
+fi
+if ! git merge-base --is-ancestor "${STAGE348_MERGE}" "${STAGE348_SOURCE}"; then
+  echo "checkpoint_topology_error=merge-not-ancestor:${STAGE348_MERGE}:${STAGE348_SOURCE}" >&2
+  exit 1
+fi
+merge_parents="$(git rev-list --parents -n1 "${STAGE348_MERGE}")"
+merge_first="$(printf '%s\\n' "${merge_parents}" | awk '{print $2}')"
+merge_expected="${STAGE348_MERGE} ${merge_first} ${OPENELA348}"
+printf 'checkpoint_merge_topology actual=%s expected=%s\\n' "${merge_parents}" "${merge_expected}"
+if [[ "${merge_parents}" != "${merge_expected}" ]]; then
+  echo "checkpoint_topology_error=wrong-openela-second-parent" >&2
+  exit 1
+fi
+compat_files="$(git diff-tree --no-commit-id --name-only -r "${STAGE348_SOURCE}")"
+compat_subject="$(git show -s --format=%s "${STAGE348_SOURCE}")"
+printf 'checkpoint_compat_commit sha=%s subject=%s files=%s\\n' \\
+  "${STAGE348_SOURCE}" "${compat_subject}" "${compat_files}"
+if [[ "${compat_subject}" != 'build: gate newer Clang enum warning suppressions' ]]; then
+  echo "checkpoint_compat_error=unexpected-subject:${compat_subject}" >&2
+  exit 1
+fi
+if [[ "${compat_files}" != 'scripts/Makefile.extrawarn' ]]; then
+  echo "checkpoint_compat_error=unexpected-files:${compat_files}" >&2
+  exit 1
+fi
 '''
 if text.count(old_topology) != 1:
     raise SystemExit("checkpoint topology block missing or duplicated")
