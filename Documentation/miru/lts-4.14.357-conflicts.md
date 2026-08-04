@@ -59,3 +59,26 @@ Initial textual conflicts: **7**. Remaining conflicts: **0**.
 - USB channel-map writes stop at the allocated channel count;
 - Qualcomm-safe DWC3 direct pending-event dispatch and GPL audio export remain intact;
 - no unmerged entries, conflict headers, `.orig` or `.rej` files remain.
+
+## Stage 3 — 4.14.344 to 4.14.348
+
+OpenELA parent: `ef4cb0aa8addc73e6257039a17061cb1766b7477`
+
+Initial textual conflicts: **4**. Remaining conflicts: **0**.
+
+| Path | OpenELA intent / provenance | Miru divergence | LineageOS reference | Final Miru resolution | Class | Compile impact | Runtime risk / validation |
+|---|---|---|---|---|---|---|---|
+| `fs/aio.c` | `9b033ffdc449` checks `IOCB_AIO_RW` before converting a generic `kiocb` to `aio_kiocb`. | Stage 1 already applied the safety ordering and retained Miru's active-request assertion. | Identical to the current Miru implementation. | Keep Miru; assert guard-before-conversion and active-list sanity. | not applicable | AIO core | Medium: Android asynchronous I/O; compile and AIO semantic gates. |
+| `mm/memory-failure.c` | `fd783c9a2045` unmaps the huge-page head rather than a poisoned tail page. | Miru still unmaps `p` through Qualcomm's downstream three-argument `try_to_unmap(..., NULL)` API. | Uses the huge-page head in the generic implementation. | Change the target to `hpage` while preserving the downstream third argument and surrounding Android MM behavior. | adapted | HW-poison MM | Low on phone runtime, high correctness; source gate and configuration-aware validation. |
+| `mm/page_alloc.c` | OpenELA prevents direct/retry compaction when the GFP mask disallows compaction. | Qualcomm/OPlus adds healthinfo timing and LMK-aware retry behavior throughout this slow path. | Contains the generic compaction gate amid a differently evolved allocator. | Add `can_compact` to the three OpenELA decision points while preserving OPlus telemetry and LMK retries. | adapted | Core allocator | High: allocation latency, reclaim and LMK. Compile allocator and validate memory pressure later. |
+| `net/core/filter.c` | `19b468b254ac` rejects SCTP `GSO_BY_FRAGS` and uses checked GSO-size helpers in BPF protocol translation/net-header adjustment. | Miru uses an older Android BPF implementation; LineageOS has thousands of lines of later unrelated BPF changes. | Semantic fix present, but complete-file adoption would import unrelated Android-generation changes. | Replace only the four affected helper bodies with the exact OpenELA implementations. | adapted | BPF/network core | High: VPN/firewall/tether paths. Compile, assert SCTP rejection and checked GSO helpers. |
+
+### Stage 3 semantic gates
+
+- exact four-path conflict inventory and exact OpenELA second parent;
+- AIO rejects non-AIO kiocbs before `container_of()`;
+- memory failure unmaps `hpage` through the downstream API;
+- allocator compaction attempts and retries honor `gfp_compaction_allowed()` while OPlus LMK/healthinfo code remains;
+- all four BPF helpers reject SCTP GSO and use `skb_{decrease,increase}_gso_size()`;
+- Qualcomm-safe DWC3 direct pending-event dispatch and the GPL audio export remain intact;
+- no unmerged entries, conflict headers, `.orig` or `.rej` files remain.
