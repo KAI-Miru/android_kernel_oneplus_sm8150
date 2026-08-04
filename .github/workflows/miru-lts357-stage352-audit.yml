@@ -16,7 +16,7 @@ concurrency:
 
 env:
   IMMUTABLE_PRODUCTION: eb9451c0a1639e1aa49ee094681f98df0545f797
-  PRE_AUDIT_HEAD: 08843fa5ba6e9da3dbbdf6047090ac977c895633
+  PRE_AUDIT_HEAD: 7c6034c45c0d6cf0ecc23b5986c7afb7f0ef4659
   OPENELA_BASE: c31e35278ea8f04f1dceadd77dca4dd7d47932a3
   OPENELA_348: ef4cb0aa8addc73e6257039a17061cb1766b7477
   OPENELA_352: 6da009d8de389742d55219ebed50378f53937a5b
@@ -57,9 +57,10 @@ jobs:
         run: |
           set -Eeuo pipefail
           mkdir -p integration-evidence/stage-352-audit/conflicts
+          echo audit_started=1 > integration-evidence/stage-352-audit/started.txt
           git remote add openela https://github.com/openela/kernel-lts.git
           git fetch --no-tags openela "${OPENELA_BASE}" "${OPENELA_348}" "${OPENELA_352}"
-          test "$(git rev-parse FETCH_HEAD)" = "${OPENELA_352}"
+          test "$(git rev-parse "${OPENELA_352}^{commit}")" = "${OPENELA_352}"
           git cat-file -e "${OPENELA_352}^{commit}"
           git merge-base --is-ancestor "${OPENELA_BASE}" "${OPENELA_348}"
           git merge-base --is-ancestor "${OPENELA_348}" "${OPENELA_352}"
