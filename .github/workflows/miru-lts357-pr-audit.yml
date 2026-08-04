@@ -18,10 +18,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
-      - name: Checkout exact PR head
+      - name: Checkout exact PR head with partial clone
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          filter: blob:none
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Run bounded four-state merge audit
