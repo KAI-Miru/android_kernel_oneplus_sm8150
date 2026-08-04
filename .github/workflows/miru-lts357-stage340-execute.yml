@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/miru-lts357-stage340-execute.yml'
       - 'scripts/miru/lts357/resolve_stage_340.py'
+      - 'scripts/miru/lts357/run_stage_340_resolver.py'
 
 permissions:
   contents: write
@@ -72,7 +73,7 @@ jobs:
           test "${rc}" -ne 0
           git diff --name-only --diff-filter=U | sort | tee integration-evidence/stage-340/initial-conflicts.txt
           test "$(wc -l < integration-evidence/stage-340/initial-conflicts.txt)" = 6
-          python3 scripts/miru/lts357/resolve_stage_340.py
+          python3 scripts/miru/lts357/run_stage_340_resolver.py
           git add -A
           test -z "$(git ls-files -u)"
           git diff --cached --check
