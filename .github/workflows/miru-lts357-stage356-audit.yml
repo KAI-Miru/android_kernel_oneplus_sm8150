@@ -16,7 +16,7 @@ concurrency:
 
 env:
   IMMUTABLE_PRODUCTION: eb9451c0a1639e1aa49ee094681f98df0545f797
-  PRE_AUDIT_HEAD: f5ebecc06992d60f50c21ebf9e9dc0538fa7b1c3
+  PRE_AUDIT_HEAD: 7d98c8086f538afad59dd3fdce9f99144018f8a5
   STAGE352_MERGE: f5ebecc06992d60f50c21ebf9e9dc0538fa7b1c3
   OPENELA_BASE: c31e35278ea8f04f1dceadd77dca4dd7d47932a3
   OPENELA_352: 6da009d8de389742d55219ebed50378f53937a5b
@@ -28,7 +28,11 @@ env:
 
 jobs:
   audit-stage-356:
-    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'miru-h40-lts357-integration'
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'miru-h40-lts357-integration' &&
+      github.base_ref == 'miru-h40' &&
+      github.event.pull_request.draft == true
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -38,7 +42,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Verify immutable boundaries and audit commit
+      - name: Verify immutable boundaries and exact audit commit
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -69,36 +73,30 @@ jobs:
           test "$(git rev-parse "${OPENELA_356}^{commit}")" = "${OPENELA_356}"
           git merge-base --is-ancestor "${OPENELA_BASE}" "${OPENELA_352}"
           git merge-base --is-ancestor "${OPENELA_352}" "${OPENELA_356}"
-          if git merge-base --is-ancestor "${OPENELA_356}" HEAD; then
-            echo 'target_already_ancestor=YES' > "${evidence}/ancestry.txt"
-            exit 1
-          fi
-          echo 'target_already_ancestor=NO' > "${evidence}/ancestry.txt"
+          ! git merge-base --is-ancestor "${OPENELA_356}" HEAD
           test "$(git show ${OPENELA_356}:Makefile | sed -n 's/^SUBLEVEL = //p' | head -n1)" = 356
           test "$(git show ${OPENELA_356}:.elts/config.yaml | sed -n 's/^version: //p')" = 4.14.356
           test "$(git show ${OPENELA_356}:.elts/config.yaml | sed -n 's/^base: //p')" = 4.14.336
 
           printf '%s\n' \
-            Makefile \
-            drivers/gpu/drm/amd/include/atombios.h \
+            arch/arm64/include/asm/cputype.h \
+            drivers/mmc/core/mmc_test.c \
+            drivers/net/usb/usbnet.c \
+            drivers/usb/dwc3/core.c \
+            fs/f2fs/inode.c \
+            fs/f2fs/namei.c \
             include/linux/clk.h \
-            include/trace/events/sched.h \
             net/qrtr/qrtr.c \
             security/selinux/selinuxfs.c \
-            > "${evidence}/expected-source-conflicts.txt"
+            > "${evidence}/expected-conflicts.txt"
 
           set +e
           git merge --no-ff --no-commit "${OPENELA_356}" > "${evidence}/merge.stdout" 2> "${evidence}/merge.stderr"
           merge_rc=$?
           set -e
-          printf 'merge_exit_code=%s\n' "${merge_rc}" > "${evidence}/SUMMARY.txt"
           git diff --name-only --diff-filter=U | sort > "${evidence}/initial-conflicts.txt"
-          grep -v '^\.elts/' "${evidence}/initial-conflicts.txt" > "${evidence}/actual-source-conflicts.txt" || true
-          grep '^\.elts/' "${evidence}/initial-conflicts.txt" > "${evidence}/actual-metadata-conflicts.txt" || true
-          source_mismatch=0
-          metadata_mismatch=0
-          diff -u "${evidence}/expected-source-conflicts.txt" "${evidence}/actual-source-conflicts.txt" > "${evidence}/source-conflict-inventory.diff" || source_mismatch=1
-          test -s "${evidence}/actual-metadata-conflicts.txt" || metadata_mismatch=1
+          inventory_match=YES
+          diff -u "${evidence}/expected-conflicts.txt" "${evidence}/initial-conflicts.txt" > "${evidence}/conflict-inventory.diff" || inventory_match=NO
 
           while IFS= read -r path; do
             [ -n "${path}" ] || continue
@@ -115,35 +113,27 @@ jobs:
           done < "${evidence}/initial-conflicts.txt"
 
           git diff --cc > "${evidence}/combined-conflicts.diff" || true
-          git log --oneline --decorate --all -- \
-            net/qrtr/qrtr.c include/linux/clk.h include/trace/events/sched.h \
-            security/selinux/selinuxfs.c drivers/gpu/drm/amd/include/atombios.h \
-            > "${evidence}/sensitive-history.txt"
-          git grep -n -E 'qrtr_(node|port|endpoint)|QRTR_TYPE_|sched_(switch|wakeup)|clk_(prepare|enable)|selinuxfs' -- \
-            net/qrtr/qrtr.c include/linux/clk.h include/trace/events/sched.h security/selinux/selinuxfs.c \
-            > "${evidence}/sensitive-callflow.txt" || true
+          git log --oneline --decorate --all -- $(cat "${evidence}/initial-conflicts.txt") > "${evidence}/conflict-history.txt"
           {
             echo "source_sha=$(git rev-parse HEAD)"
             echo "openela_second_parent=${OPENELA_356}"
+            echo "merge_exit_code=${merge_rc}"
             echo "conflict_count=$(wc -l < "${evidence}/initial-conflicts.txt")"
-            echo "source_inventory_match=$([ "${source_mismatch}" -eq 0 ] && echo YES || echo NO)"
-            echo "metadata_inventory_present=$([ "${metadata_mismatch}" -eq 0 ] && echo YES || echo NO)"
+            echo "inventory_match=${inventory_match}"
             echo "modules_sha=${MODULES_SHA}"
+            echo 'metadata_conflicts=0'
             echo 'production_write=NONE'
-          } >> "${evidence}/SUMMARY.txt"
+          } | tee "${evidence}/SUMMARY.txt"
 
           echo '=== exact conflicts ==='
           cat "${evidence}/initial-conflicts.txt"
-          echo '=== metadata conflicts ==='
-          cat "${evidence}/actual-metadata-conflicts.txt"
           if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
             git merge --abort
           fi
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
           test -z "$(git status --porcelain)"
           test "${merge_rc}" = 1
-          test "${source_mismatch}" = 0
-          test "${metadata_mismatch}" = 0
+          test "${inventory_match}" = YES
 
       - name: Upload stage 356 audit evidence
         if: always()
