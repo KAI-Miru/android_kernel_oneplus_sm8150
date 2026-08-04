@@ -56,7 +56,7 @@ jobs:
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -Eeuo pipefail
-          evidence="${GITHUB_WORKSPACE}/integration-evidence/stage-352-executor"
+          evidence="${RUNNER_TEMP}/stage-352-executor"
           mkdir -p "${evidence}"
           trap 'rc=$?; printf "exit_code=%s\nproduction_write=NONE\n" "${rc}" > "${evidence}/EXIT.txt"; exit "${rc}"' EXIT
 
@@ -177,6 +177,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: miru-h40-openela-stage352-${{ github.event.pull_request.head.sha }}
-          path: integration-evidence
+          path: |
+            ${{ runner.temp }}/stage-352-executor
+            integration-evidence/compile-checkpoint-352
           if-no-files-found: error
           retention-days: 30
