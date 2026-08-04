@@ -110,3 +110,38 @@ explicit regression compile targets even though they are not stage-352 conflicts
 - Qualcomm-safe DWC3 direct dispatch repair, QRTR state and GPL audio export remain intact;
 - DWC3 core/gadget and CX18 are regression-compiled despite not conflicting;
 - no unmerged entries, conflict headers, `.orig` or `.rej` files remain.
+
+## Stage 5 — 4.14.352 to 4.14.356
+
+OpenELA parent: `a76b6a6556353484f6f29572989cd37b6cff90cc`
+
+Initial textual conflicts: **9**. Metadata conflicts: **0**. Remaining conflicts: **0**.
+
+The exact read-only merge audit at integration source
+`8d50d842d343c0af619e5774cab891c505e983bd` established the inventory below.
+The resolver preserves the newer Qualcomm/Android structures and ports each
+independent OpenELA fix into the matching downstream call flow.
+
+| Path | OpenELA intent | Miru divergence | Final Miru resolution | Class | Runtime risk / validation |
+|---|---|---|---|---|---|
+| `arch/arm64/include/asm/cputype.h` | Add Arm Neoverse N3 part and MIDR definitions. | Miru adds Qualcomm Kryo part/MIDR definitions at the same anchors. | Keep both definition sets, grouped by implementer. | combined | Low; compile an ARM64 CPU-info consumer and retain all Kryo identifiers. |
+| `drivers/mmc/core/mmc_test.c` | Return `-ENOMEM` when the optional highmem test allocation fails and use a shared cleanup label. | Miru only made the final free conditional. | Adopt the OpenELA allocation check and cleanup label; a successful allocation is always freed exactly once. | upstream | Low; compile the MMC test object. |
+| `drivers/net/usb/usbnet.c` | Stop using one module-global random MAC and let each invalid device address be randomized independently. | Miru initializes downstream IPC logging in the same module-init block. | Remove only `eth_random_addr(node_id)` while retaining the IPC-log initialization; keep the automatically merged per-device MAC handling. | combined | Medium; compile usbnet and verify global `node_id` use is absent. |
+| `drivers/usb/dwc3/core.c` | Add a Hisilicon-only split-boundary-disable quirk to the generic role-switch path. | Qualcomm's core replaced that generic role-switch worker with downstream sleep/role handling. | Preserve Qualcomm's role implementation. Keep the automatically merged property, register definitions and resume-complete hook; the quirk remains dormant without `snps,dis-split-quirk`. | adapted | High; compile DWC3 core/gadget and retain the proven direct pending-event dispatch repair. |
+| `fs/f2fs/inode.c` | Avoid dirtying an inode on a read-only F2FS mount. | Newer Android already skips newly allocated inodes first. | Keep the Android new-inode gate, then add the OpenELA read-only gate before dirty tracking. | combined | High; userdata filesystem path, object compile and later physical mount/write validation. |
+| `fs/f2fs/namei.c` | Set `FI_NEW_INODE` before encryption setup. | Newer Android already does so and uses the newer `f2fs_may_encrypt(dir, inode)` API. | Preserve the newer Android implementation. | not applicable | High; F2FS create path, object compile and later physical validation. |
+| `include/linux/clk.h` | Add `clk_get_optional()`. | Qualcomm exposes OF clock-provider helpers even without `CONFIG_COMMON_CLK`. | Add the optional-clock helper and retain Qualcomm's `CONFIG_OF` provider guard. | combined | Medium; compile clock consumers and preserve downstream provider visibility. |
+| `net/qrtr/qrtr.c` | Use `pskb_copy()` so every broadcast endpoint gets an independent mutable header. | Miru uses an rwsem, downstream endpoint list, automatic-NID filtering and extra enqueue arguments. | Preserve the downstream traversal and replace only `skb_clone()` with `pskb_copy()`. | adapted | High; modem/IPC path, compile QRTR and physically validate radio/audio services later. |
+| `security/selinux/selinuxfs.c` | Reject partial, empty and oversized policy writes before loading. | Android wraps SELinux filesystem state and uses `fsi->mutex` instead of the legacy global mutex. | Apply all three validation gates before taking `fsi->mutex`. | adapted | High; boot-critical policy load, compile SELinuxFS and later physical boot validation. |
+
+### Stage 5 semantic gates
+
+- exact nine-path conflict inventory and exact OpenELA second parent;
+- Neoverse N3 and Qualcomm Kryo identifiers coexist;
+- MMC highmem allocation failure, per-device usbnet MAC handling and IPC logging coexist;
+- Qualcomm DWC3 role handling and direct gadget-event dispatch remain intact;
+- F2FS read-only/new-inode ordering is explicit;
+- `clk_get_optional()` is present without narrowing Qualcomm's OF provider API;
+- QRTR broadcasts use independent headers while retaining downstream endpoint filtering;
+- SELinux policy write bounds are checked under the wrapped Android state model;
+- no unmerged entries, conflict headers, `.orig`, `.rej` or `.pyc` files remain.
