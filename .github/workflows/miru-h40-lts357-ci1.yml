@@ -1,8 +1,11 @@
 name: Miru 4.14.357 OpenELA CI1 kernel
 
 on:
-  push:
-    branches: [miru-h40-lts357-integration]
+  pull_request:
+    branches: [miru-h40]
+    types: [synchronize]
+    paths:
+      - '.github/workflows/miru-h40-lts357-ci1.yml'
 
 permissions:
   contents: read
@@ -19,6 +22,7 @@ env:
   MODULES_SHA: 3216c08bb3f97f865eb055296ea8034e1744caef
   STALE_MODULES_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
   EXPECTED_RELEASE: 4.14.357-openela-miru-ci1+
+  BUILD_HEAD: ${{ github.event.pull_request.head.sha }}
 
 jobs:
   build:
@@ -29,14 +33,14 @@ jobs:
       - name: Checkout build control
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.BUILD_HEAD }}
           path: control
           fetch-depth: 0
 
       - name: Checkout validated Stage 357 source
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.BUILD_HEAD }}
           path: source
           fetch-depth: 0
 
@@ -46,12 +50,12 @@ jobs:
           set -Eeuo pipefail
           control_head="$(git -C control rev-parse HEAD)"
           source_head="$(git -C source rev-parse HEAD)"
-          test "${control_head}" = "${GITHUB_SHA}"
-          test "${source_head}" = "${GITHUB_SHA}"
+          test "${control_head}" = "${BUILD_HEAD}"
+          test "${source_head}" = "${BUILD_HEAD}"
           test "$(git -C source merge-base "${SOURCE_SHA}" HEAD)" = "${SOURCE_SHA}"
           test "$(git -C source rev-list --parents -n 1 "${SOURCE_SHA}")" = "${SOURCE_SHA} ${SOURCE_PARENT_1} ${OPENELA_PARENT}"
           actual_repair_paths="$(git -C source diff --name-only "${SOURCE_SHA}" HEAD | LC_ALL=C sort | tr '\n' ' ')"
-          test "${actual_repair_paths}" = ".github/workflows/miru-h40-lts357-ci1.yml include/linux/fscrypt.h include/trace/events/f2fs.h "
+          test "${actual_repair_paths}" = ".github/workflows/miru-h40-lts357-ci1.yml .github/workflows/miru-lts357-stage357-executor.yml include/linux/fscrypt.h include/trace/events/f2fs.h "
           test -z "$(git -C source diff --check "${SOURCE_SHA}" HEAD)"
           test -z "$(git -C source ls-files -u)"
           grep -Fxq 'CONFIG_OPLUS_FEATURE_OF2FS=y' source/h40-repro/config/GM1911_11_H.40.config
@@ -96,7 +100,7 @@ jobs:
           test "$(git merge-base "${SOURCE_SHA}" HEAD)" = "${SOURCE_SHA}"
           test "$(git rev-list --parents -n 1 "${SOURCE_SHA}")" = "${SOURCE_SHA} ${SOURCE_PARENT_1} ${OPENELA_PARENT}"
           repair_paths="$(git diff --name-only "${SOURCE_SHA}" HEAD | LC_ALL=C sort | tr '\n' ' ')"
-          test "${repair_paths}" = ".github/workflows/miru-h40-lts357-ci1.yml include/linux/fscrypt.h include/trace/events/f2fs.h "
+          test "${repair_paths}" = ".github/workflows/miru-h40-lts357-ci1.yml .github/workflows/miru-lts357-stage357-executor.yml include/linux/fscrypt.h include/trace/events/f2fs.h "
           test -z "$(git diff --check "${SOURCE_SHA}" HEAD)"
           test -z "$(git ls-files -u)"
           test "$(sed -n 's/^VERSION = //p' Makefile | head -n1)" = 4

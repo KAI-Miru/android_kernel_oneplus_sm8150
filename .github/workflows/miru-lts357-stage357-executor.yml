@@ -1,13 +1,7 @@
 name: Miru H.40 OpenELA stage 357 guarded merge and checkpoint
 
 on:
-  pull_request:
-    branches: [miru-h40]
-    types: [opened, reopened, synchronize]
-    paths:
-      - '.github/workflows/miru-lts357-stage357-executor.yml'
-      - 'scripts/miru/lts357/execute_stage_357.sh'
-      - 'scripts/miru/lts357/run_compile_checkpoint_357.sh'
+  workflow_dispatch:
 
 permissions:
   contents: write
