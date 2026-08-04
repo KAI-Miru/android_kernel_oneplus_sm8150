@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: miru-h40-lts357-pr-audit-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   bounded-merge-audit:
