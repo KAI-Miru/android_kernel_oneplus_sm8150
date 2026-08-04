@@ -14,7 +14,8 @@ STAGE344=4ca04340dfd5abd1b7e4d9b72c3f9223331cd118
 OPENELA340=9b7ef2749ffa187d86acd0033327338c0fc299bf
 OPENELA344=7a22fc46cc7a72d72b6dfdcbbc46e18c9f2caab0
 '''
-new_inputs = '''STAGE348=2be978e53f5bddc97eb1ebc2a8da987b1c762b1f
+new_inputs = '''STAGE348_MERGE=2be978e53f5bddc97eb1ebc2a8da987b1c762b1f
+STAGE348_SOURCE=cf6da7a583920c5923c7f55ebb803b2007e11109
 OPENELA348=ef4cb0aa8addc73e6257039a17061cb1766b7477
 '''
 if text.count(old_inputs) != 1:
@@ -38,8 +39,10 @@ git merge-base --is-ancestor "${STAGE340}" "${STAGE344}"
 test "$(git rev-list --parents -n1 "${STAGE340}")" = "${STAGE340} $(git rev-list --parents -n1 "${STAGE340}" | awk '{print $2}') ${OPENELA340}"
 test "$(git rev-list --parents -n1 "${STAGE344}")" = "${STAGE344} $(git rev-list --parents -n1 "${STAGE344}" | awk '{print $2}') ${OPENELA344}"
 '''
-new_topology = '''git merge-base --is-ancestor "${PRODUCTION}" "${STAGE348}"
-test "$(git rev-list --parents -n1 "${STAGE348}")" = "${STAGE348} $(git rev-list --parents -n1 "${STAGE348}" | awk '{print $2}') ${OPENELA348}"
+new_topology = '''git merge-base --is-ancestor "${PRODUCTION}" "${STAGE348_MERGE}"
+git merge-base --is-ancestor "${STAGE348_MERGE}" "${STAGE348_SOURCE}"
+test "$(git rev-list --parents -n1 "${STAGE348_MERGE}")" = "${STAGE348_MERGE} $(git rev-list --parents -n1 "${STAGE348_MERGE}" | awk '{print $2}') ${OPENELA348}"
+test "$(git diff --name-only "${STAGE348_MERGE}" "${STAGE348_SOURCE}")" = scripts/Makefile.extrawarn
 '''
 if text.count(old_topology) != 1:
     raise SystemExit("checkpoint topology block missing or duplicated")
@@ -50,14 +53,14 @@ anchor = '''  make -C "${kernel_dir}" "${make_args[@]}" olddefconfig prepare mod
   for target in "$@"; do
 '''
 replacement = '''  compiler_probe="${RUNNER_TEMP}/${label}-stackprotector.o"
-  "${AOSP_BUILD_TOOLS}/bin/py2-cmd" \
-    "${kernel_dir}/scripts/gcc-wrapper.py" \
-    "${CLANG_DIR}/bin/clang" \
-    -Werror -fstack-protector-strong -c -x c /dev/null \
+  "${AOSP_BUILD_TOOLS}/bin/py2-cmd" \\
+    "${kernel_dir}/scripts/gcc-wrapper.py" \\
+    "${CLANG_DIR}/bin/clang" \\
+    -Werror -fstack-protector-strong -c -x c /dev/null \\
     -o "${compiler_probe}"
   test -s "${compiler_probe}"
   rm -f "${compiler_probe}"
-  printf 'checkpoint_compiler label=%s cc=%s wrapper=%s\\n' \
+  printf 'checkpoint_compiler label=%s cc=%s wrapper=%s\\n' \\
     "${label}" "${CLANG_DIR}/bin/clang" "${kernel_dir}/scripts/gcc-wrapper.py"
 
   make -C "${kernel_dir}" "${make_args[@]}" olddefconfig prepare modules_prepare
@@ -72,6 +75,24 @@ replacement = '''  compiler_probe="${RUNNER_TEMP}/${label}-stackprotector.o"
   }
   if grep -Fq 'try_to_unmap(p, ttu, NULL)' "${kernel_dir}/mm/memory-failure.c"; then
     echo 'stage348: poisoned-tail unmap remains' >&2
+    exit 1
+  fi
+
+  grep -Fq '$(call cc-disable-warning, enum-compare-conditional)' \\
+    "${kernel_dir}/scripts/Makefile.extrawarn" || {
+    echo 'stage348: enum-compare warning suppression is not feature-tested' >&2
+    exit 1
+  }
+  grep -Fq '$(call cc-disable-warning, enum-enum-conversion)' \\
+    "${kernel_dir}/scripts/Makefile.extrawarn" || {
+    echo 'stage348: enum-conversion warning suppression is not feature-tested' >&2
+    exit 1
+  }
+  if grep -Fxq 'KBUILD_CFLAGS += -Wno-enum-compare-conditional' \\
+      "${kernel_dir}/scripts/Makefile.extrawarn" || \\
+     grep -Fxq 'KBUILD_CFLAGS += -Wno-enum-enum-conversion' \\
+      "${kernel_dir}/scripts/Makefile.extrawarn"; then
+    echo 'stage348: unsupported raw Clang warning suppression remains' >&2
     exit 1
   fi
 
@@ -108,7 +129,7 @@ new_checks = '''  for target in "$@"; do
   expected_release="${version}.${patchlevel}.${makefile_sublevel}${extraversion}${expected_localversion}+"
   release_file="$(cat "${out_dir}/include/config/kernel.release")"
   release_make="$(make -s -C "${kernel_dir}" "${make_args[@]}" kernelrelease)"
-  printf 'checkpoint_release label=%s config=%s file=%s make=%s expected=%s\\n' \
+  printf 'checkpoint_release label=%s config=%s file=%s make=%s expected=%s\\n' \\
     "${label}" "${config_localversion}" "${release_file}" "${release_make}" "${expected_release}"
   if [[ "${makefile_sublevel}" != "${sublevel}" ]]; then
     echo "checkpoint_makefile_sublevel_mismatch=${label}:${makefile_sublevel}:${sublevel}" >&2
@@ -118,7 +139,7 @@ new_checks = '''  for target in "$@"; do
     echo "checkpoint_config_localversion_mismatch=${label}:${config_localversion}:${expected_localversion}" >&2
     exit 1
   fi
-  if [[ "${release_file}" != "${expected_release}" || \
+  if [[ "${release_file}" != "${expected_release}" || \\
         "${release_make}" != "${expected_release}" ]]; then
     echo "checkpoint_kernel_release_mismatch=${label}" >&2
     exit 1
@@ -148,13 +169,14 @@ compile_stage stage344 "${STAGE344}" 344 miru-h40-lts344-stage2 \\
   echo production_write=NONE
 } | tee "${REPORT_ROOT}/SUMMARY.txt"
 '''
-new_tail = '''compile_stage stage348 "${STAGE348}" 348 miru-h40-lts348-stage3 \\
+new_tail = '''compile_stage stage348 "${STAGE348_SOURCE}" 348 miru-h40-lts348-stage3 \\
   fs/aio.o mm/page_alloc.o net/core/filter.o \\
   drivers/usb/dwc3/gadget.o net/qrtr/qrtr.o
 
 {
   echo result=PASS
-  echo stage348=${STAGE348}
+  echo stage348_merge=${STAGE348_MERGE}
+  echo stage348_source=${STAGE348_SOURCE}
   echo modules_sha=${MODULES_SHA}
   echo clang_commit=252aba16f513a857bc923172f67b0e55e23de35f
   echo production_write=NONE
