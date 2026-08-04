@@ -19,8 +19,12 @@ ARM_OUT="${ANDROID_ROOT}/out/arm-uaccess"
 
 mkdir -p "${REPORT_ROOT}"
 exec > >(tee -a "${REPORT_ROOT}/console.log") 2>&1
+checkpoint_step() {
+  printf '%s\n' "$1" | tee "${REPORT_ROOT}/LAST_STEP.txt"
+}
 trap 'rc=$?; printf "exit_code=%s\nproduction_write=NONE\n" "${rc}" > "${REPORT_ROOT}/EXIT.txt"; exit "${rc}"' EXIT
 
+checkpoint_step verify-boundaries-and-topology
 live_production="$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40 | awk 'NR==1{print $1}')"
 live_integration="$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40-lts357-integration | awk 'NR==1{print $1}')"
 live_modules="$(git ls-remote https://github.com/KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150.git refs/heads/oneplus/sm8150_s_12.1_op7pro | awk 'NR==1{print $1}')"
@@ -42,16 +46,23 @@ test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 352
 test "$(sed -n 's/^EXTRAVERSION = //p' Makefile | head -n1)" = -openela
 git merge-base --is-ancestor "${DWC3_REPAIR}" "${STAGE352_MERGE}"
 
-if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- ':!Documentation/miru/lts-4.14.357-conflicts.md'; then
-  echo 'conflict markers remain' >&2
-  exit 1
-fi
-if find . -type f \( -name '*.orig' -o -name '*.rej' \) -print -quit | grep -q .; then
-  echo 'temporary merge files remain' >&2
-  exit 1
-fi
+checkpoint_step scan-merge-hygiene
+git diff --check "${first_parent}" "${STAGE352_MERGE}" > "${REPORT_ROOT}/MERGE_DIFF_CHECK.txt"
+: > "${REPORT_ROOT}/CONFLICT_MARKER_SCAN.txt"
+for path in \
+  arch/arm/include/asm/uaccess.h \
+  fs/f2fs/segment.c \
+  fs/f2fs/super.c; do
+  grep -nE '^(<<<<<<<|=======|>>>>>>>)' "${path}" >> "${REPORT_ROOT}/CONFLICT_MARKER_SCAN.txt" || true
+done
+test ! -s "${REPORT_ROOT}/CONFLICT_MARKER_SCAN.txt"
+find . -path './.git' -prune -o -type f \
+  \( -name '*.orig' -o -name '*.rej' -o -name '*.pyc' \) -print \
+  > "${REPORT_ROOT}/TEMPORARY_FILES.txt"
+test ! -s "${REPORT_ROOT}/TEMPORARY_FILES.txt"
 test -z "$(git ls-files -u)"
 
+checkpoint_step verify-stage352-semantics
 # Exact stage-352 semantic resolutions.
 ! grep -q '__GUP_CLOBBER_' arch/arm/include/asm/uaccess.h
 test "$(grep -Fc '__asmbl_clobber("ip"), "lr", "cc"' arch/arm/include/asm/uaccess.h)" = 2
@@ -72,11 +83,13 @@ if grep -A8 -F 'void dwc3_gadget_process_pending_events' drivers/usb/dwc3/gadget
   exit 1
 fi
 
+checkpoint_step install-host-dependencies
 sudo apt-get update
 sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
   build-essential bison flex libssl-dev libelf-dev cpio kmod rsync \
   zlib1g-dev libncurses-dev xz-utils file
 
+checkpoint_step fetch-exact-modules-and-toolchains
 rm -rf "${VENDOR_SOURCE}" "${TOOLCHAIN_ROOT}" "${ANDROID_ROOT}"
 git init -q "${VENDOR_SOURCE}"
 git -C "${VENDOR_SOURCE}" remote add origin \
@@ -140,6 +153,7 @@ printf '%s  %s\n' \
   5630a485d7c597d137fa462626213007e8865cf549677e1f727d131695ec830c \
   "${AOSP_BUILD_TOOLS}/bin/py2-cmd" | sha256sum -c -
 
+checkpoint_step prepare-exact-build-tree
 mkdir -p "${ANDROID_ROOT}/kernel" "${ANDROID_ROOT}/vendor" "${OUT_DIR}" "${ARM_OUT}"
 git worktree add --detach "${KERNEL_DIR}" "${STAGE352_MERGE}"
 rsync -a "${VENDOR_SOURCE}/vendor/" "${ANDROID_ROOT}/vendor/"
@@ -167,11 +181,13 @@ make_args=(
   HOSTCC=gcc HOSTCXX=g++ LOCALVERSION=+ V=1
 )
 
+checkpoint_step prepare-arm64-configuration
 make -C "${KERNEL_DIR}" "${make_args[@]}" olddefconfig
 "${KERNEL_DIR}/scripts/config" --file "${OUT_DIR}/.config" \
   --set-str LOCALVERSION -miru-h40-lts352-stage4 --disable MODULE_SIG_FORCE
 make -C "${KERNEL_DIR}" "${make_args[@]}" olddefconfig prepare modules_prepare
 
+checkpoint_step compile-arm64-regression-targets
 built_targets=(
   drivers/usb/dwc3/core.o
   drivers/usb/dwc3/gadget.o
@@ -193,6 +209,7 @@ for target in "${built_targets[@]}"; do
   echo "checkpoint_target_pass=${target}"
 done
 
+checkpoint_step compile-controlled-arm32-uaccess-probe
 # Controlled ARM32 compatibility probe; this does not alter the phone defconfig.
 arm_make_args=(
   "O=${ARM_OUT}" ARCH=arm SUBARCH=arm
@@ -208,6 +225,7 @@ make -C "${KERNEL_DIR}" -j4 "${arm_make_args[@]}" arch/arm/lib/uaccess_with_memc
 test -s "${ARM_OUT}/arch/arm/lib/uaccess_with_memcpy.o"
 arm_probe=arch/arm/lib/uaccess_with_memcpy.o
 
+checkpoint_step verify-release-and-remote-boundaries
 release="$(cat "${OUT_DIR}/include/config/kernel.release")"
 release_make="$(make -s -C "${KERNEL_DIR}" "${make_args[@]}" kernelrelease)"
 expected_release=4.14.352-openela-miru-h40-lts352-stage4+
@@ -219,6 +237,7 @@ test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/mir
 test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40-lts357-integration | awk 'NR==1{print $1}')" = "${EXPECTED_REMOTE_HEAD}"
 test "$(git ls-remote https://github.com/KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150.git refs/heads/oneplus/sm8150_s_12.1_op7pro | awk 'NR==1{print $1}')" = "${MODULES_SHA}"
 
+checkpoint_step complete
 {
   echo result=PASS
   echo "integration_source_sha=${STAGE352_MERGE}"
