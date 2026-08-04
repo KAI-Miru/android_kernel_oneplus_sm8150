@@ -34,7 +34,6 @@ jobs:
         with:
           ref: ${{ env.BRANCH }}
           fetch-depth: 0
-          filter: blob:none
 
       - name: Verify live immutable inputs
         shell: bash
