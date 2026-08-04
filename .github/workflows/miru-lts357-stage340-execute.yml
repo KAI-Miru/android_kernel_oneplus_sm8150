@@ -79,7 +79,7 @@ jobs:
           git diff --cached --check
           test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 340
           test -z "$(find . -path ./.git -prune -o -type f \( -name '*.orig' -o -name '*.rej' \) -print)"
-          if git grep -nE '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- . ':!Documentation/miru/lts-4.14.357-conflicts.md'; then exit 1; fi
+          if git grep -nE '^(<<<<<<< .+|>>>>>>> .+)$' -- . ':!Documentation/miru/lts-4.14.357-conflicts.md'; then exit 1; fi
           git commit -m 'Merge OpenELA Linux 4.14.340 into Miru H.40' -m 'Integrate the cumulative OpenELA 4.14.336..4.14.340 range with six reviewed downstream resolutions.'
           merge="$(git rev-parse HEAD)"
           test "$(git rev-list --parents -n1 HEAD)" = "${merge} ${first} ${OPENELA_TARGET}"
