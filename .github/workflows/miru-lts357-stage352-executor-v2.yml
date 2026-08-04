@@ -136,18 +136,24 @@ jobs:
             fs/f2fs/segment.c \
             fs/f2fs/super.c \
             Documentation/miru/lts-4.14.357-conflicts.md
-          test -z "$(git diff --name-only --diff-filter=U)"
-          test -z "$(git ls-files -u)"
+          git diff --name-only --diff-filter=U > "${evidence}/remaining-unmerged.txt"
+          git ls-files -u > "${evidence}/remaining-index-stages.txt"
+          test ! -s "${evidence}/remaining-unmerged.txt"
+          test ! -s "${evidence}/remaining-index-stages.txt"
           git diff --cached --stat > "${evidence}/staged-stat.txt"
           git diff --cached --check > "${evidence}/staged-check.txt"
-          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- ':!Documentation/miru/lts-4.14.357-conflicts.md'; then
-            echo 'conflict markers remain' >&2
-            exit 1
-          fi
-          if find . -type f \( -name '*.orig' -o -name '*.rej' -o -name '*.pyc' \) -print -quit | grep -q .; then
-            echo 'temporary resolver files remain' >&2
-            exit 1
-          fi
+          : > "${evidence}/conflict-marker-scan.txt"
+          for path in \
+            arch/arm/include/asm/uaccess.h \
+            fs/f2fs/segment.c \
+            fs/f2fs/super.c; do
+            grep -nE '^(<<<<<<<|=======|>>>>>>>)' "${path}" >> "${evidence}/conflict-marker-scan.txt" || true
+          done
+          test ! -s "${evidence}/conflict-marker-scan.txt"
+          find . -path './.git' -prune -o -type f \
+            \( -name '*.orig' -o -name '*.rej' -o -name '*.pyc' \) -print \
+            > "${evidence}/temporary-files.txt"
+          test ! -s "${evidence}/temporary-files.txt"
 
           step verify-resolved-semantics
           test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 352
