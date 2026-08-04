@@ -83,3 +83,9 @@ exec(compile(patched, str(resolver), "exec"), {
     "__name__": "__main__",
     "__file__": str(resolver),
 })
+
+# The embedded ledger fragment is intentionally multi-line. Normalize its EOF
+# after all semantic assertions so git diff --check sees one final newline and
+# no empty line after the last report entry.
+ledger = Path("Documentation/miru/lts-4.14.357-conflicts.md")
+ledger.write_text(ledger.read_text().rstrip() + "\n")
