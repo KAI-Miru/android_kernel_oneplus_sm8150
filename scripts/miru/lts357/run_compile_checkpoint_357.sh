@@ -19,9 +19,9 @@ replacements = {
     "miru-toolchains-356": "miru-toolchains-357",
     "miru-vendor-source-356": "miru-vendor-source-357",
     "android-stage356": "android-stage357",
-    "lts356-stage5": "lts357-stage6",
-    "4.14.356-openela-miru-h40-lts357-stage6+":
+    "4.14.356-openela-miru-h40-lts356-stage5+":
         "4.14.357-openela-miru-h40-lts357-stage6+",
+    "-miru-h40-lts356-stage5": "-miru-h40-lts357-stage6",
 }
 for old, new in replacements.items():
     count = source.count(old)
@@ -95,7 +95,6 @@ if source.count(anchor) != 1:
     raise SystemExit("stage357 semantic-gate insertion anchor missing")
 source = source.replace(anchor, semantic)
 
-# The generated checkpoint must identify the final staged source everywhere.
 for stale in (
     "OPENELA356", "STAGE356_MERGE", "stage356_merge",
     "compile-checkpoint-356", "android-stage356", "lts356-stage5",
