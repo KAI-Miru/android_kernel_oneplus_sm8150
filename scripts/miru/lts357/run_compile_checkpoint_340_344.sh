@@ -32,16 +32,18 @@ replacement = '''  make -C "${kernel_dir}" "${make_args[@]}" olddefconfig prepar
   if [[ "${label}" == stage340 ]]; then
     # The stock H.40 configuration excludes hibernation and hardware memory
     # failure. Those translation units are not production build targets.
-    # Verify their reviewed source semantics and configuration boundaries
-    # instead of forcing standalone objects with intentionally absent APIs.
+    # Verify their reviewed stage-340 source semantics and configuration
+    # boundaries instead of forcing objects with intentionally absent APIs.
     grep -Fq '# CONFIG_HIBERNATION is not set' "${out_dir}/.config"
     grep -Fq '#define PAGES_FOR_IO' "${kernel_dir}/kernel/power/power.h"
     grep -Fq 'required = PAGES_FOR_IO + nr_pages;' "${kernel_dir}/kernel/power/swap.c"
 
     grep -Fq '# CONFIG_MEMORY_FAILURE is not set' "${out_dir}/.config"
-    grep -Fq 'try_to_unmap(hpage, ttu, NULL)' "${kernel_dir}/mm/memory-failure.c"
-    if grep -Fq 'try_to_unmap(p, ttu, NULL)' "${kernel_dir}/mm/memory-failure.c"; then
-      echo 'tail-page memory-failure unmap remains' >&2
+    # OpenELA 4.14.340 intentionally still unmaps the poisoned subpage p.
+    # The huge-page-head correction belongs to the later 4.14.348 stage.
+    grep -Fq 'try_to_unmap(p, ttu, NULL)' "${kernel_dir}/mm/memory-failure.c"
+    if grep -Fq 'try_to_unmap(hpage, ttu, NULL)' "${kernel_dir}/mm/memory-failure.c"; then
+      echo 'future 4.14.348 memory-failure semantic appeared too early' >&2
       exit 1
     fi
   fi
