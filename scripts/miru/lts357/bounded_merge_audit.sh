@@ -131,9 +131,11 @@ for spec in "${stages[@]}"; do
         fi
         ;;
     esac
-    git add -- "${path}"
   done < "${dir}/conflicts.txt"
 
+  # Stage every resolved conflict and every clean merge change, including
+  # paths deleted by OpenELA. This is a temporary in-run scaffold only.
+  git add -A
   test -z "$(git diff --name-only --diff-filter=U)"
   git commit -m "audit scaffold: merge OpenELA ${range}" \
     -m 'Temporary in-run scaffold only; not pushed. Conflict files use LineageOS final blobs solely to expose subsequent-stage conflicts.'
