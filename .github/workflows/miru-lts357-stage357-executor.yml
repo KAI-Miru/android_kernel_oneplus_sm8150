@@ -6,67 +6,17 @@ on:
     types: [opened, reopened, synchronize]
     paths:
       - '.github/workflows/miru-lts357-stage357-executor.yml'
-      - 'scripts/miru/lts357/execute_stage_357.sh'
-      - 'scripts/miru/lts357/run_compile_checkpoint_357.sh'
 
 permissions:
-  contents: write
-  pull-requests: read
+  contents: read
 
 concurrency:
   group: miru-h40-lts357-stage357-executor
   cancel-in-progress: true
 
-env:
-  IMMUTABLE_PRODUCTION: eb9451c0a1639e1aa49ee094681f98df0545f797
-  PRE_EXECUTOR_HEAD: ff605bd6cf0243f4d949b3c104919e29109cf5c7
-  STAGE356_MERGE: 921ac6a9195cdb3192cddaebb3fe2b4597e11f9c
-  OPENELA_BASE: c31e35278ea8f04f1dceadd77dca4dd7d47932a3
-  OPENELA_356: a76b6a6556353484f6f29572989cd37b6cff90cc
-  OPENELA_357: 1e6347375d088ecc896aabb067131d0f9e3c0575
-  MODULES_BRANCH: oneplus/sm8150_s_12.1_op7pro
-  MODULES_SHA: 3216c08bb3f97f865eb055296ea8034e1744caef
-  FORBIDDEN_MODULES_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
-  DWC3_REPAIR: a3192f52549713424a5d8352e4be381ca84434a0
-
 jobs:
-  stage357:
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.head_ref == 'miru-h40-lts357-integration' &&
-      github.base_ref == 'miru-h40' &&
-      github.event.pull_request.draft == true
+  maintenance:
+    if: ${{ false }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
     steps:
-      - name: Checkout exact integration head
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-          persist-credentials: true
-
-      - name: Validate stage 357 scripts
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          bash -n scripts/miru/lts357/execute_stage_357.sh
-          bash -n scripts/miru/lts357/run_compile_checkpoint_357.sh
-          test -z "$(git status --porcelain)"
-
-      - name: Execute exact merge, validate, compile and guarded-push
-        shell: bash
-        env:
-          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: bash scripts/miru/lts357/execute_stage_357.sh
-
-      - name: Upload stage 357 merge and checkpoint evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: miru-h40-openela-stage357-${{ github.event.pull_request.head.sha }}
-          path: |
-            ${{ runner.temp }}/stage-357-executor
-            integration-evidence/compile-checkpoint-357
-          if-no-files-found: error
-          retention-days: 30
+      - run: echo 'Stage 357 executor maintenance commit; no source action.'
