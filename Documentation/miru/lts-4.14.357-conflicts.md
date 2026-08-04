@@ -145,3 +145,16 @@ independent OpenELA fix into the matching downstream call flow.
 - QRTR broadcasts use independent headers while retaining downstream endpoint filtering;
 - SELinux policy write bounds are checked under the wrapped Android state model;
 - no unmerged entries, conflict headers, `.orig`, `.rej` or `.pyc` files remain.
+
+## Stage 6 — 4.14.356 to 4.14.357
+
+OpenELA parent: `1e6347375d088ecc896aabb067131d0f9e3c0575`
+
+The exact guarded dry merge at source `4be40f4c3db1bc53fe0e75622d2132e00ca56989`
+completed with exit code 0, twelve expected merge paths, zero metadata conflicts,
+zero source conflicts and zero remaining unmerged entries. No manual source
+resolution was required.
+
+The stage checkpoint compiles direct consumers for the clock, OCFS2 quota,
+SKB/socket destructor, IPv4/IPv6 fragment-reassembly and IMA changes, plus all
+cumulative Miru H.40 regression targets from stages 352 and 356.
