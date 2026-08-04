@@ -2,22 +2,22 @@
 
 ## Status
 
-- Integration status: **COMPLETE — authentic candidate merge created**
-- Candidate branch: `miru-h40-lts336-release`
+- Integration status: **COMPLETE — promoted to production**
+- Promotion source branch: `miru-h40-lts336-release` (**retired; branch cleanup pending**)
 - Candidate parent before authentic merge: `94d2f7f9ac571047c961addbc73aa703b5762293`
-- Production branch: `miru-h40` at `a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee` (**must remain unchanged during candidate work**)
-- Previous production merge: `489177590738e082a37e17fc9ef9290e4f168058` (`4.14.305-miru-h40-lts305-ci1+`)
+- Previous production head: `a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee` (Linux 4.14.305)
+- Production normal merge: `253775be7028de96f41ffcf3c5903573ff0b5fb8` (PR #87)
+- Permanent validation head: `079c3a491e0260bbc795b8a7c2a074c2f40ac355` (workflow-only gate correction)
 - Pristine OnePlus H.40: `180d787684d5965be5145bcfbf666ed427b4ea18`
 - Previous Android Common baseline: `4415bf5e08942aee6487946a3e0a50956ef68f1e` (4.14.305)
 - Android Common target: `014241ad77dda0eafbdf671d5b8e86917d8ec97e` (4.14.336)
 - Android Common branch: `deprecated/android-4.14-stable`
-- Target parent order: `bc841b804f61c5918bd950ccb15e63c36f5bd0b5`, then `c31e35278ea8f04f1dceadd77dca4dd7d47932a3`
 - Authentic merge parent order: candidate parent first, exact Android Common target second
 - Authentic conflicts: **14**
 - Semantic resolutions: **14 of 14 complete**
-- Kernel/module/ABI validation: **pending**
-- Physical OnePlus 7 Pro validation: **pending**
-- Production promotion: **not authorized**
+- Final kernel/module/ABI validation: **PASS** — candidate run `30854697145`; permanent production run `30875788887`
+- Physical OnePlus 7 Pro validation: **PASS** — maintainer confirmed full operation on 2026-08-04
+- Production promotion: **PASS** — PR #87 normal merge
 
 ## Provenance capture
 
@@ -89,11 +89,11 @@ The merge workflow must fail before any push unless all of these are true:
 12. The resulting merge commit has candidate parent first and exact Android Common target second.
 13. Production is re-read immediately before the guarded candidate-only push and is still exact.
 
-## Remaining gates
+## Validation closure
 
-The authentic merge is only the source-integration boundary. It is not a test-ready kernel until candidate CI proves the final identity, exact five DTBs, 13 in-tree modules, pinned 32 external modules, vermagic, MODVERSIONS/CRC compatibility, unresolved-symbol count, package checksums, and provenance/compatibility artifacts.
+The authentic merge passed the final clean `4.14.336-miru-h40-lts336-ci1+` candidate build, exact five-DTB validation, 13 in-tree modules, the pinned 32 external modules, vermagic, MODVERSIONS/CRC, package-checksum and provenance gates in Actions run `30854697145`.
 
-No production merge may occur until those gates pass, the artifact is physically tested on the OnePlus 7 Pro, and the maintainer explicitly authorizes promotion.
+The maintainer then confirmed the exact final package working on the OnePlus 7 Pro. PR #87 was merged normally as `253775be7028de96f41ffcf3c5903573ff0b5fb8`. The first automatic permanent run stopped safely because the reused validator still expected the frozen pre-merge head; workflow-only commit `079c3a491e0260bbc795b8a7c2a074c2f40ac355` made that expectation mode-aware without changing runtime source. Permanent production run `30875788887` then passed all source, build, module, DTB, vermagic, MODVERSIONS, ABI and packaging gates.
 
 ## Deterministic replay closure
 

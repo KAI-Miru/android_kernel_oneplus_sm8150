@@ -2,6 +2,41 @@
 
 This document records production LTS milestones for the OnePlus 7 Pro Miru H.40 kernel. The permanent production branch is `miru-h40`; milestone integration branches are temporary and may be retained or deleted after production promotion. This 4.14.305 promotion creates no GitHub Release or tag.
 
+## Milestone 6: Linux 4.14.336
+
+Status: **completed: production-merged, permanent-CI-validated, and device-confirmed on 2026-08-04**.
+
+This milestone advances Miru H.40 from Linux 4.14.305 to Android Common Linux 4.14.336 while preserving the exact OnePlus H.40 ancestry, the authentic two-parent Android Common merge, KCAL, Qualcomm/Oplus compatibility and the matched external-module set.
+
+| Item | Revision |
+|---|---|
+| Previous production head | `a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee` |
+| Production merge | `253775be7028de96f41ffcf3c5903573ff0b5fb8` (PR #87) |
+| Permanent validation head | `079c3a491e0260bbc795b8a7c2a074c2f40ac355` |
+| Android Common target | `014241ad77dda0eafbdf671d5b8e86917d8ec97e` |
+| Authentic Common merge | `e0fc49a4660130692e6ac893f8119282b0192b85` |
+| Final pull-request head | `3ed5ff796081bc59f6d36c2f3bb0a5a355d16919` |
+| Kernel release | `4.14.336-miru-h40-lts336-ci1+` |
+| Semantic conflicts | `14` initial / `14` resolved / `0` remaining |
+| Final candidate build | PASS — run `30854697145` |
+| Device validation | PASS — exact final package confirmed working on the OnePlus 7 Pro |
+| Production validation | PASS — run `30875788887` |
+| Module source | `3216c08bb3f97f865eb055296ea8034e1744caef`; 13 in-tree + 32 external |
+
+### Completed evidence
+
+- The authentic merge preserved parent order: Miru preparation first, exact Android Common 4.14.336 target second.
+- All 14 authentic semantic conflicts were explicitly resolved and recorded; zero remain.
+- The final candidate differs from the authentic merge only in the permanent release workflow and device-tested DWC3 USB repairs.
+- Final candidate run `30854697145` passed source, DWC3 semantic, module-source, kernel, five DTB, 13 in-tree module, 32 external module, vermagic, MODVERSIONS, ABI, checksum and packaging gates.
+- The maintainer confirmed the exact final package fully working on the OnePlus 7 Pro, including USB/ADB and audio.
+- PR #87 was merged normally as `253775be7028de96f41ffcf3c5903573ff0b5fb8`.
+- The first automatic permanent run stopped safely on a frozen pre-merge ref check; workflow-only commit `079c3a491e0260bbc795b8a7c2a074c2f40ac355` made that check mode-aware without modifying runtime source.
+- Permanent production run `30875788887` then passed all source, build, module, DTB, vermagic, MODVERSIONS, ABI and packaging gates.
+- No GitHub Release or new tag was created. The 4.14.269 rollback tag remains preserved.
+
+See the 4.14.336 [validation record](miru/lts-4.14.336-validation.md), [conflict ledger](miru/lts-4.14.336-conflicts.md), and [user-facing changelog](miru/lts-4.14.336-changelog.md).
+
 ## Milestone 5: Linux 4.14.305
 
 Status: **completed: production-merged, permanent-CI-validated, and device-confirmed on 2026-08-02**.
