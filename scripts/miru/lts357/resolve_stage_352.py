@@ -76,9 +76,16 @@ OpenELA parent: `6da009d8de389742d55219ebed50378f53937a5b`
 
 Initial textual conflicts: **3**. Remaining conflicts: **0**.
 
+The exact guarded dry merge at integration source `37b1def329eee1dd1dfffc54ec16045b866cc304`
+produced the three paths below. An earlier predicted inventory naming `Makefile`,
+`drivers/media/pci/cx18/cx18-streams.c`, and `drivers/usb/dwc3/core.c` was rejected:
+the latter two have identical OpenELA blob identities at the exact 4.14.348 and
+4.14.352 parents, while `Makefile` merges automatically. DWC3 and CX18 remain
+explicit regression compile targets even though they are not stage-352 conflicts.
+
 | Path | OpenELA intent | Miru divergence | LineageOS reference | Final Miru resolution | Class | Compile impact | Runtime risk / validation |
 |---|---|---|---|---|---|---|---|
-| `arch/arm/include/asm/uaccess.h` | Remove access-size-specific ARM get-user clobber lists and always declare `ip`, `lr` and condition codes clobbered. | Android's ARM helper calls use `__asmbl()` and `__asmbl_clobber()` for Clang/instruction-selection compatibility. | Preserves the Android assembler macros while applying one generic clobber list. | Adopt the Lineage form: remove `__GUP_CLOBBER_*`, retain `__asmbl()` calls and declare `__asmbl_clobber("ip"), "lr", "cc"` in both macros. | adapted | ARM compatibility objects | Medium despite ARM64 target because compat code is built; compile the ARM uaccess consumer path. |
+| `arch/arm/include/asm/uaccess.h` | Remove access-size-specific ARM get-user clobber lists and always declare `ip`, `lr` and condition codes clobbered. | Android's ARM helper calls use `__asmbl()` and `__asmbl_clobber()` for Clang/instruction-selection compatibility. | Preserves the Android assembler macros while applying one generic clobber list. | Adopt the Lineage-compatible form: remove `__GUP_CLOBBER_*`, retain `__asmbl()` calls and declare `__asmbl_clobber("ip"), "lr", "cc"` in both macros. | adapted | Controlled ARM32 uaccess consumer probe | Medium: validate the compatibility header with the pinned Clang/GCC32 pair without changing the ARM64 device defconfig. |
 | `fs/f2fs/segment.c` | Log invalid NAT/SIT journal counts before rejecting corrupt summary blocks. | The newer Android F2FS implementation already has the same check through `f2fs_err()`. | Identical to Miru. | Preserve the Android implementation and assert the values are logged before `-EINVAL`. | not applicable | F2FS segment manager | Medium: mount/recovery diagnostics; object compile and corruption-path semantic check. |
 | `fs/f2fs/super.c` | Include the actual error code when segment/node-manager initialization fails. | The newer Android F2FS implementation already logs both errors through `f2fs_err()`. | Identical to Miru. | Preserve the Android implementation and assert both `%d` error arguments remain. | not applicable | F2FS mount path | High: userdata mount; object compile and later mount/write physical validation. |
 
@@ -87,7 +94,8 @@ Initial textual conflicts: **3**. Remaining conflicts: **0**.
 - exact three-path conflict inventory and exact OpenELA second parent;
 - both ARM get-user macros use one conservative Android-compatible clobber set;
 - Android F2FS journal validation and initialization error reporting remain present;
-- Qualcomm-safe DWC3 dispatch, QRTR state and GPL audio export remain intact;
+- Qualcomm-safe DWC3 direct dispatch repair, QRTR state and GPL audio export remain intact;
+- DWC3 core/gadget and CX18 are regression-compiled despite not conflicting;
 - no unmerged entries, conflict headers, `.orig` or `.rej` files remain.
 '''
 ledger_path.write_text(ledger.rstrip() + "\n")
