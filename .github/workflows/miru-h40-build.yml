@@ -32,6 +32,7 @@ env:
   STALE_EXTERNAL_MODULES_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
   EXPECTED_RELEASE: 4.14.336-miru-h40-lts336-ci1+
   EXPECTED_LOCALVERSION: miru-h40-lts336-ci1
+  VALIDATOR_PRODUCTION_BASE: ${{ github.ref_name == 'miru-h40' && github.sha || 'a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee' }}
   SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
 jobs:
@@ -71,16 +72,33 @@ jobs:
           test "$(git -C source hash-object drivers/usb/dwc3/gadget.c)" = "${EXPECTED_GADGET_BLOB}"
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
           if [ "${GITHUB_REF_NAME}" = miru-h40 ] && [ "${live_production}" = "${SOURCE_SHA}" ]; then
-            merge_parents="$(git -C source rev-list --parents -n 1 "${SOURCE_SHA}")"
-            set -- ${merge_parents}
+            source_parents="$(git -C source rev-list --parents -n 1 "${SOURCE_SHA}")"
+            set -- ${source_parents}
             test "$1" = "${SOURCE_SHA}"
-            test "$2" = "${PRODUCTION_HEAD}"
-            test -n "${3:-}"
-            test -z "${4:-}"
-            candidate_source="$3"
-            git -C source diff --quiet "${SOURCE_SHA}" "${candidate_source}"
-            validation_mode=production-merge
+            if [ "${2:-}" = "${PRODUCTION_HEAD}" ] && [ -n "${3:-}" ] && [ -z "${4:-}" ]; then
+              promotion_merge="${SOURCE_SHA}"
+              candidate_source="$3"
+              git -C source diff --quiet "${promotion_merge}" "${candidate_source}"
+              validation_mode=production-merge
+            else
+              test -n "${2:-}"
+              test -z "${3:-}"
+              promotion_merge="$2"
+              merge_parents="$(git -C source rev-list --parents -n 1 "${promotion_merge}")"
+              set -- ${merge_parents}
+              test "$1" = "${promotion_merge}"
+              test "$2" = "${PRODUCTION_HEAD}"
+              test -n "${3:-}"
+              test -z "${4:-}"
+              candidate_source="$3"
+              printf '%s\n' .github/workflows/miru-h40-build.yml | sort > expected-maintenance-diff.txt
+              git -C source diff --name-only "${promotion_merge}" "${SOURCE_SHA}" -- | sort > actual-maintenance-diff.txt
+              cmp expected-maintenance-diff.txt actual-maintenance-diff.txt
+              git -C source diff --check "${promotion_merge}" "${SOURCE_SHA}" --
+              validation_mode=production-maintenance
+            fi
           else
+            promotion_merge=NONE
             test "${live_production}" = "${PRODUCTION_HEAD}"
             if [ "${GITHUB_EVENT_NAME}" = pull_request ]; then
               test "${GITHUB_HEAD_REF}" = miru-h40-lts336-release
@@ -115,6 +133,7 @@ jobs:
             echo "source_sha=${SOURCE_SHA}"
             echo "candidate_source=${candidate_source}"
             echo "validation_mode=${validation_mode}"
+            echo "promotion_merge=${promotion_merge}"
             echo "production_head=${PRODUCTION_HEAD}"
             echo "external_modules_branch=${EXTERNAL_MODULES_BRANCH}"
             echo "external_modules_sha=${EXTERNAL_MODULES_SHA}"
@@ -191,15 +210,15 @@ jobs:
           validator=control/scripts/miru/ci_validate_4.14.305.sh
           helper=source/scripts/miru/prepare_wlan_response_link.py
 
-          python3 - "${validator}" "${SOURCE_SHA}" "${EXPECTED_RELEASE}" "${EXPECTED_LOCALVERSION}" <<'PY'
+          python3 - "${validator}" "${SOURCE_SHA}" "${EXPECTED_RELEASE}" "${EXPECTED_LOCALVERSION}" "${VALIDATOR_PRODUCTION_BASE}" <<'PY'
           from pathlib import Path
           import sys
           path = Path(sys.argv[1])
-          source_sha, release, localversion = sys.argv[2:]
+          source_sha, release, localversion, production_base = sys.argv[2:]
           text = path.read_text()
           replacements = [
               ("af61e9d6dfc33b7b46bfc608b20b6badf894ad23", source_sha),
-              ("61371a1024e341f434deaf61b79a05f73827260a", "a97fcbe96ab6d8392a0a0acf91da46ccb37fdaee"),
+              ("61371a1024e341f434deaf61b79a05f73827260a", production_base),
               ("b92a77e96dd54fd30f8f39c7eef23e76f211c515", "e0fc49a4660130692e6ac893f8119282b0192b85"),
               ("4415bf5e08942aee6487946a3e0a50956ef68f1e", "014241ad77dda0eafbdf671d5b8e86917d8ec97e"),
               (r"4\\.14\\.305", r"4\\.14\\.336"),
