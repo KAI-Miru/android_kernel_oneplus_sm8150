@@ -3,17 +3,21 @@ name: Miru 4.14.357 OpenELA CI1 kernel
 on:
   push:
     branches: [miru-h40-lts357-integration]
+  pull_request:
+    branches: [miru-h40]
+    types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-lts357-ci1
+  group: miru-h40-lts357-ci1-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 env:
   SOURCE_SHA: 24626c96027f0bfc4431741ee0d249826a286293
+  CONTROL_PARENT: 01fc05299187b13f73dded314d7fa8642a3d2869
   SOURCE_PARENT_1: a6aa49e75e8345027ea90b95858df682068d3a0e
   OPENELA_PARENT: 1e6347375d088ecc896aabb067131d0f9e3c0575
   PRODUCTION_SHA: eb9451c0a1639e1aa49ee094681f98df0545f797
@@ -23,6 +27,7 @@ env:
 
 jobs:
   build:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-24.04
     timeout-minutes: 180
 
@@ -30,9 +35,9 @@ jobs:
       - name: Checkout build control
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           path: control
-          fetch-depth: 2
+          fetch-depth: 3
 
       - name: Checkout validated Stage 357 source
         uses: actions/checkout@v4
@@ -45,8 +50,11 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "$(git -C control rev-parse HEAD^)" = "${SOURCE_SHA}"
+          control_head="$(git -C control rev-parse HEAD)"
+          test "$(git -C control rev-parse HEAD^)" = "${CONTROL_PARENT}"
+          test "$(git -C control rev-parse HEAD^^)" = "${SOURCE_SHA}"
           test "$(git -C control diff-tree --no-commit-id --name-only -r HEAD)" = '.github/workflows/miru-h40-lts357-ci1.yml'
+          test "$(git -C control diff-tree --no-commit-id --name-only -r "${CONTROL_PARENT}")" = '.github/workflows/miru-h40-lts357-ci1.yml'
           test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
           test "$(git -C source rev-list --parents -n 1 HEAD)" = "${SOURCE_SHA} ${SOURCE_PARENT_1} ${OPENELA_PARENT}"
           test "$(sed -n 's/^VERSION = //p' source/Makefile | head -n1)" = 4
@@ -60,6 +68,7 @@ jobs:
           test "${live_modules}" = "${MODULES_SHA}"
           {
             echo result=PASS
+            echo control_head=${control_head}
             echo source_sha=${SOURCE_SHA}
             echo source_parent_1=${SOURCE_PARENT_1}
             echo openela_parent=${OPENELA_PARENT}
