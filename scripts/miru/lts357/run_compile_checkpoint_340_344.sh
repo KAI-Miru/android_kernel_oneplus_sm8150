@@ -87,14 +87,23 @@ new_checks = '''  for target in "$@"; do
     echo "checkpoint_target_pass=${label}:${target}"
   done
 
-  expected_release="4.14.${sublevel}-${localversion}+"
-  config_release="$(sed -n 's/^CONFIG_LOCALVERSION=//p' "${out_dir}/.config" | head -n1)"
+  version="$(sed -n 's/^VERSION = //p' "${kernel_dir}/Makefile" | head -n1)"
+  patchlevel="$(sed -n 's/^PATCHLEVEL = //p' "${kernel_dir}/Makefile" | head -n1)"
+  makefile_sublevel="$(sed -n 's/^SUBLEVEL = //p' "${kernel_dir}/Makefile" | head -n1)"
+  extraversion="$(sed -n 's/^EXTRAVERSION = //p' "${kernel_dir}/Makefile" | head -n1)"
+  config_localversion="$(sed -n 's/^CONFIG_LOCALVERSION=//p' "${out_dir}/.config" | head -n1 | tr -d '\"')"
+  expected_localversion="-${localversion}"
+  expected_release="${version}.${patchlevel}.${makefile_sublevel}${extraversion}${expected_localversion}+"
   release_file="$(cat "${out_dir}/include/config/kernel.release")"
   release_make="$(make -s -C "${kernel_dir}" "${make_args[@]}" kernelrelease)"
   printf 'checkpoint_release label=%s config=%s file=%s make=%s expected=%s\\n' \\
-    "${label}" "${config_release}" "${release_file}" "${release_make}" "${expected_release}"
-  if [[ "${config_release}" != "\"-${localversion}\"" ]]; then
-    echo "checkpoint_config_localversion_mismatch=${label}" >&2
+    "${label}" "${config_localversion}" "${release_file}" "${release_make}" "${expected_release}"
+  if [[ "${makefile_sublevel}" != "${sublevel}" ]]; then
+    echo "checkpoint_makefile_sublevel_mismatch=${label}:${makefile_sublevel}:${sublevel}" >&2
+    exit 1
+  fi
+  if [[ "${config_localversion}" != "${expected_localversion}" ]]; then
+    echo "checkpoint_config_localversion_mismatch=${label}:${config_localversion}:${expected_localversion}" >&2
     exit 1
   fi
   if [[ "${release_file}" != "${expected_release}" || \
