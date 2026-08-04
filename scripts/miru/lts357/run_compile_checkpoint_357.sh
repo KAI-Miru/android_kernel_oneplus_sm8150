@@ -81,7 +81,7 @@ source = source.replace(anchor, extra_targets)
 anchor = 'checkpoint_step install-host-dependencies\n'
 semantic = r'''checkpoint_step verify-stage357-clean-merge-semantics
 test "$(sed -n 's/^version: //p' .elts/config.yaml)" = 4.14.357
-grep -Fq 'struct sock *sk' net/core/sock_destructor.h
+grep -Fq 'static inline bool is_skb_wmem' net/core/sock_destructor.h
 grep -Fq 'clk_get_optional' drivers/clk/clk-devres.c
 grep -Fq 'inet_frag' net/ipv4/inet_fragment.c
 grep -Fq 'ip_defrag' net/ipv4/ip_fragment.c
