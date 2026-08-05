@@ -158,3 +158,15 @@ resolution was required.
 The stage checkpoint compiles direct consumers for the clock, OCFS2 quota,
 SKB/socket destructor, IPv4/IPv6 fragment-reassembly and IMA changes, plus all
 cumulative Miru H.40 regression targets from stages 352 and 356.
+
+
+## Final validation and production release
+
+- Validated Stage 357 source merge: `24626c96027f0bfc4431741ee0d249826a286293`, with parents `a6aa49e75e8345027ea90b95858df682068d3a0e` and exact OpenELA target `1e6347375d088ecc896aabb067131d0f9e3c0575`.
+- Final candidate build: run `30996359788`, job `92274276122`; kernel release and banner: `4.14.357-openela-miru-ci1+`.
+- Toolchain: `clang-r377782c` at `252aba16f513a857bc923172f67b0e55e23de35f`.
+- Output: non-empty raw `Image.gz-dtb` (not a packaged boot image), plus a matching package of 32 external modules with zero ABI errors.
+- External-module provenance: base `3216c08bb3f97f865eb055296ea8034e1744caef`; two-file downstream trace-printk repair head `c03a4c6339b959f1a9b288a157d5b5d16fbcf015`.
+- The final artifact verified zero compiled `trace_printk` format entries. Physical OnePlus 7 Pro testing confirmed successful boot and normal operation; the spurious trace-printk/DEBUG-kernel boot warning is gone.
+- Promoted to `miru-h40` by merge commit `50313dfbd4e8c369a04d6400c140c23909267021`.
+
