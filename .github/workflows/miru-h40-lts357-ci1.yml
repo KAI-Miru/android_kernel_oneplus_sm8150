@@ -20,6 +20,8 @@ env:
   OPENELA_PARENT: 1e6347375d088ecc896aabb067131d0f9e3c0575
   PRODUCTION_SHA: eb9451c0a1639e1aa49ee094681f98df0545f797
   MODULES_SHA: 3216c08bb3f97f865eb055296ea8034e1744caef
+  MODULES_REPAIR_SHA: c03a4c6339b959f1a9b288a157d5b5d16fbcf015
+  MODULES_REPAIR_BRANCH: miru-h40-lts357-trace-printk-integration
   STALE_MODULES_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
   EXPECTED_RELEASE: 4.14.357-openela-miru-ci1+
   BUILD_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -69,6 +71,8 @@ jobs:
           test "${live_production}" = "${PRODUCTION_SHA}"
           live_modules="$(git ls-remote https://github.com/KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150.git refs/heads/oneplus/sm8150_s_12.1_op7pro | awk 'NR == 1 {print $1}')"
           test "${live_modules}" = "${MODULES_SHA}"
+          live_modules_repair="$(git ls-remote https://github.com/KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150.git refs/heads/${MODULES_REPAIR_BRANCH} | awk 'NR == 1 {print $1}')"
+          test "${live_modules_repair}" = "${MODULES_REPAIR_SHA}"
           {
             echo result=PASS
             echo control_head=${control_head}
@@ -77,7 +81,9 @@ jobs:
             echo source_parent_1=${SOURCE_PARENT_1}
             echo openela_parent=${OPENELA_PARENT}
             echo production_sha=${PRODUCTION_SHA}
-            echo modules_sha=${MODULES_SHA}
+            echo modules_base_sha=${MODULES_SHA}
+            echo modules_repair_sha=${MODULES_REPAIR_SHA}
+            echo modules_repair_branch=${MODULES_REPAIR_BRANCH}
             echo expected_release=${EXPECTED_RELEASE}
             echo production_write=NONE
           } | tee BUILD-BOUNDARIES.txt
@@ -123,7 +129,7 @@ jobs:
           text = text[:start] + gate + text[end:]
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=3216c08bb3f97f865eb055296ea8034e1744caef',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=c03a4c6339b959f1a9b288a157d5b5d16fbcf015',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru 4.14.357 OpenELA CI1 kernel build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-ci1',
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-ci1"',
@@ -144,7 +150,7 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-4.14.357-openela-miru-ci1.sh
-          grep -Fq 'VENDOR_SHA=3216c08bb3f97f865eb055296ea8034e1744caef' build-4.14.357-openela-miru-ci1.sh
+          grep -Fq 'VENDOR_SHA=c03a4c6339b959f1a9b288a157d5b5d16fbcf015' build-4.14.357-openela-miru-ci1.sh
           grep -Fq 'KERNEL_LOCALVERSION=-miru-ci1' build-4.14.357-openela-miru-ci1.sh
           ! grep -Fq 'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798' build-4.14.357-openela-miru-ci1.sh
 
@@ -154,6 +160,42 @@ jobs:
         run: |
           set -Eeuo pipefail
           bash ../build-4.14.357-openela-miru-ci1.sh
+
+      - name: Verify trace_printk cleanup
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          artifact_dir="$RUNNER_TEMP/android-root/out/h40-artifacts"
+          vmlinux="$RUNNER_TEMP/android-root/out/h40-kernel/vmlinux"
+          test -s "$vmlinux"
+          mkdir -p "$artifact_dir"
+          VMLINUX="$vmlinux" MODULES_BASE_SHA="$MODULES_SHA" MODULES_REPAIR_SHA="$MODULES_REPAIR_SHA" python3 - <<'PY' | tee "$artifact_dir/TRACE-PRINTK-CLEANUP.txt"
+          import os
+          import subprocess
+
+          vmlinux = os.environ["VMLINUX"]
+          wanted = {"__start___trace_bprintk_fmt", "__stop___trace_bprintk_fmt"}
+          lines = subprocess.check_output(["nm", "-n", vmlinux], text=True).splitlines()
+          format_entries = [line for line in lines if ".trace_printk_fmt" in line]
+          if format_entries:
+              raise SystemExit("compiled trace_printk format entries remain")
+          bounds = {}
+          for line in lines:
+              parts = line.split()
+              if len(parts) >= 3 and parts[2] in wanted:
+                  bounds[parts[2]] = int(parts[0], 16)
+          missing = wanted.difference(bounds)
+          if missing and missing != wanted:
+              raise SystemExit("incomplete trace_printk bounds: " + ", ".join(sorted(missing)))
+          size = 0 if missing else bounds["__stop___trace_bprintk_fmt"] - bounds["__start___trace_bprintk_fmt"]
+          if size != 0:
+              raise SystemExit(f"compiled trace_printk format bytes: {size}")
+          print("result=PASS")
+          print("trace_printk_format_entries=0")
+          print("trace_printk_format_bytes=0")
+          print("modules_base_sha=" + os.environ["MODULES_BASE_SHA"])
+          print("modules_repair_sha=" + os.environ["MODULES_REPAIR_SHA"])
+          PY
 
       - name: Build matching external module package
         shell: bash
@@ -172,7 +214,11 @@ jobs:
           test -s "$out_dir/Module.symvers"
           test -s "$out_dir/include/config/kernel.release"
           test "$(tr -d '\n' < "$out_dir/include/config/kernel.release")" = "$EXPECTED_RELEASE"
-          test "$(git -C "$vendor_source" rev-parse HEAD)" = "$MODULES_SHA"
+          test "$(git -C "$vendor_source" rev-parse HEAD)" = "$MODULES_REPAIR_SHA"
+          test "$(git -C "$vendor_source" merge-base "$MODULES_SHA" HEAD)" = "$MODULES_SHA"
+          modules_repair_paths="$(git -C "$vendor_source" diff --name-only "$MODULES_SHA" HEAD | LC_ALL=C sort | tr '\n' ' ')"
+          test "$modules_repair_paths" = "vendor/oplus/kernel_4.14/ext4/mballoc.c vendor/oplus/kernel_4.14/ufs/ufshcd.c "
+          test "$(git -C "$vendor_source" rev-list --count "$MODULES_SHA..HEAD")" = 2
           grep -Fq 'EXPORT_SYMBOL_GPL(extend_codec_i2s_be_dailinks);' \
             "$vendor_source/vendor/oplus/kernel_4.14/audio/driver/audio_extend_drv.c"
 
@@ -233,7 +279,7 @@ jobs:
           grep -Fxq 'errors=0' "$report_dir/MODULE-ABI-REPORT.txt"
           test "$(grep -F ": $EXPECTED_RELEASE SMP preempt mod_unload modversions aarch64" \
             "$report_dir/vermagic.txt" | wc -l)" = 32
-          grep -Fxq "vendor_source_commit=$MODULES_SHA" "$report_dir/BUILD-MANIFEST.txt"
+          grep -Fxq "vendor_source_commit=$MODULES_REPAIR_SHA" "$report_dir/BUILD-MANIFEST.txt"
           test -s "$runtime_archive"
           test -s "$audit_archive"
 
@@ -250,7 +296,8 @@ jobs:
             echo result=PASS
             echo "kernel_release=$EXPECTED_RELEASE"
             echo "kernel_head=$(git -C "$kernel_dir" rev-parse HEAD)"
-            echo "modules_source_sha=$(git -C "$vendor_source" rev-parse HEAD)"
+            echo "modules_base_sha=$MODULES_SHA"
+            echo "modules_repair_sha=$(git -C "$vendor_source" rev-parse HEAD)"
             echo external_module_count=32
             echo abi_errors=0
             echo "runtime_archive=$(basename "$runtime_archive")"
@@ -274,7 +321,10 @@ jobs:
           test -s "$audit_archive"
           grep -Fxq 'external_module_count=32' "$external_dir/EXTERNAL-MODULES-SUMMARY.txt"
           grep -Fxq 'abi_errors=0' "$external_dir/EXTERNAL-MODULES-SUMMARY.txt"
-          grep -Fxq "modules_source_sha=$MODULES_SHA" "$external_dir/EXTERNAL-MODULES-SUMMARY.txt"
+          grep -Fxq "modules_base_sha=$MODULES_SHA" "$external_dir/EXTERNAL-MODULES-SUMMARY.txt"
+          grep -Fxq "modules_repair_sha=$MODULES_REPAIR_SHA" "$external_dir/EXTERNAL-MODULES-SUMMARY.txt"
+          grep -Fxq 'trace_printk_format_entries=0' "$artifact_dir/TRACE-PRINTK-CLEANUP.txt"
+          grep -Fxq 'trace_printk_format_bytes=0' "$artifact_dir/TRACE-PRINTK-CLEANUP.txt"
           grep -Fxq 'errors=0' "$external_dir/MODULE-ABI-REPORT.txt"
           test "$(grep -F ": $EXPECTED_RELEASE SMP preempt mod_unload modversions aarch64" \
             "$external_dir/vermagic.txt" | wc -l)" = 32
@@ -287,6 +337,10 @@ jobs:
             echo candidate=$EXPECTED_RELEASE
             echo artifact=$(basename "$artifact_dir/$EXPECTED_RELEASE-Image.gz-dtb")
             echo external_module_count=32
+            echo modules_base_sha=$MODULES_SHA
+            echo modules_repair_sha=$MODULES_REPAIR_SHA
+            echo trace_printk_format_entries=0
+            echo trace_printk_format_bytes=0
             echo external_modules_archive=$(basename "$runtime_archive")
             echo production_after=$live_production
             echo production_write=NONE
