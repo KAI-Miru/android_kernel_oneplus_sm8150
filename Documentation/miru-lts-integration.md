@@ -1,8 +1,36 @@
 # Miru H.40 LTS integration
 
-This document records production LTS milestones for the OnePlus 7 Pro Miru H.40 kernel. The permanent production branch is `miru-h40`; milestone integration branches are temporary and may be retained or deleted after production promotion. This 4.14.305 promotion creates no GitHub Release or tag.
+This document records production LTS milestones for the OnePlus 7 Pro Miru H.40 kernel. The permanent production branch is `miru-h40`; milestone integration branches are temporary and may be retained or deleted after production promotion. Release evidence is retained as GitHub Actions artifacts and documentation; no GitHub Release or tag is created unless the maintainer explicitly chooses one.
 
-## Milestone 6: Linux 4.14.336
+## Milestone 7: OpenELA Linux 4.14.357
+
+Status: **completed: production-merged, final-candidate-validated, matching-module-validated, and device-confirmed**.
+
+This milestone advances Miru H.40 from Android Common Linux 4.14.336 to OpenELA Linux 4.14.357 while retaining the real staged OpenELA merge topology, OnePlus H.40/Oplus compatibility, KCAL, and matched external modules.
+
+| Item | Value |
+|---|---|
+| Previous production release | Linux 4.14.336 — `253775be7028de96f41ffcf3c5903573ff0b5fb8` |
+| Validated Stage 357 source | `24626c96027f0bfc4431741ee0d249826a286293` |
+| Exact OpenELA 4.14.357 parent | `1e6347375d088ecc896aabb067131d0f9e3c0575` |
+| Production merge | `50313dfbd4e8c369a04d6400c140c23909267021` (PR #88) |
+| Kernel release | `4.14.357-openela-miru-ci1+` |
+| Final candidate | PASS — run `30996359788`, job `92274276122` |
+| Compiler | `clang-r377782c` at `252aba16f513a857bc923172f67b0e55e23de35f` |
+| External-module source | base `3216c08bb3f97f865eb055296ea8034e1744caef`, repair `c03a4c6339b959f1a9b288a157d5b5d16fbcf015` |
+| Matching modules | 32 external modules; ABI errors = 0 |
+| Device validation | PASS — OnePlus 7 Pro booted and operated normally |
+
+### Completed evidence
+
+- The final Stage 357 source is a genuine two-parent merge: Miru parent first and the exact OpenELA target second.
+- The final artifact contains a non-empty raw `Image.gz-dtb` and records the exact release/banner, compiler and module provenance.
+- The downstream Oplus `trace_printk()` calls were removed from the matching external-module source. The final artifact has zero compiled trace-printk format entries, and physical testing confirmed that the boot-time DEBUG-kernel warning is gone.
+- The one-off integration and final-candidate workflows were retired after promotion rather than reused for a different release.
+
+See the 4.14.357 [validation record](miru/lts-4.14.357-validation.md), [conflict ledger](miru/lts-4.14.357-conflicts.md), and [user-facing changelog](miru/lts-4.14.357-changelog.md).
+
+## Milestone 6 (historical): Linux 4.14.336
 
 Status: **completed: production-merged, permanent-CI-validated, and device-confirmed on 2026-08-04**.
 
@@ -37,7 +65,7 @@ This milestone advances Miru H.40 from Linux 4.14.305 to Android Common Linux 4.
 
 See the 4.14.336 [validation record](miru/lts-4.14.336-validation.md), [conflict ledger](miru/lts-4.14.336-conflicts.md), and [user-facing changelog](miru/lts-4.14.336-changelog.md).
 
-## Milestone 5: Linux 4.14.305
+## Milestone 5 (historical): Linux 4.14.305
 
 Status: **completed: production-merged, permanent-CI-validated, and device-confirmed on 2026-08-02**.
 
@@ -83,7 +111,7 @@ This milestone advances Miru H.40 from Linux 4.14.269 to Android Common Linux 4.
 
 See the 4.14.305 [validation record](miru/lts-4.14.305-validation.md), [conflict ledger](miru/lts-4.14.305-conflicts.md), [boot-regression record](miru/lts-4.14.305-boot-regression.md), and [user-facing changelog](miru/lts-4.14.305-changelog.md).
 
-## Milestone 4: Linux 4.14.269
+## Milestone 4 (historical): Linux 4.14.269
 
 Status: **completed, merged into production, CI-validated, and device-confirmed on 2026-07-26 and 2026-07-27**.
 
@@ -113,11 +141,11 @@ This milestone advances the tested Miru H.40 line from Android stable 4.14.241 t
 - The real device booted and operated normally using `4.14.269-miru-h40-lts269-14d41d8-ci3+`.
 - PR #69 added KCAL RGB display calibration after the LTS merge. Its exact PR source was built successfully with the same 32-module and zero-ABI-error checks, then device-confirmed by the maintainer before normal merge.
 - The ci3 release suffix is intentionally static. The LTS and KCAL validation artifacts are distinguished by their exact source commits and artifact IDs, not by the release string alone.
-- The permanent workflow contains the production 4.14.269 validation logic only. Documentation/merge commits use `[skip ci]` because the validated source has already completed its dedicated compilation run.
+- At the time of this milestone, the production workflow contained only the 4.14.269 validation logic. Documentation/merge commits used `[skip ci]` because the validated source had already completed its dedicated compilation run.
 
 See the 4.14.269 [validation summary](miru/lts-4.14.269-validation.md), [conflict ledger](miru/lts-4.14.269-conflicts.md), and [user-facing changelog](miru/lts-4.14.269-changelog.md) for the full record.
 
-## Milestone 3: Linux 4.14.241
+## Milestone 3 (historical): Linux 4.14.241
 
 Status: **completed, merged into production, CI-validated, and device-confirmed on 2026-07-26**.
 
@@ -164,7 +192,7 @@ See the 4.14.241 [validation summary](miru/lts-4.14.241-validation.md),
 [conflict ledger](miru/lts-4.14.241-conflicts.md), and
 [user-facing changelog](miru/lts-4.14.241-changelog.md) for the full record.
 
-## Milestone 2: Linux 4.14.210
+## Milestone 2 (historical): Linux 4.14.210
 
 Status: **completed, device-validated and merged into production on 2026-07-21**.
 
