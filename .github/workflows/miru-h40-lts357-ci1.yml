@@ -215,6 +215,9 @@ jobs:
           test -s "$out_dir/include/config/kernel.release"
           test "$(tr -d '\n' < "$out_dir/include/config/kernel.release")" = "$EXPECTED_RELEASE"
           test "$(git -C "$vendor_source" rev-parse HEAD)" = "$MODULES_REPAIR_SHA"
+          git -C "$vendor_source" fetch --no-tags --depth=3 origin "$MODULES_REPAIR_BRANCH"
+          test "$(git -C "$vendor_source" rev-parse FETCH_HEAD)" = "$MODULES_REPAIR_SHA"
+          test "$(git -C "$vendor_source" cat-file -t "$MODULES_SHA")" = commit
           test "$(git -C "$vendor_source" merge-base "$MODULES_SHA" HEAD)" = "$MODULES_SHA"
           modules_repair_paths="$(git -C "$vendor_source" diff --name-only "$MODULES_SHA" HEAD | LC_ALL=C sort | tr '\n' ' ')"
           test "$modules_repair_paths" = "vendor/oplus/kernel_4.14/ext4/mballoc.c vendor/oplus/kernel_4.14/ufs/ufshcd.c "
