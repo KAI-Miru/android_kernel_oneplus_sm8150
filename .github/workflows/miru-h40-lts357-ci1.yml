@@ -155,34 +155,151 @@ jobs:
           set -Eeuo pipefail
           bash ../build-4.14.357-openela-miru-ci1.sh
 
-      - name: Verify final candidate and immutable production
+      - name: Build matching external module package
+        shell: bash
+        working-directory: source
+        run: |
+          set -Eeuo pipefail
+          kernel_dir="$RUNNER_TEMP/android-root/kernel/msm-4.14"
+          out_dir="$RUNNER_TEMP/android-root/out/h40-kernel"
+          artifact_dir="$RUNNER_TEMP/android-root/out/h40-artifacts"
+          vendor_source="$RUNNER_TEMP/oneplus-sm8150-vendor-source"
+          module_dir="$RUNNER_TEMP/miru-external-modules/dropin"
+          report_dir="$GITHUB_WORKSPACE/external-module-diagnostics"
+          runtime_archive="$RUNNER_TEMP/android-root/out/miru-v3-modules-dropin-4.14.357-openela-miru-ci1.7z"
+          audit_archive="$RUNNER_TEMP/android-root/out/miru-v3-modules-dropin-4.14.357-openela-miru-ci1-audit.zip"
+
+          test -s "$out_dir/Module.symvers"
+          test -s "$out_dir/include/config/kernel.release"
+          test "$(tr -d '\n' < "$out_dir/include/config/kernel.release")" = "$EXPECTED_RELEASE"
+          test "$(git -C "$vendor_source" rev-parse HEAD)" = "$MODULES_SHA"
+          grep -Fq 'EXPORT_SYMBOL_GPL(extend_codec_i2s_be_dailinks);' \
+            "$vendor_source/vendor/oplus/kernel_4.14/audio/driver/audio_extend_drv.c"
+
+          python3 scripts/miru/prepare_external_modules_toolchain.py
+          python3 scripts/miru/prepare_external_pinctrl_headers.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/miru/prepare_wlan_response_link.py")
+          old = 'expected = "74ce588c69513197a354ef0032c2145e91ee0641"'
+          new = 'expected = "ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3"'
+          text = path.read_text()
+          if text.count(old) != 1 or new in text:
+              raise SystemExit("WLAN response-link Makefile.build identity mismatch")
+          path.write_text(text.replace(old, new, 1))
+          PY
+          python3 scripts/miru/prepare_wlan_response_link.py
+
+          python3 - "$EXPECTED_RELEASE" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path("scripts/miru/build_external_modules_4.14.190.sh")
+          release = sys.argv[1]
+          text = path.read_text()
+
+          replacements = (
+              ("4.14.190-miru-h40-lts190-ci1+", release, 1),
+              ("miru-v3-modules-dropin-4.14.190",
+               "miru-v3-modules-dropin-4.14.357-openela-miru-ci1", 4),
+              ("Miru 4.14.190 rebuilt external module ABI report",
+               "Miru 4.14.357 OpenELA rebuilt external module ABI report", 1),
+          )
+          for old, new, expected_count in replacements:
+              actual_count = text.count(old)
+              if actual_count != expected_count:
+                  raise SystemExit(
+                      f"external-module adaptation anchor {old!r}: "
+                      f"expected {expected_count}, found {actual_count}"
+                  )
+              text = text.replace(old, new)
+
+          if "4.14.190-miru-h40-lts190-ci1+" in text:
+              raise SystemExit("stale external-module release gate remains")
+          path.write_text(text)
+          PY
+
+          bash -n scripts/miru/build_external_modules_4.14.190.sh
+          expected_workspace_changes="$(printf '%s\n' \
+            scripts/miru/build_external_modules_4.14.190.sh \
+            scripts/miru/prepare_wlan_response_link.py | LC_ALL=C sort | tr '\n' ' ')"
+          actual_workspace_changes="$(git diff --name-only | LC_ALL=C sort | tr '\n' ' ')"
+          test "$actual_workspace_changes" = "$expected_workspace_changes"
+
+          bash scripts/miru/build_external_modules_4.14.190.sh
+
+          test "$(find "$module_dir" -maxdepth 1 -type f -name '*.ko' | wc -l)" = 32
+          grep -Fxq 'errors=0' "$report_dir/MODULE-ABI-REPORT.txt"
+          test "$(grep -F ": $EXPECTED_RELEASE SMP preempt mod_unload modversions aarch64" \
+            "$report_dir/vermagic.txt" | wc -l)" = 32
+          grep -Fxq "vendor_source_commit=$MODULES_SHA" "$report_dir/BUILD-MANIFEST.txt"
+          test -s "$runtime_archive"
+          test -s "$audit_archive"
+
+          mkdir -p "$artifact_dir/external-modules"
+          cp "$runtime_archive" "$audit_archive" "$artifact_dir/external-modules/"
+          cp "$report_dir/BUILD-MANIFEST.txt" \
+            "$report_dir/MODULE-ABI-REPORT.txt" \
+            "$report_dir/PACKAGE-SUMMARY.txt" \
+            "$report_dir/vermagic.txt" \
+            "$artifact_dir/external-modules/"
+          sha256sum "$runtime_archive" "$audit_archive" \
+            > "$artifact_dir/external-modules/ARCHIVES-SHA256.txt"
+          {
+            echo result=PASS
+            echo "kernel_release=$EXPECTED_RELEASE"
+            echo "kernel_head=$(git -C "$kernel_dir" rev-parse HEAD)"
+            echo "modules_source_sha=$(git -C "$vendor_source" rev-parse HEAD)"
+            echo external_module_count=32
+            echo abi_errors=0
+            echo "runtime_archive=$(basename "$runtime_archive")"
+            echo "audit_archive=$(basename "$audit_archive")"
+            echo production_write=NONE
+          } | tee "$artifact_dir/external-modules/EXTERNAL-MODULES-SUMMARY.txt"
+      - name: Verify final candidate, modules, and immutable production
         shell: bash
         run: |
           set -Eeuo pipefail
-          artifact_dir="${RUNNER_TEMP}/android-root/out/h40-artifacts"
-          test -s "${artifact_dir}/${EXPECTED_RELEASE}-Image.gz-dtb"
-          test "$(cat "${artifact_dir}/KERNEL-RELEASE.txt")" = "${EXPECTED_RELEASE}"
-          grep -Fq "${EXPECTED_RELEASE}" "${GITHUB_WORKSPACE}/build-diagnostics/build-summary.txt"
-          grep -Fxq 'clang_commit=252aba16f513a857bc923172f67b0e55e23de35f' "${artifact_dir}/TOOLCHAIN-MANIFEST.txt"
-          grep -Fxq 'clang_path=clang-r377782c' "${artifact_dir}/TOOLCHAIN-MANIFEST.txt"
-          live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
-          test "${live_production}" = "${PRODUCTION_SHA}"
+          artifact_dir="$RUNNER_TEMP/android-root/out/h40-artifacts"
+          external_dir="$artifact_dir/external-modules"
+          runtime_archive="$external_dir/miru-v3-modules-dropin-4.14.357-openela-miru-ci1.7z"
+          audit_archive="$external_dir/miru-v3-modules-dropin-4.14.357-openela-miru-ci1-audit.zip"
+          test -s "$artifact_dir/$EXPECTED_RELEASE-Image.gz-dtb"
+          test "$(cat "$artifact_dir/KERNEL-RELEASE.txt")" = "$EXPECTED_RELEASE"
+          grep -Fq "$EXPECTED_RELEASE" "$GITHUB_WORKSPACE/build-diagnostics/build-summary.txt"
+          grep -Fxq 'clang_commit=252aba16f513a857bc923172f67b0e55e23de35f' "$artifact_dir/TOOLCHAIN-MANIFEST.txt"
+          grep -Fxq 'clang_path=clang-r377782c' "$artifact_dir/TOOLCHAIN-MANIFEST.txt"
+          test -s "$runtime_archive"
+          test -s "$audit_archive"
+          grep -Fxq 'external_module_count=32' "$external_dir/EXTERNAL-MODULES-SUMMARY.txt"
+          grep -Fxq 'abi_errors=0' "$external_dir/EXTERNAL-MODULES-SUMMARY.txt"
+          grep -Fxq "modules_source_sha=$MODULES_SHA" "$external_dir/EXTERNAL-MODULES-SUMMARY.txt"
+          grep -Fxq 'errors=0' "$external_dir/MODULE-ABI-REPORT.txt"
+          test "$(grep -F ": $EXPECTED_RELEASE SMP preempt mod_unload modversions aarch64" \
+            "$external_dir/vermagic.txt" | wc -l)" = 32
+          sha256sum -c "$external_dir/ARCHIVES-SHA256.txt"
+          live_production="$(git ls-remote "https://github.com/$GITHUB_REPOSITORY.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
+          test "$live_production" = "$PRODUCTION_SHA"
           {
             cat BUILD-BOUNDARIES.txt
             echo result=PASS
-            echo candidate=${EXPECTED_RELEASE}
-            echo artifact=$(basename "${artifact_dir}/${EXPECTED_RELEASE}-Image.gz-dtb")
-            echo production_after=${live_production}
+            echo candidate=$EXPECTED_RELEASE
+            echo artifact=$(basename "$artifact_dir/$EXPECTED_RELEASE-Image.gz-dtb")
+            echo external_module_count=32
+            echo external_modules_archive=$(basename "$runtime_archive")
+            echo production_after=$live_production
             echo production_write=NONE
-          } | tee "${artifact_dir}/FINAL-CANDIDATE-SUMMARY.txt"
+          } | tee "$artifact_dir/FINAL-CANDIDATE-SUMMARY.txt"
 
       - name: Upload kernel candidate and evidence
         uses: actions/upload-artifact@v4
         with:
-          name: 4.14.357-openela-miru-ci1
+          name: 4.14.357-openela-miru-ci1-kernel-and-modules
           if-no-files-found: error
           retention-days: 30
           path: |
             ${{ runner.temp }}/android-root/out/h40-artifacts/**
             build-diagnostics/**
             BUILD-BOUNDARIES.txt
+            external-module-diagnostics/**
