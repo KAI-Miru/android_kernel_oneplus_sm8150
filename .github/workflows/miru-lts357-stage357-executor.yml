@@ -1,0 +1,78 @@
+name: Miru H.40 OpenELA stage 357 guarded merge and checkpoint
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: miru-h40-lts357-stage357-executor
+  cancel-in-progress: true
+
+env:
+  IMMUTABLE_PRODUCTION: eb9451c0a1639e1aa49ee094681f98df0545f797
+  PRE_EXECUTOR_HEAD: 14068ba3e8004d0d18b2cf658f498dac1f5d6dc3
+  STAGE356_MERGE: 921ac6a9195cdb3192cddaebb3fe2b4597e11f9c
+  OPENELA_BASE: c31e35278ea8f04f1dceadd77dca4dd7d47932a3
+  OPENELA_356: a76b6a6556353484f6f29572989cd37b6cff90cc
+  OPENELA_357: 1e6347375d088ecc896aabb067131d0f9e3c0575
+  MODULES_BRANCH: oneplus/sm8150_s_12.1_op7pro
+  MODULES_SHA: 3216c08bb3f97f865eb055296ea8034e1744caef
+  FORBIDDEN_MODULES_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
+  DWC3_REPAIR: a3192f52549713424a5d8352e4be381ca84434a0
+
+jobs:
+  stage357:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'miru-h40-lts357-integration' &&
+      github.base_ref == 'miru-h40' &&
+      github.event.pull_request.draft == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout exact integration head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Validate generated stage 357 checkpoint
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          bash -n scripts/miru/lts357/execute_stage_357.sh
+          bash -n scripts/miru/lts357/run_compile_checkpoint_357.sh
+          validation_tmp="$(mktemp -d)"
+          RUNNER_TEMP="${validation_tmp}" STAGE357_GENERATE_ONLY=1 \
+            bash scripts/miru/lts357/run_compile_checkpoint_357.sh
+          generated="${validation_tmp}/run_compile_checkpoint_357_generated.sh"
+          test -s "${generated}"
+          bash -n "${generated}"
+          grep -Fq 'checkpoint_step compile-controlled-ima-probe' "${generated}"
+          grep -Fq 'CONFIG_IMA_MEASURE_PCR_IDX=10' "${generated}"
+          if sed -n '/^built_targets=(/,/^)/p' "${generated}" | grep -Fq 'security/integrity/ima/'; then
+            echo 'IMA objects incorrectly remain in the production-config target list' >&2
+            exit 1
+          fi
+          test -z "$(git status --porcelain)"
+
+      - name: Execute exact merge, validate, compile and guarded-push
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: bash scripts/miru/lts357/execute_stage_357.sh
+
+      - name: Upload stage 357 merge and checkpoint evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-openela-stage357-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/stage-357-executor
+            integration-evidence/compile-checkpoint-357
+          if-no-files-found: error
+          retention-days: 30

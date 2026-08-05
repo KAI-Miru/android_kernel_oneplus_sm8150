@@ -1,0 +1,60 @@
+Auto-merging Makefile
+Auto-merging arch/x86/tools/relocs.c
+Auto-merging arch/x86/xen/smp_pv.c
+Auto-merging block/genhd.c
+Auto-merging drivers/android/binder.c
+CONFLICT (content): Merge conflict in drivers/android/binder.c
+Auto-merging drivers/base/power/power.h
+Auto-merging drivers/base/regmap/regmap-debugfs.c
+Auto-merging drivers/bus/Kconfig
+Auto-merging drivers/leds/leds-pwm.c
+Auto-merging drivers/md/dm-crypt.c
+Auto-merging drivers/md/dm-verity.h
+Auto-merging drivers/md/dm.c
+Auto-merging drivers/md/md.c
+Auto-merging drivers/mmc/core/mmc.c
+Auto-merging drivers/net/ppp/ppp_synctty.c
+Auto-merging drivers/net/usb/lan78xx.c
+Auto-merging drivers/pci/quirks.c
+Auto-merging drivers/rtc/Kconfig
+Auto-merging drivers/scsi/mpt3sas/mpt3sas_base.c
+Auto-merging drivers/staging/android/ashmem.c
+Auto-merging fs/ext4/ext4.h
+Auto-merging fs/ext4/ioctl.c
+Auto-merging fs/ext4/mballoc.c
+Auto-merging fs/ext4/super.c
+Auto-merging fs/select.c
+CONFLICT (content): Merge conflict in fs/select.c
+Auto-merging include/linux/blkdev.h
+Auto-merging include/linux/netdevice.h
+Auto-merging include/net/dst.h
+Auto-merging include/net/netns/ipv4.h
+CONFLICT (content): Merge conflict in include/net/netns/ipv4.h
+Auto-merging include/net/sock.h
+Auto-merging include/net/tcp.h
+Auto-merging kernel/bpf/hashtab.c
+Auto-merging kernel/bpf/stackmap.c
+Auto-merging kernel/sched/rt.c
+Auto-merging kernel/sys.c
+Auto-merging kernel/workqueue.c
+Auto-merging net/core/dev.c
+Auto-merging net/core/sock.c
+Auto-merging net/ipv4/ip_gre.c
+Auto-merging net/ipv4/sysctl_net_ipv4.c
+CONFLICT (content): Merge conflict in net/ipv4/sysctl_net_ipv4.c
+Auto-merging net/ipv4/tcp.c
+Auto-merging net/ipv4/tcp_input.c
+Auto-merging net/ipv4/tcp_ipv4.c
+CONFLICT (content): Merge conflict in net/ipv4/tcp_ipv4.c
+Auto-merging net/ipv4/tcp_output.c
+Auto-merging net/ipv4/udp.c
+Auto-merging net/kcm/kcmsock.c
+Auto-merging net/l2tp/l2tp_ppp.c
+Auto-merging net/netfilter/xt_owner.c
+CONFLICT (content): Merge conflict in net/netfilter/xt_owner.c
+Auto-merging net/socket.c
+Auto-merging net/wireless/nl80211.c
+Auto-merging sound/core/jack.c
+Auto-merging sound/usb/stream.c
+CONFLICT (content): Merge conflict in sound/usb/stream.c
+Automatic merge failed; fix conflicts and then commit the result.

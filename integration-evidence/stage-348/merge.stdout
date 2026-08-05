@@ -1,0 +1,64 @@
+Auto-merging Documentation/admin-guide/kernel-parameters.txt
+Auto-merging Makefile
+Auto-merging drivers/block/loop.c
+Auto-merging drivers/md/dm-ioctl.c
+Auto-merging drivers/md/dm-table.c
+Auto-merging drivers/mmc/core/block.c
+Auto-merging drivers/net/ethernet/stmicro/stmmac/dwmac4_core.c
+Auto-merging drivers/net/tun.c
+Auto-merging drivers/net/usb/ax88179_178a.c
+Auto-merging drivers/net/wireless/broadcom/brcm80211/brcmfmac/cfg80211.c
+Auto-merging drivers/pci/pci-driver.c
+Auto-merging drivers/tty/serial/kgdboc.c
+Auto-merging drivers/usb/gadget/composite.c
+Auto-merging drivers/usb/gadget/function/f_fs.c
+Auto-merging drivers/usb/gadget/function/f_ncm.c
+Auto-merging drivers/usb/gadget/udc/core.c
+Auto-merging drivers/vhost/vhost.c
+Auto-merging fs/aio.c
+CONFLICT (content): Merge conflict in fs/aio.c
+Auto-merging fs/exec.c
+Auto-merging fs/ext4/ioctl.c
+Auto-merging fs/fuse/fuse_i.h
+Auto-merging fs/fuse/inode.c
+Auto-merging fs/nilfs2/btree.c
+Auto-merging fs/nilfs2/page.c
+Auto-merging fs/nilfs2/segment.c
+Auto-merging fs/sysfs/file.c
+Auto-merging fs/ubifs/file.c
+Auto-merging include/linux/gfp.h
+Auto-merging include/linux/netdevice.h
+Auto-merging include/linux/serial_core.h
+Auto-merging include/linux/skbuff.h
+Auto-merging include/linux/trace_events.h
+Auto-merging include/net/addrconf.h
+Auto-merging include/net/sock.h
+Auto-merging init/initramfs.c
+Auto-merging kernel/events/core.c
+Auto-merging kernel/kprobes.c
+Auto-merging kernel/power/suspend.c
+Auto-merging kernel/printk/printk.c
+Auto-merging kernel/trace/trace_event_perf.c
+Auto-merging lib/dynamic_debug.c
+Auto-merging lib/stackdepot.c
+Auto-merging mm/compaction.c
+Auto-merging mm/memory-failure.c
+CONFLICT (content): Merge conflict in mm/memory-failure.c
+Auto-merging mm/memory.c
+Auto-merging mm/memtest.c
+Auto-merging mm/migrate.c
+Auto-merging mm/page_alloc.c
+CONFLICT (content): Merge conflict in mm/page_alloc.c
+Auto-merging mm/vmscan.c
+Auto-merging net/core/filter.c
+CONFLICT (content): Merge conflict in net/core/filter.c
+Auto-merging net/core/sock.c
+Auto-merging net/ipv4/inet_connection_sock.c
+Auto-merging net/ipv4/tcp.c
+Auto-merging net/ipv4/tcp_input.c
+Auto-merging net/ipv4/tcp_output.c
+Auto-merging net/ipv6/addrconf.c
+Auto-merging net/wireless/nl80211.c
+Auto-merging net/xfrm/xfrm_user.c
+Auto-merging sound/soc/soc-ops.c
+Automatic merge failed; fix conflicts and then commit the result.
