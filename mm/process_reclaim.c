@@ -21,6 +21,13 @@
 #include <linux/notifier.h>
 #include <linux/vmpressure.h>
 
+#if defined(OPLUS_FEATURE_PROCESS_RECLAIM) && defined(CONFIG_PROCESS_RECLAIM_ENHANCE)
+#include <linux/huge_mm.h>
+#include <linux/hugetlb.h>
+#include <linux/process_mm_reclaim.h>
+#include <asm/tlbflush.h>
+#endif
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/process_reclaim.h>
 
@@ -39,6 +46,10 @@ module_param_named(per_swap_size, per_swap_size, int, 0644);
 
 int reclaim_avg_efficiency;
 module_param_named(reclaim_avg_efficiency, reclaim_avg_efficiency, int, 0444);
+
+/* Cumulative anonymous pages reclaimed by the vmpressure worker. */
+static unsigned long reclaimed_anon;
+module_param_named(reclaimed_anon, reclaimed_anon, ulong, 0444);
 
 /* The vmpressure region where process reclaim operates */
 static unsigned long pressure_min = 50;
@@ -104,6 +115,148 @@ static int test_task_flag(struct task_struct *p, int flag)
 	return 0;
 }
 
+#if defined(OPLUS_FEATURE_PROCESS_RECLAIM) && defined(CONFIG_PROCESS_RECLAIM_ENHANCE)
+/*
+ * Automatic process reclaim should be conservative: reclaim inactive
+ * anonymous pages and stop promptly if OPlus userspace makes the target
+ * runnable/foreground or the bounded reclaim window expires.
+ */
+static int reclaim_inactive_anon_pte_range(pmd_t *pmd, unsigned long addr,
+					   unsigned long end,
+					   struct mm_walk *walk)
+{
+	struct reclaim_param *rp = walk->private;
+	struct vm_area_struct *vma = rp->vma;
+	pte_t *pte, *orig_pte, ptent;
+	spinlock_t *ptl;
+	struct page *page;
+	LIST_HEAD(page_list);
+	int isolated;
+	int reclaimed;
+	int ret = 0;
+
+	split_huge_pmd(vma, addr, pmd);
+	if (pmd_trans_unstable(pmd) || !rp->nr_to_reclaim)
+		return 0;
+cont:
+	isolated = 0;
+	orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+	for (; addr != end; pte++, addr += PAGE_SIZE) {
+		if (rp->reclaimed_task &&
+				(ret = is_reclaim_should_cancel(walk))) {
+			ret = -ret;
+			break;
+		}
+
+		ptent = *pte;
+		if (!pte_present(ptent))
+			continue;
+
+		page = vm_normal_page(vma, addr, ptent);
+		if (!page)
+			continue;
+
+		/* Preserve the target's active working set. */
+		if (PageActive(page) || PageUnevictable(page))
+			continue;
+
+		if (isolate_lru_page(page))
+			continue;
+
+		/*
+		 * MADV_FREE clears SwapBacked. If the page was touched again,
+		 * reclaim can put it back as SwapBacked and skip it; avoid the
+		 * isolated-page accounting mismatch in that case.
+		 */
+		if (PageAnon(page) && !PageSwapBacked(page)) {
+			putback_lru_page(page);
+			continue;
+		}
+
+		list_add(&page->lru, &page_list);
+		inc_node_page_state(page, NR_ISOLATED_ANON +
+				page_is_file_cache(page));
+		isolated++;
+		rp->nr_scanned++;
+		if ((isolated >= SWAP_CLUSTER_MAX) || !rp->nr_to_reclaim)
+			break;
+	}
+	pte_unmap_unlock(orig_pte, ptl);
+
+	reclaimed = reclaim_pages_from_list(&page_list, vma, walk);
+	rp->nr_reclaimed += reclaimed;
+	rp->nr_to_reclaim -= reclaimed;
+	if (rp->nr_to_reclaim < 0)
+		rp->nr_to_reclaim = 0;
+
+	if (ret < 0)
+		return ret;
+	if (!rp->nr_to_reclaim)
+		return -PR_FULL;
+	if (addr != end)
+		goto cont;
+
+	cond_resched();
+	return 0;
+}
+
+static struct reclaim_param reclaim_task_inactive_anon(struct task_struct *task,
+							int nr_to_reclaim)
+{
+	struct mm_struct *mm;
+	struct vm_area_struct *vma;
+	struct mm_walk reclaim_walk = {};
+	struct reclaim_param rp = {
+		.nr_to_reclaim = nr_to_reclaim,
+		.inactive_lru = true,
+		.reclaimed_task = task,
+	};
+	bool set_reclaimer = !current_is_reclaimer();
+	int ret = 0;
+
+	get_task_struct(task);
+	mm = get_task_mm(task);
+	if (!mm)
+		goto out;
+
+	reclaim_walk.mm = mm;
+	reclaim_walk.pmd_entry = reclaim_inactive_anon_pte_range;
+	reclaim_walk.private = &rp;
+
+	if (set_reclaimer)
+		current->flags |= PF_RECLAIM_SHRINK;
+	current->reclaim.stop_jiffies = jiffies + RECLAIM_TIMEOUT_JIFFIES;
+
+	down_read(&mm->mmap_sem);
+	for (vma = mm->mmap; vma; vma = vma->vm_next) {
+		if (is_vm_hugetlb_page(vma))
+			continue;
+		if (vma->vm_file)
+			continue;
+		if (!rp.nr_to_reclaim)
+			break;
+		if (is_reclaim_should_cancel(&reclaim_walk))
+			break;
+
+		rp.vma = vma;
+		ret = walk_page_range(vma->vm_start, vma->vm_end,
+					      &reclaim_walk);
+		if (ret < 0)
+			break;
+	}
+
+	flush_tlb_mm(mm);
+	up_read(&mm->mmap_sem);
+
+	if (set_reclaimer)
+		current->flags &= ~PF_RECLAIM_SHRINK;
+	mmput(mm);
+out:
+	put_task_struct(task);
+	return rp;
+}
+#endif
+
 static void swap_fn(struct work_struct *work)
 {
 	struct task_struct *tsk;
@@ -119,6 +272,10 @@ static void swap_fn(struct work_struct *work)
 	int total_reclaimed = 0;
 	int nr_to_reclaim;
 	int efficiency;
+
+	/* A zero budget must disable anonymous process reclaim completely. */
+	if (per_swap_size <= 0)
+		return;
 
 	rcu_read_lock();
 	for_each_process(tsk) {
@@ -185,7 +342,11 @@ static void swap_fn(struct work_struct *work)
 		if (!nr_to_reclaim)
 			nr_to_reclaim = 1;
 
+#if defined(OPLUS_FEATURE_PROCESS_RECLAIM) && defined(CONFIG_PROCESS_RECLAIM_ENHANCE)
+		rp = reclaim_task_inactive_anon(selected[si].p, nr_to_reclaim);
+#else
 		rp = reclaim_task_anon(selected[si].p, nr_to_reclaim);
+#endif
 
 		trace_process_reclaim(selected[si].tasksize,
 				selected[si].oom_score_adj, rp.nr_scanned,
@@ -193,6 +354,7 @@ static void swap_fn(struct work_struct *work)
 				nr_to_reclaim);
 		total_scan += rp.nr_scanned;
 		total_reclaimed += rp.nr_reclaimed;
+		reclaimed_anon += rp.nr_reclaimed;
 		put_task_struct(selected[si].p);
 	}
 
