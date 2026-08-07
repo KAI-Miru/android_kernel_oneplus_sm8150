@@ -826,6 +826,14 @@ config HAVE_LOW_MEMORY_KILLER
 	  want page allocator to provide sufficient time before it triggers
 	  Out of Memory killer.
 
+config HAVE_USERSPACE_LOW_MEMORY_KILLER
+	bool "Have userspace low memory killer"
+	default n
+	help
+	  The page allocator cannot directly call into a userspace low memory
+	  killer as it can call into the OOM killer. Give Android lmkd a bounded
+	  PSI-assisted retry window before falling back to the kernel OOM killer.
+
 config PROCESS_RECLAIM
 	bool "Enable process reclaim"
 	depends on PROC_FS

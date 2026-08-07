@@ -14,6 +14,7 @@ struct zonelist;
 struct notifier_block;
 struct mem_cgroup;
 struct task_struct;
+struct timer_list;
 
 /*
  * Details of the page allocation that triggered the oom killer that are used to
@@ -37,6 +38,9 @@ struct oom_control {
 	 * for display purposes.
 	 */
 	const int order;
+
+	/* Restrict a userspace-LMK fallback to background-killable tasks. */
+	const bool only_positive_adj;
 
 	/* Used by oom implementation, do not set */
 	unsigned long totalpages;
@@ -118,6 +122,23 @@ extern void dump_tasks(struct mem_cgroup *memcg,
 		const nodemask_t *nodemask);
 
 extern void wake_oom_reaper(struct task_struct *tsk);
+
+#ifdef CONFIG_HAVE_USERSPACE_LOW_MEMORY_KILLER
+extern bool should_ulmk_retry(gfp_t gfp_mask);
+extern void ulmk_update_last_kill(void);
+extern void ulmk_watchdog_fn(struct timer_list *t);
+extern void ulmk_watchdog_pet(struct timer_list *t);
+#else
+static inline bool should_ulmk_retry(gfp_t gfp_mask)
+{
+	return false;
+}
+static inline void ulmk_update_last_kill(void) {}
+static inline void ulmk_watchdog_fn(struct timer_list *t) {}
+static inline void ulmk_watchdog_pet(struct timer_list *t) {}
+#endif
+
+#define ULMK_MAGIC "lmkd"
 
 /* sysctls */
 extern int sysctl_oom_dump_tasks;

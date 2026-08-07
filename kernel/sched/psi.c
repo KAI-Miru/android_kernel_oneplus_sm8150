@@ -141,6 +141,7 @@
 #include <linux/file.h>
 #include <linux/poll.h>
 #include <linux/psi.h>
+#include <linux/oom.h>
 #include "sched.h"
 
 static int psi_bug __read_mostly;
@@ -540,8 +541,12 @@ static u64 update_triggers(struct psi_group *group, u64 now)
 			continue;
 
 		/* Generate an event */
-		if (cmpxchg(&t->event, 0, 1) == 0)
+		if (cmpxchg(&t->event, 0, 1) == 0) {
+			if (!strcmp(t->comm, ULMK_MAGIC))
+				mod_timer(&t->wdog_timer, jiffies +
+					  nsecs_to_jiffies(2 * t->win.size));
 			wake_up_interruptible(&t->event_wait);
+		}
 		t->last_event_time = now;
 	}
 
@@ -550,6 +555,62 @@ static u64 update_triggers(struct psi_group *group, u64 now)
 				sizeof(group->polling_total));
 
 	return now + group->poll_min_period;
+}
+
+/* Wake only the system PSI trigger owned by Android lmkd. */
+void psi_emergency_trigger(void)
+{
+	struct psi_group *group = &psi_system;
+	struct psi_trigger *t;
+	u64 now;
+
+	if (static_branch_likely(&psi_disabled))
+		return;
+
+	if (!mutex_trylock(&group->trigger_lock))
+		return;
+
+	now = sched_clock();
+	list_for_each_entry(t, &group->triggers, node) {
+		if (strcmp(t->comm, ULMK_MAGIC))
+			continue;
+
+		if (cmpxchg(&t->event, 0, 1) == 0) {
+			mod_timer(&t->wdog_timer, jiffies +
+				  nsecs_to_jiffies(2 * t->win.size));
+			wake_up_interruptible(&t->event_wait);
+		}
+		t->last_event_time = now;
+	}
+	mutex_unlock(&group->trigger_lock);
+}
+
+/* Return true while an lmkd PSI trigger is within its active window. */
+bool psi_is_trigger_active(void)
+{
+	struct psi_group *group = &psi_system;
+	struct psi_trigger *t;
+	bool active = false;
+	u64 now;
+
+	if (static_branch_likely(&psi_disabled))
+		return false;
+
+	/* Conservatively retry if trigger lifecycle is changing. */
+	if (!mutex_trylock(&group->trigger_lock))
+		return true;
+
+	now = sched_clock();
+	list_for_each_entry(t, &group->triggers, node) {
+		if (strcmp(t->comm, ULMK_MAGIC))
+			continue;
+		if (now <= t->last_event_time + t->win.size) {
+			active = true;
+			break;
+		}
+	}
+	mutex_unlock(&group->trigger_lock);
+	return active;
 }
 
 /*
@@ -1051,6 +1112,8 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group,
 	t->event = 0;
 	t->last_event_time = 0;
 	init_waitqueue_head(&t->event_wait);
+	get_task_comm(t->comm, current);
+	timer_setup(&t->wdog_timer, ulmk_watchdog_fn, TIMER_DEFERRABLE);
 
 	mutex_lock(&group->trigger_lock);
 
@@ -1127,6 +1190,7 @@ void psi_trigger_destroy(struct psi_trigger *t)
 		}
 	}
 
+	del_timer_sync(&t->wdog_timer);
 	mutex_unlock(&group->trigger_lock);
 
 	/*
@@ -1169,8 +1233,11 @@ unsigned int psi_trigger_poll(void **trigger_ptr, struct file *file,
 
 	poll_wait(file, &t->event_wait, wait);
 
-	if (cmpxchg(&t->event, 1, 0) == 1)
+	if (cmpxchg(&t->event, 1, 0) == 1) {
 		ret |= POLLPRI;
+		if (!strcmp(t->comm, ULMK_MAGIC))
+			ulmk_watchdog_pet(&t->wdog_timer);
+	}
 
 	return ret;
 }

@@ -4111,15 +4111,11 @@ should_reclaim_retry(gfp_t gfp_mask, unsigned order,
 	 * their order will become available due to high fragmentation so
 	 * always increment the no progress counter for them
 	 */
-	if ((did_some_progress || lmk_kill_possible()) &&
-				order <= PAGE_ALLOC_COSTLY_ORDER) {
-
+	if (did_some_progress && order <= PAGE_ALLOC_COSTLY_ORDER) {
 		*no_progress_loops = 0;
-
-		if (lmk_kill_possible())
-			return true;
-	} else
+	} else {
 		(*no_progress_loops)++;
+	}
 
 	/*
 	 * Make sure we converge to OOM if we cannot make any progress
@@ -4409,12 +4405,14 @@ retry:
 	 * implementation of the compaction depends on the sufficient amount
 	 * of free memory (see __compaction_suitable)
 	 */
-	if ((did_some_progress > 0 || lmk_kill_possible()) && can_compact &&
+	if (did_some_progress > 0 && can_compact &&
 			should_compact_retry(ac, order, alloc_flags,
 				compact_result, &compact_priority,
 				&compaction_retries))
 		goto retry;
 
+	if (order <= PAGE_ALLOC_COSTLY_ORDER && should_ulmk_retry(gfp_mask))
+		goto retry;
 
 	/*
 	 * Deal with possible cpuset update races or zonelist updates to avoid

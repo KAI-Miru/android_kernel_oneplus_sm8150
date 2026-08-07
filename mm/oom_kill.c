@@ -43,6 +43,7 @@
 #include <linux/mmu_notifier.h>
 #include <linux/memory_hotplug.h>
 #include <linux/show_mem_notifier.h>
+#include <linux/psi.h>
 
 #include <asm/tlb.h>
 #include "internal.h"
@@ -53,11 +54,88 @@
 int sysctl_panic_on_oom;
 int sysctl_oom_kill_allocating_task;
 int sysctl_oom_dump_tasks = 1;
-int sysctl_reap_mem_on_sigkill;
+int sysctl_reap_mem_on_sigkill = 1;
 
 DEFINE_MUTEX(oom_lock);
 /* Serializes oom_score_adj and oom_score_adj_min updates */
 DEFINE_MUTEX(oom_adj_mutex);
+
+#ifdef CONFIG_HAVE_USERSPACE_LOW_MEMORY_KILLER
+#define ULMK_TIMEOUT (20 * HZ)
+#define ULMK_EMERG_TRIG_TIMEOUT (ULMK_TIMEOUT + 10 * HZ)
+
+static atomic64_t ulmk_wdog_expired = ATOMIC64_INIT(0);
+static atomic64_t ulmk_kill_jiffies = ATOMIC64_INIT(INITIAL_JIFFIES);
+static atomic64_t ulmk_watchdog_pet_jiffies = ATOMIC64_INIT(INITIAL_JIFFIES);
+static unsigned long psi_emergency_jiffies = INITIAL_JIFFIES;
+static unsigned long psi_emerg_trigger_jiffies = INITIAL_JIFFIES;
+static DEFINE_MUTEX(ulmk_retry_lock);
+
+bool should_ulmk_retry(gfp_t gfp_mask)
+{
+	unsigned long now, last_kill, last_wdog_pet;
+	bool ret = true;
+	bool wdog_expired, trigger_active;
+	struct oom_control oc = {
+		.zonelist = node_zonelist(first_memory_node, gfp_mask),
+		.nodemask = NULL,
+		.memcg = NULL,
+		.gfp_mask = gfp_mask,
+		.order = 0,
+		.only_positive_adj = true,
+	};
+
+	if (gfp_mask & __GFP_RETRY_MAYFAIL)
+		return false;
+
+	if (!mutex_trylock(&ulmk_retry_lock))
+		return true;
+
+	now = jiffies;
+	last_kill = atomic64_read(&ulmk_kill_jiffies);
+	last_wdog_pet = atomic64_read(&ulmk_watchdog_pet_jiffies);
+	wdog_expired = atomic64_read(&ulmk_wdog_expired);
+	trigger_active = psi_is_trigger_active();
+
+	if (time_after(last_kill, psi_emergency_jiffies)) {
+		psi_emergency_jiffies = now;
+		ret = true;
+	} else if (time_after(now, psi_emergency_jiffies + ULMK_TIMEOUT) &&
+		   time_after(now, last_wdog_pet + ULMK_TIMEOUT) &&
+		   time_after(psi_emerg_trigger_jiffies,
+			      now - ULMK_EMERG_TRIG_TIMEOUT)) {
+		ret = false;
+	} else if (!trigger_active) {
+		psi_emergency_trigger();
+		psi_emerg_trigger_jiffies = now;
+		ret = true;
+	} else if (wdog_expired) {
+		mutex_lock(&oom_lock);
+		ret = out_of_memory(&oc);
+		mutex_unlock(&oom_lock);
+	}
+
+	mutex_unlock(&ulmk_retry_lock);
+	return ret;
+}
+
+void ulmk_watchdog_fn(struct timer_list *t)
+{
+	atomic64_set(&ulmk_wdog_expired, 1);
+}
+
+void ulmk_watchdog_pet(struct timer_list *t)
+{
+	del_timer_sync(t);
+	atomic64_set(&ulmk_wdog_expired, 0);
+	atomic64_set(&ulmk_watchdog_pet_jiffies, jiffies);
+}
+
+void ulmk_update_last_kill(void)
+{
+	atomic64_set(&ulmk_kill_jiffies, jiffies);
+}
+#endif
 
 #ifdef CONFIG_NUMA
 /**
@@ -293,6 +371,10 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
 	unsigned long points;
 
 	if (oom_unkillable_task(task, NULL, oc->nodemask))
+		goto next;
+
+	if (oc->only_positive_adj &&
+	    READ_ONCE(task->signal->oom_score_adj) < 0)
 		goto next;
 
 	/*
@@ -842,6 +924,8 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
 	 */
 	task_lock(p);
 	if (task_will_free_mem(p)) {
+		if (oc->only_positive_adj)
+			ulmk_update_last_kill();
 		mark_oom_victim(p);
 		wake_oom_reaper(p);
 		task_unlock(p);
@@ -876,6 +960,9 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
 
 			if (process_shares_mm(child, p->mm))
 				continue;
+			if (oc->only_positive_adj &&
+			    READ_ONCE(child->signal->oom_score_adj) < 0)
+				continue;
 			/*
 			 * oom_badness() returns 0 if the thread is unkillable
 			 */
@@ -909,6 +996,9 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
 	/* Raise event before sending signal: task reaper must see this */
 	count_vm_event(OOM_KILL);
 	memcg_memory_event_mm(mm, MEMCG_OOM_KILL);
+
+	if (oc->only_positive_adj)
+		ulmk_update_last_kill();
 
 	/*
 	 * We should send SIGKILL before granting access to memory reserves
@@ -982,8 +1072,8 @@ static void check_panic_on_oom(struct oom_control *oc,
 		if (constraint != CONSTRAINT_NONE)
 			return;
 	}
-	/* Do not panic for oom kills triggered by sysrq */
-	if (is_sysrq_oom(oc))
+	/* Do not panic for sysrq or userspace-LMK fallback kills. */
+	if (is_sysrq_oom(oc) || oc->only_positive_adj)
 		return;
 	dump_header(oc, NULL);
 	panic("Out of memory: %s panic_on_oom is enabled\n",
@@ -1039,7 +1129,7 @@ bool out_of_memory(struct oom_control *oc)
 	 * select it.  The goal is to allow it to allocate so that it may
 	 * quickly exit and free its memory.
 	 */
-	if (task_will_free_mem(current)) {
+	if (!oc->only_positive_adj && task_will_free_mem(current)) {
 		mark_oom_victim(current);
 		wake_oom_reaper(current);
 		return true;
@@ -1065,7 +1155,8 @@ bool out_of_memory(struct oom_control *oc)
 	check_panic_on_oom(oc, constraint);
 
 	if (!is_memcg_oom(oc) && sysctl_oom_kill_allocating_task &&
-	    current->mm && !oom_unkillable_task(current, NULL, oc->nodemask) &&
+	    !oc->only_positive_adj && current->mm &&
+	    !oom_unkillable_task(current, NULL, oc->nodemask) &&
 	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
 		get_task_struct(current);
 		oc->chosen = current;
@@ -1075,7 +1166,8 @@ bool out_of_memory(struct oom_control *oc)
 
 	select_bad_process(oc);
 	/* Found nothing?!?! Either we hang forever, or we panic. */
-	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc)) {
+	if (!oc->chosen && !is_sysrq_oom(oc) && !is_memcg_oom(oc) &&
+	    !oc->only_positive_adj) {
 		dump_header(oc, NULL);
 		panic("Out of memory and no killable processes...\n");
 	}
@@ -1102,7 +1194,8 @@ void pagefault_out_of_memory(void)
 	static DEFINE_RATELIMIT_STATE(pfoom_rs, DEFAULT_RATELIMIT_INTERVAL,
 				      DEFAULT_RATELIMIT_BURST);
 
-	if (IS_ENABLED(CONFIG_HAVE_LOW_MEMORY_KILLER))
+	if (IS_ENABLED(CONFIG_HAVE_LOW_MEMORY_KILLER) ||
+	    IS_ENABLED(CONFIG_HAVE_USERSPACE_LOW_MEMORY_KILLER))
 		return;
 
 	if (mem_cgroup_oom_synchronize(true))
