@@ -170,7 +170,9 @@ jobs:
           grep -Fq 'reclaim_task_nomap' source/mm/process_reclaim.c
           grep -Fq 'tsk_nomap_swap_sz' source/mm/process_reclaim.c
           grep -Fq 'reclaimed_nomap' source/mm/process_reclaim.c
-          nm "$out/vmlinux" | grep -Eq '[[:space:]][tT][[:space:]]reclaim_task_nomap$'
+          nomap_symbols="$(nm "$out/vmlinux" | grep -E 'reclaim_task|nomap' || true)"
+          printf '%s\n' "$nomap_symbols"
+          printf '%s\n' "$nomap_symbols" | grep -Eq '[[:space:]][tT][[:space:]]reclaim_task_nomap([.$].*)?$'
           strings "$out/vmlinux" | grep -Fxq 'tsk_nomap_swap_sz'
           strings "$out/vmlinux" | grep -Fxq 'reclaimed_nomap'
 
