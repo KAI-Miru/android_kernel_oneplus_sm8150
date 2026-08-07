@@ -47,12 +47,20 @@ module_param_named(enable_process_reclaim, enable_process_reclaim, int, 0644);
 int per_swap_size = SWAP_CLUSTER_MAX * 32;
 module_param_named(per_swap_size, per_swap_size, int, 0644);
 
+/* Optional per-task quota for the bounded cold anonymous (nomap) pass. */
+int tsk_nomap_swap_sz;
+module_param_named(tsk_nomap_swap_sz, tsk_nomap_swap_sz, int, 0644);
+
 int reclaim_avg_efficiency;
 module_param_named(reclaim_avg_efficiency, reclaim_avg_efficiency, int, 0444);
 
 /* Cumulative anonymous pages reclaimed by the vmpressure worker. */
 static unsigned long reclaimed_anon;
 module_param_named(reclaimed_anon, reclaimed_anon, ulong, 0444);
+
+/* Cumulative pages reclaimed by the optional cold anonymous (nomap) pass. */
+static unsigned long reclaimed_nomap;
+module_param_named(reclaimed_nomap, reclaimed_nomap, ulong, 0444);
 
 /* The vmpressure region where process reclaim operates */
 static unsigned long pressure_min = 50;
@@ -203,7 +211,7 @@ cont:
 	return 0;
 }
 
-static struct reclaim_param reclaim_task_inactive_anon(struct task_struct *task,
+static struct reclaim_param reclaim_task_nomap(struct task_struct *task,
 							int nr_to_reclaim)
 {
 	struct mm_struct *mm;
@@ -276,8 +284,8 @@ static void swap_fn(struct work_struct *work)
 	int nr_to_reclaim;
 	int efficiency;
 
-	/* A zero budget must disable anonymous process reclaim completely. */
-	if (per_swap_size <= 0)
+	/* Both reclaim budgets disabled: leave process reclaim dormant. */
+	if (per_swap_size <= 0 && tsk_nomap_swap_sz <= 0)
 		return;
 
 	rcu_read_lock();
@@ -301,7 +309,11 @@ static void swap_fn(struct work_struct *work)
 			continue;
 		}
 
-		tasksize = get_mm_counter(p->mm, MM_ANONPAGES);
+		/* Preserve legacy selection for anon reclaim; nomap-only uses RSS. */
+		if (per_swap_size > 0)
+			tasksize = get_mm_counter(p->mm, MM_ANONPAGES);
+		else
+			tasksize = get_mm_rss(p->mm);
 		task_unlock(p);
 
 		if (tasksize <= 0)
@@ -345,19 +357,26 @@ static void swap_fn(struct work_struct *work)
 		if (!nr_to_reclaim)
 			nr_to_reclaim = 1;
 
-#if defined(OPLUS_FEATURE_PROCESS_RECLAIM) && defined(CONFIG_PROCESS_RECLAIM_ENHANCE)
-		rp = reclaim_task_inactive_anon(selected[si].p, nr_to_reclaim);
-#else
-		rp = reclaim_task_anon(selected[si].p, nr_to_reclaim);
-#endif
+		if (per_swap_size > 0) {
+			rp = reclaim_task_anon(selected[si].p, nr_to_reclaim);
 
-		trace_process_reclaim(selected[si].tasksize,
-				selected[si].oom_score_adj, rp.nr_scanned,
-				rp.nr_reclaimed, per_swap_size, total_sz,
-				nr_to_reclaim);
-		total_scan += rp.nr_scanned;
-		total_reclaimed += rp.nr_reclaimed;
-		reclaimed_anon += rp.nr_reclaimed;
+			trace_process_reclaim(selected[si].tasksize,
+					selected[si].oom_score_adj, rp.nr_scanned,
+					rp.nr_reclaimed, per_swap_size, total_sz,
+					nr_to_reclaim);
+			total_scan += rp.nr_scanned;
+			total_reclaimed += rp.nr_reclaimed;
+			reclaimed_anon += rp.nr_reclaimed;
+		}
+
+#if defined(OPLUS_FEATURE_PROCESS_RECLAIM) && defined(CONFIG_PROCESS_RECLAIM_ENHANCE)
+		if (tsk_nomap_swap_sz > 0) {
+			rp = reclaim_task_nomap(selected[si].p, tsk_nomap_swap_sz);
+			total_scan += rp.nr_scanned;
+			total_reclaimed += rp.nr_reclaimed;
+			reclaimed_nomap += rp.nr_reclaimed;
+		}
+#endif
 		put_task_struct(selected[si].p);
 	}
 
