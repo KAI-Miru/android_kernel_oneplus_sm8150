@@ -32,7 +32,7 @@ jobs:
         with:
           ref: ${{ env.SOURCE_SHA }}
           path: source
-          fetch-depth: 3
+          fetch-depth: 4
 
       - name: Verify Stage 3A source boundaries
         shell: bash
