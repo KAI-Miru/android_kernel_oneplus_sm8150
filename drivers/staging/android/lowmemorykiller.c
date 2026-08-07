@@ -662,9 +662,6 @@ static unsigned long lowmem_scan(struct shrinker *s, struct shrink_control *sc)
 			(long)(PAGE_SIZE / 1024),
 			sc->gfp_mask);
 
-#ifdef OPLUS_FEATURE_PERFORMANCE
-			show_mem(SHOW_MEM_FILTER_NODES, NULL);
-#endif /*OPLUS_FEATURE_PERFORMANCE*/
 		if (lowmem_debug_level >= 2 && selected_oom_score_adj == 0) {
 			show_mem(SHOW_MEM_FILTER_NODES, NULL);
 			show_mem_call_notifiers();
