@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SOURCE_SHA: 2ef34ac53e1cba1394a756726d9eadf5eae0f5eb
+  SOURCE_SHA: 9b6c308a4acd7435cdc7943b99943e10d421ff95
   SOURCE_BASE: f92018596b074b649085be0f689de83b1786f246
   VENDOR_SHA: c03a4c6339b959f1a9b288a157d5b5d16fbcf015
   EXPECTED_RELEASE: 4.14.357-openela-miru-h40-mem-s3a+
@@ -40,7 +40,7 @@ jobs:
           set -Eeuo pipefail
           test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
           git -C source merge-base --is-ancestor "${SOURCE_BASE}" "${SOURCE_SHA}"
-          test "$(git -C source diff --name-only "${SOURCE_BASE}" "${SOURCE_SHA}" | sort -u)" = "mm/process_reclaim.c"
+          test "$(git -C source diff --name-only "${SOURCE_BASE}" "${SOURCE_SHA}" | sort -u)" = $'Makefile\nmm/process_reclaim.c'
           git -C source diff --check "${SOURCE_BASE}" "${SOURCE_SHA}"
           test "$(sed -n 's/^VERSION = //p' source/Makefile | head -n1)" = 4
           test "$(sed -n 's/^PATCHLEVEL = //p' source/Makefile | head -n1)" = 14
@@ -53,6 +53,8 @@ jobs:
           grep -Fq 'reclaim_task_nomap' source/mm/process_reclaim.c
           grep -Fq 'tsk_nomap_swap_sz' source/mm/process_reclaim.c
           grep -Fq 'reclaimed_nomap' source/mm/process_reclaim.c
+          grep -Fq 'KBUILD_CFLAGS += -DOPLUS_FEATURE_PROCESS_RECLAIM' source/Makefile
+          grep -Fq 'KBUILD_CPPFLAGS += -DOPLUS_FEATURE_PROCESS_RECLAIM' source/Makefile
           grep -Fq 'PageActive(page) || PageUnevictable(page)' source/mm/process_reclaim.c
           grep -Fq 'is_reclaim_should_cancel(walk)' source/mm/process_reclaim.c
           grep -Fq 'RECLAIM_TIMEOUT_JIFFIES' source/mm/process_reclaim.c
@@ -72,7 +74,7 @@ jobs:
             echo source_path=mm/process_reclaim.c
             echo production_before=${live_production}
             echo vendor_sha=${VENDOR_SHA}
-            echo changed_runtime_path=mm/process_reclaim.c
+            echo changed_runtime_paths=Makefile,mm/process_reclaim.c
             echo production_write=NONE
           } | tee STAGE3A-SOURCE-BOUNDARIES.txt
 
@@ -92,7 +94,7 @@ jobs:
           gate = '''# Exact memory Stage 3A source gate.
           test "$(git rev-parse HEAD)" = "${SOURCE_SHA}"
           git merge-base --is-ancestor "${SOURCE_BASE}" "${SOURCE_SHA}"
-          test "$(git diff --name-only "${SOURCE_BASE}" "${SOURCE_SHA}" | sort -u)" = "mm/process_reclaim.c"
+          test "$(git diff --name-only "${SOURCE_BASE}" "${SOURCE_SHA}" | sort -u)" = $'Makefile\nmm/process_reclaim.c'
           test -z "$(git ls-files -u)"
           git diff --check "${SOURCE_BASE}" "${SOURCE_SHA}"
           test "$(sed -n 's/^VERSION = //p' Makefile | head -n1)" = 4
