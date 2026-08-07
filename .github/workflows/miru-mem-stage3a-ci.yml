@@ -44,10 +44,16 @@ jobs:
           target = Path('build-stage3a.sh')
           text = source.read_text()
 
-          # Remove the old 4.14.190 source-history/sanity gate completely.
           start = text.index('# Fetch only the distant commits required by the source-level sanity checks.')
           end = text.index("# GitHub's Ubuntu image contains most dependencies already")
           text = text[:start] + text[end:]
+
+          final = '\n'.join([
+              'cp "${OUT_DIR}/arch/arm64/boot/Image.gz-dtb" "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb"',
+              'printf \'%s\\n\' "${EXPECTED_RELEASE}" > "${ARTIFACT_DIR}/KERNEL-RELEASE.txt"',
+              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/STAGE3A-IMAGE-SHA256.txt"',
+              'echo "Stage 3A kernel build: PASS"',
+          ])
 
           replacements = {
               'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=c03a4c6339b959f1a9b288a157d5b5d16fbcf015',
@@ -56,10 +62,7 @@ jobs:
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-mem-s3a"',
               "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-mem-s3a+' || true)\"",
               'cp "${DIAG_DIR}/sanity-summary.txt" "${ARTIFACT_DIR}/SANITY-SUMMARY.txt"': ': # Stage 3A source validation intentionally disabled',
-              'echo "Clean kernel build and output validation: PASS"': '''cp "${OUT_DIR}/arch/arm64/boot/Image.gz-dtb" "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb"
-printf '%s\\n' "${EXPECTED_RELEASE}" > "${ARTIFACT_DIR}/KERNEL-RELEASE.txt"
-sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/STAGE3A-IMAGE-SHA256.txt"
-echo "Stage 3A kernel build: PASS"''',
+              'echo "Clean kernel build and output validation: PASS"': final,
           }
 
           for old, new in replacements.items():
