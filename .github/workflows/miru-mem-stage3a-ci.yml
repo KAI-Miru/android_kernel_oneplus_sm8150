@@ -17,7 +17,7 @@ concurrency:
 
 env:
   SOURCE_SHA: 2ef34ac53e1cba1394a756726d9eadf5eae0f5eb
-  SOURCE_PARENT: f92018596b074b649085be0f689de83b1786f246
+  SOURCE_BASE: f92018596b074b649085be0f689de83b1786f246
   VENDOR_SHA: c03a4c6339b959f1a9b288a157d5b5d16fbcf015
   EXPECTED_RELEASE: 4.14.357-openela-miru-h40-mem-s3a+
 
@@ -32,21 +32,24 @@ jobs:
         with:
           ref: ${{ env.SOURCE_SHA }}
           path: source
-          fetch-depth: 0
+          fetch-depth: 3
 
       - name: Verify Stage 3A source boundaries
         shell: bash
         run: |
           set -Eeuo pipefail
           test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
-          git -C source merge-base --is-ancestor "${SOURCE_PARENT}" "${SOURCE_SHA}"
-          test "$(git -C source diff --name-only "${SOURCE_PARENT}" "${SOURCE_SHA}" | sort -u)" = "mm/process_reclaim.c"
-          git -C source diff --check "${SOURCE_PARENT}" "${SOURCE_SHA}"
+          git -C source merge-base --is-ancestor "${SOURCE_BASE}" "${SOURCE_SHA}"
+          test "$(git -C source diff --name-only "${SOURCE_BASE}" "${SOURCE_SHA}" | sort -u)" = "mm/process_reclaim.c"
+          git -C source diff --check "${SOURCE_BASE}" "${SOURCE_SHA}"
           test "$(sed -n 's/^VERSION = //p' source/Makefile | head -n1)" = 4
           test "$(sed -n 's/^PATCHLEVEL = //p' source/Makefile | head -n1)" = 14
           test "$(sed -n 's/^SUBLEVEL = //p' source/Makefile | head -n1)" = 357
           test "$(sed -n 's/^EXTRAVERSION = //p' source/Makefile | head -n1)" = -openela
 
+          grep -Fq '#include <linux/mm_inline.h>' source/mm/process_reclaim.c
+          grep -Fq '#include <linux/rmap.h>' source/mm/process_reclaim.c
+          grep -Fq '#include <linux/sched/mm.h>' source/mm/process_reclaim.c
           grep -Fq 'reclaim_task_nomap' source/mm/process_reclaim.c
           grep -Fq 'tsk_nomap_swap_sz' source/mm/process_reclaim.c
           grep -Fq 'reclaimed_nomap' source/mm/process_reclaim.c
@@ -65,7 +68,8 @@ jobs:
           {
             echo result=PASS
             echo source_sha=${SOURCE_SHA}
-            echo source_parent=${SOURCE_PARENT}
+            echo source_base=${SOURCE_BASE}
+            echo source_path=mm/process_reclaim.c
             echo production_before=${live_production}
             echo vendor_sha=${VENDOR_SHA}
             echo changed_runtime_path=mm/process_reclaim.c
@@ -87,10 +91,10 @@ jobs:
           end = text.index("# GitHub's Ubuntu image contains most dependencies already")
           gate = '''# Exact memory Stage 3A source gate.
           test "$(git rev-parse HEAD)" = "${SOURCE_SHA}"
-          git merge-base --is-ancestor "${SOURCE_PARENT}" "${SOURCE_SHA}"
-          test "$(git diff --name-only "${SOURCE_PARENT}" "${SOURCE_SHA}" | sort -u)" = "mm/process_reclaim.c"
+          git merge-base --is-ancestor "${SOURCE_BASE}" "${SOURCE_SHA}"
+          test "$(git diff --name-only "${SOURCE_BASE}" "${SOURCE_SHA}" | sort -u)" = "mm/process_reclaim.c"
           test -z "$(git ls-files -u)"
-          git diff --check "${SOURCE_PARENT}" "${SOURCE_SHA}"
+          git diff --check "${SOURCE_BASE}" "${SOURCE_SHA}"
           test "$(sed -n 's/^VERSION = //p' Makefile | head -n1)" = 4
           test "$(sed -n 's/^PATCHLEVEL = //p' Makefile | head -n1)" = 14
           test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 357
@@ -100,6 +104,7 @@ jobs:
           {
             echo "Sanity gate: PASS"
             echo "head=${SOURCE_SHA}"
+            echo "base=${SOURCE_BASE}"
             echo "kernel_version=4.14.357-openela"
             echo "stage=memory-3A"
             echo "production_write=NONE"
@@ -163,34 +168,7 @@ jobs:
           grep -Fq 'reclaim_task_nomap' source/mm/process_reclaim.c
           grep -Fq 'tsk_nomap_swap_sz' source/mm/process_reclaim.c
           grep -Fq 'reclaimed_nomap' source/mm/process_reclaim.c
-          nm "$out/vmlinux" | grep -Eq '[[:space:]][tT][[:space:]]reclaim_task_nomap"$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
-          test "${live_production}" = "${PRODUCTION_SHA}"
-
-          {
-            echo result=PASS
-            echo source_sha=${SOURCE_SHA}
-            echo kernel_release=${EXPECTED_RELEASE}
-            echo userspace_lmk=enabled
-            echo legacy_kernel_lmk=disabled
-            echo process_reclaim=enabled_in_config
-            echo process_reclaim_runtime_default=disabled
-            echo process_reclaim_enhance=enabled
-            echo process_reclaim_nomap=present
-            echo production_after=${live_production}
-            echo production_write=NONE
-          } | tee "$artifacts/STAGE3A-VALIDATION.txt"
-
-      - name: Upload Stage 3A kernel and evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: miru-h40-memory-stage3a-s3a
-          if-no-files-found: error
-          retention-days: 30
-          path: |
-            ${{ runner.temp }}/android-root/out/h40-artifacts/**
-            source/build-diagnostics/**
-            STAGE3A-SOURCE-BOUNDARIES.txt
-
+          nm "$out/vmlinux" | grep -Eq '[[:space:]][tT][[:space:]]reclaim_task_nomap$'
           strings "$out/vmlinux" | grep -Fxq 'tsk_nomap_swap_sz'
           strings "$out/vmlinux" | grep -Fxq 'reclaimed_nomap'
 
