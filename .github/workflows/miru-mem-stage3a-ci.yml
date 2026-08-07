@@ -32,7 +32,7 @@ jobs:
         with:
           ref: ${{ env.SOURCE_SHA }}
           path: source
-          fetch-depth: 4
+          fetch-depth: 0
 
       - name: Verify Stage 3A source boundaries
         shell: bash
@@ -57,7 +57,7 @@ jobs:
           grep -Fq 'is_reclaim_should_cancel(walk)' source/mm/process_reclaim.c
           grep -Fq 'RECLAIM_TIMEOUT_JIFFIES' source/mm/process_reclaim.c
           grep -Fq 'module_param_named(reclaimed_anon' source/mm/process_reclaim.c
-          grep -Fq 'if (per_swap_size <= 0)' source/mm/process_reclaim.c
+          grep -Fq 'if (per_swap_size <= 0 && tsk_nomap_swap_sz <= 0)' source/mm/process_reclaim.c
 
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
           test -n "${live_production}"
