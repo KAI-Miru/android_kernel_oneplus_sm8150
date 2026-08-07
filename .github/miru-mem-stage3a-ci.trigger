@@ -1,4 +1,6 @@
-source=755ca91b402385c6056d86426e3ca4d6aded3478
+source=83a6786ba50a4be0c9e96c2cc6f70aa9114a8a40
+source_base=f92018596b074b649085be0f689de83b1786f246
+source_commits=2
+checkout_depth=3
 purpose=compile-only memory Stage 3A validation
-checkout_depth=2
 production_write=none
