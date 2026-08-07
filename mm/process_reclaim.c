@@ -13,10 +13,13 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/mm_inline.h>
 #include <linux/swap.h>
 #include <linux/sort.h>
 #include <linux/oom.h>
+#include <linux/rmap.h>
 #include <linux/sched.h>
+#include <linux/sched/mm.h>
 #include <linux/rcupdate.h>
 #include <linux/notifier.h>
 #include <linux/vmpressure.h>
