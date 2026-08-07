@@ -77,19 +77,36 @@ jobs:
 
           bash -n build-stage3a.sh
 
-      - name: Build Stage 3A kernel with Clang
+      - name: Prepare Stage 2-compatible H.40 config
         shell: bash
         working-directory: source
         run: |
           set -Eeuo pipefail
+          cp h40-repro/config/GM1911_11_H.40.config "${RUNNER_TEMP}/stage3a.config"
+          scripts/config --file "${RUNNER_TEMP}/stage3a.config" \
+            --enable HAVE_USERSPACE_LOW_MEMORY_KILLER \
+            --disable ANDROID_LOW_MEMORY_KILLER \
+            --disable ANDROID_LOW_MEMORY_KILLER_AUTODETECT_OOM_ADJ_VALUES
+
+      - name: Build Stage 3A kernel with Clang
+        shell: bash
+        working-directory: source
+        env:
+          STOCK_CONFIG: ${{ runner.temp }}/stage3a.config
+        run: |
+          set -Eeuo pipefail
           bash ../build-stage3a.sh
+          cfg="${RUNNER_TEMP}/android-root/out/h40-kernel/.config"
+          grep -Fxq 'CONFIG_HAVE_USERSPACE_LOW_MEMORY_KILLER=y' "${cfg}"
+          grep -Fxq '# CONFIG_ANDROID_LOW_MEMORY_KILLER is not set' "${cfg}"
+          grep -Fxq 'CONFIG_PROCESS_RECLAIM_ENHANCE=y' "${cfg}"
 
       - name: Upload Stage 3A kernel
         uses: actions/upload-artifact@v4
-        if: always()
+        if: success()
         with:
-          name: miru-h40-memory-stage3a-s3a
-          if-no-files-found: warn
+          name: miru-h40-memory-stage3a-s3a-correct
+          if-no-files-found: error
           retention-days: 30
           path: |
             ${{ runner.temp }}/android-root/out/h40-artifacts/**
