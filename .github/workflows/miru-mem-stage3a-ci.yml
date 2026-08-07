@@ -1,6 +1,11 @@
 name: Miru H.40 memory Stage 3A validation
 
 on:
+  push:
+    branches:
+      - miru-h40-mem-stage3a-ci-trigger-r2
+    paths:
+      - '.github/miru-mem-stage3a-ci.trigger'
   pull_request:
     branches:
       - miru-h40-mem-stage3a-anon-reclaim
