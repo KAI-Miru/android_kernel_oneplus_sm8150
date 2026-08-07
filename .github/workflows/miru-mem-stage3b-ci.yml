@@ -32,7 +32,7 @@ jobs:
         with:
           ref: ${{ env.SOURCE_BRANCH }}
           path: source
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Apply Stage 3B.1 allocator fix
         shell: bash
@@ -51,14 +51,13 @@ jobs:
 
           path = Path('mm/page_alloc.c')
           text = path.read_text()
-
           helper_sig = 'static inline long __zone_watermark_unusable_free(struct zone *z,'
           safe_fast = 'usable_free -= min(usable_free, reserved);'
 
           if helper_sig in text:
               if safe_fast not in text:
-                  raise SystemExit('Stage 3B.1 helper exists without the negative-value safety fix')
-              print('Stage 3B.1 already present; source is idempotent')
+                  raise SystemExit('Stage 3B.1 helper exists without negative-value safety fix')
+              print('Stage 3B.1 already present')
           else:
               marker = '''/*
            * Return true if free base pages are above 'mark'. For high-order checks it
@@ -69,7 +68,6 @@ jobs:
           '''
               if text.count(marker) != 1:
                   raise SystemExit(f'watermark comment anchor count={text.count(marker)}')
-
               helper = '''static inline long __zone_watermark_unusable_free(struct zone *z,
           				unsigned int order, unsigned int alloc_flags)
           {
@@ -155,23 +153,20 @@ jobs:
               start = text.index('static inline bool zone_watermark_fast(struct zone *z, unsigned int order,')
               end = text.index('\nbool zone_watermark_ok_safe(', start)
               old_fast = text[start:end]
+              if 'long cma_pages = 0;' not in old_fast:
+                  raise SystemExit('unexpected zone_watermark_fast baseline')
               new_fast = '''static inline bool zone_watermark_fast(struct zone *z, unsigned int order,
           		unsigned long mark, int classzone_idx, unsigned int alloc_flags)
           {
           	long free_pages = zone_page_state(z, NR_FREE_PAGES);
 
-          	/*
-          	 * Fast check for order-0 only. If this fails then the reserves
-          	 * need to be calculated. Account for both CMA and high-atomic
-          	 * reserves so normal allocations cannot consume emergency pages.
-          	 */
+          	/* Fast order-0 check accounting for CMA and high-atomic reserves. */
           	if (!order) {
           		long usable_free;
           		long reserved;
 
           		usable_free = free_pages;
           		reserved = __zone_watermark_unusable_free(z, 0, alloc_flags);
-
           		/* reserved may over estimate high-atomic reserves. */
           		usable_free -= min(usable_free, reserved);
           		if (usable_free > mark + z->lowmem_reserve[classzone_idx])
@@ -182,22 +177,18 @@ jobs:
           					free_pages);
           }
           '''
-              if 'long cma_pages = 0;' not in old_fast:
-                  raise SystemExit('unexpected zone_watermark_fast baseline')
               text = text[:start] + new_fast + text[end:]
-
               path.write_text(text)
 
           final = path.read_text()
-          required = [
+          for token in (
               helper_sig,
               'free_pages -= __zone_watermark_unusable_free(z, order, alloc_flags);',
               'reserved = __zone_watermark_unusable_free(z, 0, alloc_flags);',
               safe_fast,
-          ]
-          for token in required:
+          ):
               if final.count(token) != 1:
-                  raise SystemExit(f'final Stage 3B.1 token count for {token!r}={final.count(token)}')
+                  raise SystemExit(f'final token count for {token!r}={final.count(token)}')
           PY
 
           git diff --check
@@ -208,9 +199,7 @@ jobs:
             git commit -m 'mm: add Stage 3B.1 highatomic watermark protection'
             git push origin HEAD:"${SOURCE_BRANCH}"
           fi
-
           echo "SOURCE_SHA=$(git rev-parse HEAD)" >> "${GITHUB_ENV}"
-          git show --stat --oneline --decorate -1
 
       - name: Generate Stage 3B Clang build driver
         shell: bash
@@ -218,15 +207,12 @@ jobs:
           set -Eeuo pipefail
           python3 - <<'PY'
           from pathlib import Path
-
           source = Path('source/scripts/miru/ci_build_4.14.190.sh')
           target = Path('build-stage3b.sh')
           text = source.read_text()
-
           start = text.index('# Fetch only the distant commits required by the source-level sanity checks.')
           end = text.index("# GitHub's Ubuntu image contains most dependencies already")
           text = text[:start] + text[end:]
-
           final = '\n'.join([
               'cp "${OUT_DIR}/arch/arm64/boot/Image.gz-dtb" "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb"',
               'printf \'%s\\n\' "${EXPECTED_RELEASE}" > "${ARTIFACT_DIR}/KERNEL-RELEASE.txt"',
@@ -234,7 +220,6 @@ jobs:
               'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/STAGE3B-IMAGE-SHA256.txt"',
               'echo "Stage 3B kernel build: PASS"',
           ])
-
           replacements = {
               'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=c03a4c6339b959f1a9b288a157d5b5d16fbcf015',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 memory Stage 3B build ==',
@@ -244,17 +229,13 @@ jobs:
               'cp "${DIAG_DIR}/sanity-summary.txt" "${ARTIFACT_DIR}/SANITY-SUMMARY.txt"': ': # Stage 3B source validation intentionally disabled',
               'echo "Clean kernel build and output validation: PASS"': final,
           }
-
           for old, new in replacements.items():
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'build-driver anchor count for {old!r}: {count}')
+              if text.count(old) != 1:
+                  raise SystemExit(f'build-driver anchor count for {old!r}={text.count(old)}')
               text = text.replace(old, new, 1)
-
           target.write_text(text)
           target.chmod(0o755)
           PY
-
           bash -n build-stage3b.sh
 
       - name: Prepare Stage 3B H.40 config
