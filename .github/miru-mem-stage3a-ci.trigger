@@ -1,6 +1,3 @@
-source=83a6786ba50a4be0c9e96c2cc6f70aa9114a8a40
-source_base=f92018596b074b649085be0f689de83b1786f246
-source_commits=2
-checkout_depth=3
-purpose=compile-only memory Stage 3A validation
-production_write=none
+Stage 3A rebuild trigger
+source=2ef34ac53e1cba1394a756726d9eadf5eae0f5eb
+release=4.14.357-openela-miru-h40-mem-s3a+
