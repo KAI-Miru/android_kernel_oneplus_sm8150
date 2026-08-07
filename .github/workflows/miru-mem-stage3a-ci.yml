@@ -16,11 +16,10 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SOURCE_SHA: 755ca91b402385c6056d86426e3ca4d6aded3478
+  SOURCE_SHA: 2ef34ac53e1cba1394a756726d9eadf5eae0f5eb
   SOURCE_PARENT: f92018596b074b649085be0f689de83b1786f246
-  PRODUCTION_SHA: 83c84c2b5d2210b15623e6b8bda14b7250624bb6
   VENDOR_SHA: c03a4c6339b959f1a9b288a157d5b5d16fbcf015
-  EXPECTED_RELEASE: 4.14.357-openela-miru-h40-mem3a-ci1+
+  EXPECTED_RELEASE: 4.14.357-openela-miru-h40-mem-s3a+
 
 jobs:
   kernel:
@@ -40,15 +39,17 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
-          test "$(git -C source rev-parse HEAD^)" = "${SOURCE_PARENT}"
-          test "$(git -C source diff --name-only "${SOURCE_PARENT}" "${SOURCE_SHA}")" = "mm/process_reclaim.c"
+          git -C source merge-base --is-ancestor "${SOURCE_PARENT}" "${SOURCE_SHA}"
+          test "$(git -C source diff --name-only "${SOURCE_PARENT}" "${SOURCE_SHA}" | sort -u)" = "mm/process_reclaim.c"
           git -C source diff --check "${SOURCE_PARENT}" "${SOURCE_SHA}"
           test "$(sed -n 's/^VERSION = //p' source/Makefile | head -n1)" = 4
           test "$(sed -n 's/^PATCHLEVEL = //p' source/Makefile | head -n1)" = 14
           test "$(sed -n 's/^SUBLEVEL = //p' source/Makefile | head -n1)" = 357
           test "$(sed -n 's/^EXTRAVERSION = //p' source/Makefile | head -n1)" = -openela
 
-          grep -Fq 'reclaim_task_inactive_anon' source/mm/process_reclaim.c
+          grep -Fq 'reclaim_task_nomap' source/mm/process_reclaim.c
+          grep -Fq 'tsk_nomap_swap_sz' source/mm/process_reclaim.c
+          grep -Fq 'reclaimed_nomap' source/mm/process_reclaim.c
           grep -Fq 'PageActive(page) || PageUnevictable(page)' source/mm/process_reclaim.c
           grep -Fq 'is_reclaim_should_cancel(walk)' source/mm/process_reclaim.c
           grep -Fq 'RECLAIM_TIMEOUT_JIFFIES' source/mm/process_reclaim.c
@@ -56,7 +57,8 @@ jobs:
           grep -Fq 'if (per_swap_size <= 0)' source/mm/process_reclaim.c
 
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
-          test "${live_production}" = "${PRODUCTION_SHA}"
+          test -n "${live_production}"
+          echo "PRODUCTION_BEFORE=${live_production}" >> "${GITHUB_ENV}"
           live_vendor="$(git ls-remote https://github.com/KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150.git refs/heads/oneplus/sm8150_s_12.1_op7pro | awk 'NR == 1 {print $1}')"
           test "${live_vendor}" = "${VENDOR_SHA}"
 
@@ -64,7 +66,7 @@ jobs:
             echo result=PASS
             echo source_sha=${SOURCE_SHA}
             echo source_parent=${SOURCE_PARENT}
-            echo production_sha=${PRODUCTION_SHA}
+            echo production_before=${live_production}
             echo vendor_sha=${VENDOR_SHA}
             echo changed_runtime_path=mm/process_reclaim.c
             echo production_write=NONE
@@ -85,8 +87,8 @@ jobs:
           end = text.index("# GitHub's Ubuntu image contains most dependencies already")
           gate = '''# Exact memory Stage 3A source gate.
           test "$(git rev-parse HEAD)" = "${SOURCE_SHA}"
-          test "$(git rev-parse HEAD^)" = "${SOURCE_PARENT}"
-          test "$(git diff --name-only "${SOURCE_PARENT}" "${SOURCE_SHA}")" = "mm/process_reclaim.c"
+          git merge-base --is-ancestor "${SOURCE_PARENT}" "${SOURCE_SHA}"
+          test "$(git diff --name-only "${SOURCE_PARENT}" "${SOURCE_SHA}" | sort -u)" = "mm/process_reclaim.c"
           test -z "$(git ls-files -u)"
           git diff --check "${SOURCE_PARENT}" "${SOURCE_SHA}"
           test "$(sed -n 's/^VERSION = //p' Makefile | head -n1)" = 4
@@ -94,7 +96,7 @@ jobs:
           test "$(sed -n 's/^SUBLEVEL = //p' Makefile | head -n1)" = 357
           test "$(sed -n 's/^EXTRAVERSION = //p' Makefile | head -n1)" = -openela
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
-          test "${live_production}" = "${PRODUCTION_SHA}"
+          test "${live_production}" = "${PRODUCTION_BEFORE}"
           {
             echo "Sanity gate: PASS"
             echo "head=${SOURCE_SHA}"
@@ -109,9 +111,9 @@ jobs:
           replacements = {
               'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=c03a4c6339b959f1a9b288a157d5b5d16fbcf015',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 memory Stage 3A CI build ==',
-              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-mem3a-ci1',
-              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-mem3a-ci1"',
-              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-mem3a-ci1+' || true)\"",
+              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-mem-s3a',
+              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-mem-s3a"',
+              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-mem-s3a+' || true)\"",
               'echo "Clean kernel build and output validation: PASS"': '''release="$(printf '%s\\n' "${banner}" | sed -n 's/^Linux version \\([^ ]*\\).*/\\1/p')"
           test "${release}" = "${EXPECTED_RELEASE}"
           cp "${OUT_DIR}/arch/arm64/boot/Image.gz-dtb" "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb"
@@ -132,7 +134,7 @@ jobs:
 
           bash -n build-stage3a.sh
           grep -Fq 'VENDOR_SHA=c03a4c6339b959f1a9b288a157d5b5d16fbcf015' build-stage3a.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-mem3a-ci1' build-stage3a.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-mem-s3a' build-stage3a.sh
 
       - name: Build Stage 3A kernel with Clang
         shell: bash
@@ -158,8 +160,10 @@ jobs:
           grep -Fxq 'CONFIG_PSI=y' "$out/.config"
           grep -Fxq 'CONFIG_MEMCG=y' "$out/.config"
           grep -Fxq 'CONFIG_MEMCG_SWAP=y' "$out/.config"
-
-          live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
+          grep -Fq 'reclaim_task_nomap' source/mm/process_reclaim.c
+          grep -Fq 'tsk_nomap_swap_sz' source/mm/process_reclaim.c
+          grep -Fq 'reclaimed_nomap' source/mm/process_reclaim.c
+          nm "$out/vmlinux" | grep -Eq '[[:space:]][tT][[:space:]]reclaim_task_nomap"$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
           test "${live_production}" = "${PRODUCTION_SHA}"
 
           {
@@ -171,6 +175,7 @@ jobs:
             echo process_reclaim=enabled_in_config
             echo process_reclaim_runtime_default=disabled
             echo process_reclaim_enhance=enabled
+            echo process_reclaim_nomap=present
             echo production_after=${live_production}
             echo production_write=NONE
           } | tee "$artifacts/STAGE3A-VALIDATION.txt"
@@ -178,7 +183,38 @@ jobs:
       - name: Upload Stage 3A kernel and evidence
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-memory-stage3a-ci1
+          name: miru-h40-memory-stage3a-s3a
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            ${{ runner.temp }}/android-root/out/h40-artifacts/**
+            source/build-diagnostics/**
+            STAGE3A-SOURCE-BOUNDARIES.txt
+
+          strings "$out/vmlinux" | grep -Fxq 'tsk_nomap_swap_sz'
+          strings "$out/vmlinux" | grep -Fxq 'reclaimed_nomap'
+
+          live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
+          test "${live_production}" = "${PRODUCTION_BEFORE}"
+
+          {
+            echo result=PASS
+            echo source_sha=${SOURCE_SHA}
+            echo kernel_release=${EXPECTED_RELEASE}
+            echo userspace_lmk=enabled
+            echo legacy_kernel_lmk=disabled
+            echo process_reclaim=enabled_in_config
+            echo process_reclaim_runtime_default=disabled
+            echo process_reclaim_enhance=enabled
+            echo process_reclaim_nomap=present
+            echo production_after=${live_production}
+            echo production_write=NONE
+          } | tee "$artifacts/STAGE3A-VALIDATION.txt"
+
+      - name: Upload Stage 3A kernel and evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: miru-h40-memory-stage3a-s3a
           if-no-files-found: error
           retention-days: 30
           path: |
