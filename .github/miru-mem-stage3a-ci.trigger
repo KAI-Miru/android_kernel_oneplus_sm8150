@@ -1,0 +1,3 @@
+source=755ca91b402385c6056d86426e3ca4d6aded3478
+purpose=compile-only memory Stage 3A validation
+production_write=none
