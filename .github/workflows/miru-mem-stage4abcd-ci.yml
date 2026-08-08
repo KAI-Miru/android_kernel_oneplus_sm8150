@@ -17,9 +17,8 @@ concurrency:
 
 env:
   SOURCE_BRANCH: miru-h40-mem-stage4abcd
-  SOURCE_SHA_EXPECTED: a571718e6dc70ecfb9cff92b9f578cd76fa654f5
-  VENDOR_SHA: 32fc97fdb660965ffd042650d832067e4e4f3f17
-  VENDOR_BASE_SHA: c03a4c6339b959f1a9b288a157d5b5d16fbcf015
+  SOURCE_SHA: a571718e6dc70ecfb9cff92b9f578cd76fa654f5
+  VENDOR_SHA: 41f38e160134e6b06840221c675f5ecb177e59a7
   EXPECTED_RELEASE: 4.14.357-openela-miru-h40-mem-s4abcd+
 
 jobs:
@@ -28,107 +27,152 @@ jobs:
     timeout-minutes: 180
 
     steps:
-      - name: Checkout Stage 4ABCD source branch
+      - name: Checkout kernel source
         uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_BRANCH }}
           path: source
           fetch-depth: 1
 
-      - name: Validate Stage 4ABCD source
+      - name: Validate source and prepare config
         shell: bash
         working-directory: source
         run: |
           set -Eeuo pipefail
-          test "$(git rev-parse HEAD)" = "${SOURCE_SHA_EXPECTED}"
+          test "$(git rev-parse HEAD)" = "${SOURCE_SHA}"
           grep -Fq '#define STAGE3A_RECLAIM_PAGES 256' mm/process_reclaim.c
           grep -Fq 'int min_idx = -1;' mm/process_reclaim.c
           grep -Fq 'if (min_idx >= 0)' mm/process_reclaim.c
-          test -f scripts/miru/configure_mem_stage4.sh
-          echo "SOURCE_SHA=$(git rev-parse HEAD)" >> "${GITHUB_ENV}"
 
-      - name: Generate Stage 4ABCD Clang build driver
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-
-          source = Path('source/scripts/miru/ci_build_4.14.190.sh')
-          target = Path('build-stage4abcd.sh')
-          text = source.read_text()
-
-          start = text.index('# Fetch only the distant commits required by the source-level sanity checks.')
-          end = text.index("# GitHub's Ubuntu image contains most dependencies already")
-          text = text[:start] + text[end:]
-
-          vendor_anchor = '''test -d "${VENDOR_SOURCE}/vendor"
-          mkdir -p "${ANDROID_ROOT}/vendor"
-          rsync -a "${VENDOR_SOURCE}/vendor/" "${ANDROID_ROOT}/vendor/"
-          '''
-          vendor_patch = '''test -d "${VENDOR_SOURCE}/vendor"
-          STAGE4C_PATCH="${VENDOR_SOURCE}/vendor/oplus/kernel/oplus_performance/oplus_nandswap/stage4c-nandswap-lifetime-fixes.patch"
-          NANDSWAP_CORE="${VENDOR_SOURCE}/vendor/oplus/kernel/oplus_performance/oplus_nandswap/nandswap_core.c"
-          test -f "${STAGE4C_PATCH}"
-          test -f "${NANDSWAP_CORE}"
-          git -C "${VENDOR_SOURCE}" apply --check "${STAGE4C_PATCH}"
-          git -C "${VENDOR_SOURCE}" apply "${STAGE4C_PATCH}"
-          grep -Fq 'if (nswapdropd && nswapdropd->state == TASK_INTERRUPTIBLE)' "${NANDSWAP_CORE}"
-          grep -Fq 'if (page_count(page) > 2)' "${NANDSWAP_CORE}"
-          grep -Fq 'enqueue_reclaim_data(task_pid, &drop_info);' "${NANDSWAP_CORE}"
-          mkdir -p "${ANDROID_ROOT}/vendor"
-          rsync -a "${VENDOR_SOURCE}/vendor/" "${ANDROID_ROOT}/vendor/"
-          '''
-          if text.count(vendor_anchor) != 1:
-              raise SystemExit(f'vendor patch anchor count={text.count(vendor_anchor)}')
-          text = text.replace(vendor_anchor, vendor_patch, 1)
-
-          final = '\n'.join([
-              'cp "${OUT_DIR}/arch/arm64/boot/Image.gz-dtb" "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb"',
-              'printf \'%s\\n\' "${EXPECTED_RELEASE}" > "${ARTIFACT_DIR}/KERNEL-RELEASE.txt"',
-              'printf \'%s\\n\' "${SOURCE_SHA}" > "${ARTIFACT_DIR}/SOURCE-SHA.txt"',
-              'printf \'%s\\n\' "${VENDOR_SHA}" > "${ARTIFACT_DIR}/VENDOR-SHA.txt"',
-              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/STAGE4ABCD-IMAGE-SHA256.txt"',
-              'echo "Stage 4ABCD kernel build: PASS"',
-          ])
-
-          replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=32fc97fdb660965ffd042650d832067e4e4f3f17',
-              '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 memory Stage 4ABCD build ==',
-              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-mem-s4abcd',
-              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-mem-s4abcd"',
-              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-mem-s4abcd+' || true)\"",
-              'cp "${DIAG_DIR}/sanity-summary.txt" "${ARTIFACT_DIR}/SANITY-SUMMARY.txt"': ': # Stage 4ABCD source validation is performed by the workflow',
-              'echo "Clean kernel build and output validation: PASS"': final,
-          }
-          for old, new in replacements.items():
-              if text.count(old) != 1:
-                  raise SystemExit(f'build-driver anchor count for {old!r}={text.count(old)}')
-              text = text.replace(old, new, 1)
-
-          target.write_text(text)
-          target.chmod(0o755)
-          PY
-          bash -n build-stage4abcd.sh
-
-      - name: Prepare Stage 4ABCD H.40 config
-        shell: bash
-        working-directory: source
-        run: |
-          set -Eeuo pipefail
           cp h40-repro/config/GM1911_11_H.40.config "${RUNNER_TEMP}/stage4abcd.config"
           bash scripts/miru/configure_mem_stage4.sh "${RUNNER_TEMP}/stage4abcd.config"
 
-      - name: Build combined Stage 4ABCD candidate with Clang
+      - name: Prepare build environment
         shell: bash
-        working-directory: source
-        env:
-          STOCK_CONFIG: ${{ runner.temp }}/stage4abcd.config
         run: |
           set -Eeuo pipefail
-          bash ../build-stage4abcd.sh
 
-          cfg="${RUNNER_TEMP}/android-root/out/h40-kernel/.config"
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential bison flex libssl-dev libelf-dev cpio kmod rsync \
+            zlib1g-dev libncurses-dev xz-utils file
+
+          ANDROID_ROOT="${RUNNER_TEMP}/android-root"
+          KERNEL_DIR="${ANDROID_ROOT}/kernel/msm-4.14"
+          VENDOR_SOURCE="${RUNNER_TEMP}/oneplus-sm8150-vendor-source"
+          TOOLCHAIN_ROOT="${RUNNER_TEMP}/miru-toolchains"
+
+          rm -rf "${ANDROID_ROOT}" "${VENDOR_SOURCE}" "${TOOLCHAIN_ROOT}"
+          mkdir -p "${ANDROID_ROOT}/kernel" "${ANDROID_ROOT}/out" "${TOOLCHAIN_ROOT}"
+          git -C source worktree add --detach "${KERNEL_DIR}" "${SOURCE_SHA}"
+
+          git init -q "${VENDOR_SOURCE}"
+          git -C "${VENDOR_SOURCE}" remote add origin \
+            https://github.com/KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150.git
+          git -C "${VENDOR_SOURCE}" fetch -q --depth=1 --filter=blob:none origin "${VENDOR_SHA}"
+          git -C "${VENDOR_SOURCE}" checkout -q --detach FETCH_HEAD
+          test "$(git -C "${VENDOR_SOURCE}" rev-parse HEAD)" = "${VENDOR_SHA}"
+
+          NANDSWAP="${VENDOR_SOURCE}/vendor/oplus/kernel/oplus_performance/oplus_nandswap/nandswap_core.c"
+          grep -Fq 'if (nswapdropd && nswapdropd->state == TASK_INTERRUPTIBLE)' "${NANDSWAP}"
+          grep -Fq 'if (page_count(page) > 2)' "${NANDSWAP}"
+          grep -Fq 'enqueue_reclaim_data(task_pid, &drop_info);' "${NANDSWAP}"
+          test ! -e "${VENDOR_SOURCE}/vendor/oplus/kernel/oplus_performance/oplus_nandswap/stage4c-nandswap-lifetime-fixes.patch"
+
+          mkdir -p "${ANDROID_ROOT}/vendor"
+          rsync -a "${VENDOR_SOURCE}/vendor/" "${ANDROID_ROOT}/vendor/"
+
+          fetch_root() {
+            local url="$1" commit="$2" dest="$3"
+            git init -q "${dest}"
+            git -C "${dest}" remote add origin "${url}"
+            git -C "${dest}" fetch -q --depth=1 --filter=blob:none origin "${commit}"
+            git -C "${dest}" checkout -q --detach FETCH_HEAD
+          }
+
+          fetch_sparse() {
+            local url="$1" commit="$2" dest="$3" sparse_path="$4"
+            git init -q "${dest}"
+            git -C "${dest}" remote add origin "${url}"
+            git -C "${dest}" sparse-checkout init --cone
+            git -C "${dest}" sparse-checkout set "${sparse_path}"
+            git -C "${dest}" fetch -q --depth=1 --filter=blob:none origin "${commit}"
+            git -C "${dest}" checkout -q --detach FETCH_HEAD
+          }
+
+          fetch_sparse \
+            https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86 \
+            252aba16f513a857bc923172f67b0e55e23de35f \
+            "${TOOLCHAIN_ROOT}/clang-repo" clang-r377782c
+
+          fetch_root \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9 \
+            606f80986096476912e04e5c2913685a8f2c3b65 \
+            "${TOOLCHAIN_ROOT}/gcc64"
+
+          fetch_root \
+            https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9 \
+            b0c6a654327ca8796bed1e61dffcf523d04dceaa \
+            "${TOOLCHAIN_ROOT}/gcc32"
+
+          fetch_sparse \
+            https://android.googlesource.com/platform/prebuilts/build-tools \
+            7322db1e1e4715fe217a27f721613e6be8438676 \
+            "${TOOLCHAIN_ROOT}/build-tools" linux-x86
+
+          printf '%s  %s\n' \
+            6618ecab73b79a70b79263d2f477f669e564d81ca802112d2e5f93c74c6b22ca \
+            "${TOOLCHAIN_ROOT}/clang-repo/clang-r377782c/bin/clang" | sha256sum -c -
+          printf '%s  %s\n' \
+            2a663de4ce3d702fe3f2a0de48cac366be676f850c2f5732d9cc2e4acb9335e2 \
+            "${TOOLCHAIN_ROOT}/gcc64/bin/aarch64-linux-android-ld" | sha256sum -c -
+          printf '%s  %s\n' \
+            9565b7fc362bdf87032d44eea1087f25dcdd3a6655b39caa6f934640791f15d8 \
+            "${TOOLCHAIN_ROOT}/gcc64/bin/aarch64-linux-android-as" | sha256sum -c -
+          printf '%s  %s\n' \
+            2f78058a8549bc5c099dbea16d9f3dc571e072b1ade906c3539e419787b502dd \
+            "${TOOLCHAIN_ROOT}/gcc32/bin/arm-linux-androideabi-as" | sha256sum -c -
+          printf '%s  %s\n' \
+            5630a485d7c597d137fa462626213007e8865cf549677e1f727d131695ec830c \
+            "${TOOLCHAIN_ROOT}/build-tools/linux-x86/bin/py2-cmd" | sha256sum -c -
+          printf '%s  %s\n' \
+            e42381e7111b3e9336895284a95b0a404479a45cfcd787e6431021d277ccbe44 \
+            "${TOOLCHAIN_ROOT}/build-tools/linux-x86/bin/gavinhoward-bc" | sha256sum -c -
+          printf '%s  %s\n' \
+            c337f911c36e317e1fbbd9c3baa1cdb8457f591051f8f871eaa4964136f0dec5 \
+            "${TOOLCHAIN_ROOT}/build-tools/linux-x86/bin/toybox" | sha256sum -c -
+
+      - name: Build kernel
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          export ANDROID_ROOT="${RUNNER_TEMP}/android-root"
+          export KERNEL_DIR="${ANDROID_ROOT}/kernel/msm-4.14"
+          export OUT_DIR="${ANDROID_ROOT}/out/h40-kernel"
+          export DTS_OUT_DIR="${ANDROID_ROOT}/out/h40-production-dts"
+          export ARTIFACT_DIR="${ANDROID_ROOT}/out/h40-artifacts"
+          export BUILD_LOG="${ANDROID_ROOT}/out/h40-build.log"
+          export TOOLCHAIN_ROOT="${RUNNER_TEMP}/miru-toolchains"
+          export CLANG_DIR="${TOOLCHAIN_ROOT}/clang-repo/clang-r377782c"
+          export GCC64_DIR="${TOOLCHAIN_ROOT}/gcc64"
+          export GCC32_DIR="${TOOLCHAIN_ROOT}/gcc32"
+          export AOSP_BUILD_TOOLS="${TOOLCHAIN_ROOT}/build-tools/linux-x86"
+          export STOCK_CONFIG="${RUNNER_TEMP}/stage4abcd.config"
+          export CONFIG_MODE=stock
+          export KERNEL_LOCALVERSION=-miru-h40-mem-s4abcd
+          export MODULE_SIG_POLICY=permit-untrusted
+          export SKIP_PRODUCTION_DTS=1
+          export JOBS=4
+          export KBUILD_BUILD_USER=miru
+          export KBUILD_BUILD_HOST=github-actions
+          export KBUILD_BUILD_VERSION=1
+          export KBUILD_BUILD_TIMESTAMP="$(git -C "${KERNEL_DIR}" show -s --format=%cD HEAD)"
+          export SOURCE_DATE_EPOCH="$(git -C "${KERNEL_DIR}" show -s --format=%ct HEAD)"
+
+          bash "${KERNEL_DIR}/h40-repro/build-h40.sh" --clean
+
+          cfg="${OUT_DIR}/.config"
           grep -Fxq 'CONFIG_HAVE_USERSPACE_LOW_MEMORY_KILLER=y' "${cfg}"
           grep -Fxq '# CONFIG_ANDROID_LOW_MEMORY_KILLER is not set' "${cfg}"
           grep -Fxq 'CONFIG_PROCESS_RECLAIM_ENHANCE=y' "${cfg}"
@@ -138,18 +182,21 @@ jobs:
           grep -Fxq '# CONFIG_KMALLOC_DEBUG is not set' "${cfg}"
           grep -Fxq '# CONFIG_VMALLOC_DEBUG is not set' "${cfg}"
 
-          nandswap="${RUNNER_TEMP}/oneplus-sm8150-vendor-source/vendor/oplus/kernel/oplus_performance/oplus_nandswap/nandswap_core.c"
-          grep -Fq 'if (nswapdropd && nswapdropd->state == TASK_INTERRUPTIBLE)' "${nandswap}"
-          grep -Fq 'if (page_count(page) > 2)' "${nandswap}"
-          grep -Fq 'enqueue_reclaim_data(task_pid, &drop_info);' "${nandswap}"
+          banner="$(strings "${OUT_DIR}/arch/arm64/boot/Image" | grep -m1 -F "Linux version ${EXPECTED_RELEASE}" || true)"
+          test -n "${banner}"
 
-      - name: Upload Stage 4ABCD kernel
+          cp "${OUT_DIR}/arch/arm64/boot/Image.gz-dtb" \
+            "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb"
+          printf '%s\n' "${EXPECTED_RELEASE}" > "${ARTIFACT_DIR}/KERNEL-RELEASE.txt"
+          printf '%s\n' "${SOURCE_SHA}" > "${ARTIFACT_DIR}/SOURCE-SHA.txt"
+          printf '%s\n' "${VENDOR_SHA}" > "${ARTIFACT_DIR}/VENDOR-SHA.txt"
+          sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" \
+            > "${ARTIFACT_DIR}/STAGE4ABCD-IMAGE-SHA256.txt"
+
+      - name: Upload kernel artifact
         uses: actions/upload-artifact@v4
-        if: success()
         with:
           name: miru-h40-memory-stage4abcd-s4abcd
           if-no-files-found: error
           retention-days: 30
-          path: |
-            ${{ runner.temp }}/android-root/out/h40-artifacts/**
-            source/build-diagnostics/**
+          path: ${{ runner.temp }}/android-root/out/h40-artifacts/**
