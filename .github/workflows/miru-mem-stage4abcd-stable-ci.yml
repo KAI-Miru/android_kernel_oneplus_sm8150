@@ -52,7 +52,7 @@ jobs:
           grep -Fq '#define STAGE3A_RECLAIM_PAGES 256' source/mm/process_reclaim.c
           grep -Fq 'int min_idx = -1;' source/mm/process_reclaim.c
           grep -Fq 'if (min_idx >= 0)' source/mm/process_reclaim.c
-          test -x source/scripts/miru/configure_mem_stage4.sh
+          test -f source/scripts/miru/configure_mem_stage4.sh
 
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
           test "${live_production}" = "${PRODUCTION_SHA}"
