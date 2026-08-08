@@ -1,4 +1,4 @@
-name: Miru H.40 memory Stage 4ABCD build
+name: Miru H.40 memory Stage 4ABCD matched kernel and modules
 
 on:
   workflow_dispatch:
@@ -12,17 +12,18 @@ permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-memory-stage4abcd
+  group: miru-h40-memory-stage4abcd-matched
   cancel-in-progress: true
 
 env:
   SOURCE_BRANCH: miru-h40-mem-stage4abcd
   SOURCE_SHA: a571718e6dc70ecfb9cff92b9f578cd76fa654f5
   VENDOR_SHA: 41f38e160134e6b06840221c675f5ecb177e59a7
+  PRODUCTION_SHA: 83c84c2b5d2210b15623e6b8bda14b7250624bb6
   EXPECTED_RELEASE: 4.14.357-openela-miru-h40-mem-s4abcd+
 
 jobs:
-  kernel:
+  kernel-and-matching-modules:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
 
@@ -34,12 +35,13 @@ jobs:
           path: source
           fetch-depth: 1
 
-      - name: Validate source and prepare config
+      - name: Validate immutable sources and prepare config
         shell: bash
         working-directory: source
         run: |
           set -Eeuo pipefail
           test "$(git rev-parse HEAD)" = "${SOURCE_SHA}"
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
           grep -Fq '#define STAGE3A_RECLAIM_PAGES 256' mm/process_reclaim.c
           grep -Fq 'int min_idx = -1;' mm/process_reclaim.c
           grep -Fq 'if (min_idx >= 0)' mm/process_reclaim.c
@@ -55,7 +57,7 @@ jobs:
           sudo apt-get update
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             build-essential bison flex libssl-dev libelf-dev cpio kmod rsync \
-            zlib1g-dev libncurses-dev xz-utils file
+            zlib1g-dev libncurses-dev xz-utils file python3-pyelftools p7zip-full
 
           ANDROID_ROOT="${RUNNER_TEMP}/android-root"
           KERNEL_DIR="${ANDROID_ROOT}/kernel/msm-4.14"
@@ -142,7 +144,7 @@ jobs:
             c337f911c36e317e1fbbd9c3baa1cdb8457f591051f8f871eaa4964136f0dec5 \
             "${TOOLCHAIN_ROOT}/build-tools/linux-x86/bin/toybox" | sha256sum -c -
 
-      - name: Build kernel
+      - name: Build Stage 4ABCD kernel
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -181,7 +183,10 @@ jobs:
           grep -Fxq '# CONFIG_DEBUG_LIST is not set' "${cfg}"
           grep -Fxq '# CONFIG_KMALLOC_DEBUG is not set' "${cfg}"
           grep -Fxq '# CONFIG_VMALLOC_DEBUG is not set' "${cfg}"
+          grep -Fxq 'CONFIG_MODVERSIONS=y' "${cfg}"
 
+          test -s "${OUT_DIR}/Module.symvers"
+          test "$(tr -d '\n' < "${OUT_DIR}/include/config/kernel.release")" = "${EXPECTED_RELEASE}"
           banner="$(strings "${OUT_DIR}/arch/arm64/boot/Image" | grep -m1 -F "Linux version ${EXPECTED_RELEASE}" || true)"
           test -n "${banner}"
 
@@ -193,10 +198,100 @@ jobs:
           sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" \
             > "${ARTIFACT_DIR}/STAGE4ABCD-IMAGE-SHA256.txt"
 
-      - name: Upload kernel artifact
+      - name: Build and validate 32 matching external modules
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          KERNEL_DIR="${RUNNER_TEMP}/android-root/kernel/msm-4.14"
+          OUT_DIR="${RUNNER_TEMP}/android-root/out/h40-kernel"
+          MODULE_DIR="${RUNNER_TEMP}/miru-external-modules/dropin"
+          REPORT_DIR="${GITHUB_WORKSPACE}/external-module-diagnostics"
+          cd "${KERNEL_DIR}"
+
+          # Reuse the physically established external-module builder.  These
+          # three preparation helpers only recreate the build interface that
+          # Qualcomm's unpublished AndroidKernelModule.mk supplied.
+          python3 scripts/miru/prepare_external_modules_toolchain.py
+          python3 scripts/miru/prepare_external_pinctrl_headers.py
+          python3 scripts/miru/prepare_wlan_response_link.py
+
+          python3 - "${EXPECTED_RELEASE}" <<'PY'
+          from pathlib import Path
+          import sys
+
+          expected = sys.argv[1]
+          path = Path('scripts/miru/build_external_modules_4.14.190.sh')
+          text = path.read_text()
+          old_release = '4.14.190-miru-h40-lts190-ci1+'
+          if text.count(old_release) != 1:
+              raise SystemExit(f'expected one old release gate, found {text.count(old_release)}')
+          text = text.replace(old_release, expected, 1)
+          text = text.replace('4.14.190', '4.14.357')
+          path.write_text(text)
+          PY
+
+          bash -n scripts/miru/build_external_modules_4.14.190.sh
+          grep -Fq "${EXPECTED_RELEASE}" scripts/miru/build_external_modules_4.14.190.sh
+          bash scripts/miru/build_external_modules_4.14.190.sh
+
+          test "$(find "${MODULE_DIR}" -maxdepth 1 -type f -name '*.ko' | wc -l)" = 32
+          grep -Fq 'modules=32' "${REPORT_DIR}/MODULE-ABI-REPORT.txt"
+          grep -Fq 'errors=0' "${REPORT_DIR}/MODULE-ABI-REPORT.txt"
+          test "$(grep -F ": ${EXPECTED_RELEASE} SMP preempt mod_unload modversions aarch64" \
+            "${REPORT_DIR}/vermagic.txt" | wc -l)" = 32
+
+          if grep -R -nE 'ERROR: ".*".*undefined!|Unknown symbol|undefined symbol' \
+              "${REPORT_DIR}"/*.log > "${REPORT_DIR}/UNRESOLVED-SYMBOLS.txt"; then
+            cat "${REPORT_DIR}/UNRESOLVED-SYMBOLS.txt"
+            exit 1
+          else
+            echo 'unresolved_symbols=0' > "${REPORT_DIR}/UNRESOLVED-SYMBOLS.txt"
+          fi
+
+          test "$(git ls-remote https://github.com/${GITHUB_REPOSITORY}.git refs/heads/miru-h40 | awk '{print $1}')" = "${PRODUCTION_SHA}"
+
+      - name: Assemble matched physical-test package
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          OUT_DIR="${RUNNER_TEMP}/android-root/out/h40-kernel"
+          ARTIFACT_DIR="${RUNNER_TEMP}/android-root/out/h40-artifacts"
+          MODULE_DIR="${RUNNER_TEMP}/miru-external-modules/dropin"
+          REPORT_DIR="${GITHUB_WORKSPACE}/external-module-diagnostics"
+          PACKAGE="${RUNNER_TEMP}/stage4abcd-matched-physical-test"
+          mkdir -p "${PACKAGE}/kernel" "${PACKAGE}/external-modules" "${PACKAGE}/validation"
+
+          cp -a "${ARTIFACT_DIR}/." "${PACKAGE}/kernel/"
+          cp "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.357.7z" \
+            "${PACKAGE}/external-modules/"
+          cp "${RUNNER_TEMP}/android-root/out/miru-v3-modules-dropin-4.14.357-audit.zip" \
+            "${PACKAGE}/external-modules/"
+          cp "${REPORT_DIR}/MODULE-ABI-REPORT.txt" "${PACKAGE}/validation/"
+          cp "${REPORT_DIR}/vermagic.txt" "${PACKAGE}/validation/"
+          cp "${REPORT_DIR}/BUILD-MANIFEST.txt" "${PACKAGE}/validation/"
+          cp "${REPORT_DIR}/PACKAGE-SUMMARY.txt" "${PACKAGE}/validation/"
+          cp "${REPORT_DIR}/UNRESOLVED-SYMBOLS.txt" "${PACKAGE}/validation/"
+          cp "${OUT_DIR}/Module.symvers" "${PACKAGE}/validation/"
+
+          {
+            echo "kernel_source_sha=${SOURCE_SHA}"
+            echo "external_source_sha=${VENDOR_SHA}"
+            echo "production_sha=${PRODUCTION_SHA}"
+            echo "kernel_release=${EXPECTED_RELEASE}"
+            echo 'external_module_count=32'
+            echo 'module_abi_errors=0'
+            echo 'unresolved_symbols=0'
+            echo 'production_unchanged=yes'
+          } > "${PACKAGE}/validation/STAGE4ABCD-MATCHED-SUMMARY.txt"
+
+          find "${PACKAGE}" -type f -print0 | sort -z | xargs -0 sha256sum \
+            > "${PACKAGE}/validation/SHA256SUMS.txt"
+
+      - name: Upload matched Stage 4ABCD physical-test package
         uses: actions/upload-artifact@v4
         with:
-          name: miru-h40-memory-stage4abcd-s4abcd
+          name: miru-h40-memory-stage4abcd-matched-kernel-modules
           if-no-files-found: error
           retention-days: 30
-          path: ${{ runner.temp }}/android-root/out/h40-artifacts/**
+          path: ${{ runner.temp }}/stage4abcd-matched-physical-test/**
