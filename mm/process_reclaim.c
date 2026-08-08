@@ -285,6 +285,7 @@ static void swap_fn(struct work_struct *work)
 	struct selected_task selected[MAX_SWAP_TASKS] = {{0, 0, 0},};
 	int si = 0;
 	int i;
+	int min_idx = -1;
 	int tasksize;
 	int total_sz = 0;
 	int total_scan = 0;
@@ -333,14 +334,30 @@ static void swap_fn(struct work_struct *work)
 			continue;
 
 		if (si == MAX_SWAP_TASKS) {
-			sort(&selected[0], MAX_SWAP_TASKS,
-					sizeof(struct selected_task),
-					&selected_cmp, NULL);
-			if (tasksize < selected[0].tasksize)
+			/*
+			 * Preserve the exact top-MAX_SWAP_TASKS selection without
+			 * sorting the whole array for every later eligible process.
+			 * Recompute the minimum only after replacing it.
+			 */
+			if (min_idx < 0) {
+				min_idx = 0;
+				for (i = 1; i < MAX_SWAP_TASKS; i++)
+					if (selected[i].tasksize <
+							selected[min_idx].tasksize)
+						min_idx = i;
+			}
+
+			if (tasksize < selected[min_idx].tasksize)
 				continue;
-			selected[0].p = p;
-			selected[0].oom_score_adj = oom_score_adj;
-			selected[0].tasksize = tasksize;
+
+			selected[min_idx].p = p;
+			selected[min_idx].oom_score_adj = oom_score_adj;
+			selected[min_idx].tasksize = tasksize;
+
+			min_idx = 0;
+			for (i = 1; i < MAX_SWAP_TASKS; i++)
+				if (selected[i].tasksize < selected[min_idx].tasksize)
+					min_idx = i;
 		} else {
 			selected[si].p = p;
 			selected[si].oom_score_adj = oom_score_adj;
@@ -348,6 +365,16 @@ static void swap_fn(struct work_struct *work)
 			si++;
 		}
 	}
+
+	/*
+	 * The legacy implementation sorted on every candidate after the array
+	 * filled. One final sort preserves its largest-first reclaim ordering
+	 * without the repeated pressure-time sort cost. Leave <= 32-task events
+	 * in their historical enumeration order.
+	 */
+	if (min_idx >= 0)
+		sort(&selected[0], MAX_SWAP_TASKS,
+			sizeof(struct selected_task), &selected_cmp, NULL);
 
 	for (i = 0; i < si; i++)
 		total_sz += selected[i].tasksize;
