@@ -18,7 +18,7 @@ concurrency:
 env:
   SOURCE_BRANCH: miru-h40-mem-stage4abcd
   SOURCE_SHA_EXPECTED: a571718e6dc70ecfb9cff92b9f578cd76fa654f5
-  VENDOR_SHA: fc2e43856bf54c75d8b4926bd414133d442ace7a
+  VENDOR_SHA: 32fc97fdb660965ffd042650d832067e4e4f3f17
   VENDOR_BASE_SHA: c03a4c6339b959f1a9b288a157d5b5d16fbcf015
   EXPECTED_RELEASE: 4.14.357-openela-miru-h40-mem-s4abcd+
 
@@ -93,7 +93,7 @@ jobs:
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=fc2e43856bf54c75d8b4926bd414133d442ace7a',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=32fc97fdb660965ffd042650d832067e4e4f3f17',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 memory Stage 4ABCD build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-mem-s4abcd',
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-mem-s4abcd"',
