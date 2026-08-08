@@ -202,7 +202,7 @@ jobs:
 
           path = Path('scripts/miru/prepare_wlan_response_link.py')
           old = 'expected = "74ce588c69513197a354ef0032c2145e91ee0641"'
-          new = 'expected = "c8d581409ccb73217d71109f60e0fb690d0ffefe"'
+          new = 'expected = "ee3b37a3bf6a586b74fe00f9e39ca5e77f08b6d3"'
           text = path.read_text()
           if text.count(old) != 1:
               raise SystemExit('WLAN response-link identity anchor mismatch')
