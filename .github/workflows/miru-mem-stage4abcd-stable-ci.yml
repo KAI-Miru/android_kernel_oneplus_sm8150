@@ -17,11 +17,11 @@ concurrency:
 
 env:
   SOURCE_BRANCH: miru-h40-mem-stage4abcd
-  SOURCE_SHA: b55344e8af85c137e08c67f20bbf8ae15386f6f4
+  SOURCE_SHA: ad4a6b423378a46320a4f9dcd0831bec1ac366e5
   PRODUCTION_SHA: 83c84c2b5d2210b15623e6b8bda14b7250624bb6
   MODULES_BASE_SHA: c03a4c6339b959f1a9b288a157d5b5d16fbcf015
   MODULES_REPAIR_BRANCH: miru-h40-mem-stage4c-nandswap-fix
-  MODULES_REPAIR_SHA: 41f38e160134e6b06840221c675f5ecb177e59a7
+  MODULES_REPAIR_SHA: 657d92498320ac6181af750b94837dcc686dc216
   EXPECTED_RELEASE: 4.14.357-openela-miru-h40-mem-s4abcd+
   PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-mem-s4abcd
 
@@ -127,7 +127,7 @@ jobs:
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=41f38e160134e6b06840221c675f5ecb177e59a7',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=657d92498320ac6181af750b94837dcc686dc216',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 memory Stage 4ABCD stable build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-mem-s4abcd',
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-mem-s4abcd"',
@@ -143,7 +143,7 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage4abcd-stable.sh
-          grep -Fq 'VENDOR_SHA=41f38e160134e6b06840221c675f5ecb177e59a7' build-stage4abcd-stable.sh
+          grep -Fq 'VENDOR_SHA=657d92498320ac6181af750b94837dcc686dc216' build-stage4abcd-stable.sh
           grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-mem-s4abcd' build-stage4abcd-stable.sh
 
       - name: Build Stage 4ABCD kernel with stable builder
@@ -182,17 +182,26 @@ jobs:
 
           test -s "${out_dir}/Module.symvers"
           test "$(git -C "${vendor_source}" rev-parse HEAD)" = "${MODULES_REPAIR_SHA}"
-          git -C "${vendor_source}" fetch --no-tags --depth=8 origin "${MODULES_REPAIR_BRANCH}"
+          git -C "${vendor_source}" fetch --no-tags --depth=16 origin "${MODULES_REPAIR_BRANCH}"
           test "$(git -C "${vendor_source}" rev-parse FETCH_HEAD)" = "${MODULES_REPAIR_SHA}"
           test "$(git -C "${vendor_source}" cat-file -t "${MODULES_BASE_SHA}")" = commit
           test "$(git -C "${vendor_source}" merge-base "${MODULES_BASE_SHA}" HEAD)" = "${MODULES_BASE_SHA}"
-          test "$(git -C "${vendor_source}" rev-list --count "${MODULES_BASE_SHA}..HEAD")" = 5
+          test "$(git -C "${vendor_source}" rev-list --count "${MODULES_BASE_SHA}..HEAD")" = 9
           modules_repair_paths="$(git -C "${vendor_source}" diff --name-only "${MODULES_BASE_SHA}" HEAD | LC_ALL=C sort | tr '\n' ' ')"
           test "${modules_repair_paths}" = "vendor/oplus/kernel/oplus_performance/oplus_nandswap/nandswap_core.c "
           nandswap="${vendor_source}/vendor/oplus/kernel/oplus_performance/oplus_nandswap/nandswap_core.c"
-          grep -Fq 'if (nswapdropd && nswapdropd->state == TASK_INTERRUPTIBLE)' "${nandswap}"
+          test "$(grep -F 'wait_event_freezable(' "${nandswap}" | wc -l)" = 3
+          grep -Fq 'static DECLARE_RWSEM(nandswap_op_sem);' "${nandswap}"
+          grep -Fq 'proc_mkdir("nandswap_vnd", NULL);' "${nandswap}"
+          grep -Fq 'freezable_schedule_timeout_interruptible(HZ);' "${nandswap}"
+          test ! grep -Fq 'msleep(30)' "${nandswap}"
+          test ! grep -Fq 'nswapind->state' "${nandswap}"
+          test ! grep -Fq 'f2fs_frag_score(' "${nandswap}"
+          test ! grep -Fq 'f2fs_undiscard_score(' "${nandswap}"
           grep -Fq 'if (page_count(page) > 2)' "${nandswap}"
           grep -Fq 'enqueue_reclaim_data(task_pid, &drop_info);' "${nandswap}"
+          grep -Fq 'if (nswapdropd)' "${nandswap}"
+          grep -Fq 'wake_up(&drop_wait);' "${nandswap}"
           test ! -e "${vendor_source}/vendor/oplus/kernel/oplus_performance/oplus_nandswap/stage4c-nandswap-lifetime-fixes.patch"
 
           python3 scripts/miru/prepare_external_modules_toolchain.py
