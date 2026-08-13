@@ -62,12 +62,23 @@ check im-flag-storage \
   grep -Fq 'task->ux_im_flag = im_flag;' "${sched_assist_c}"
 check im-flag-launcher-effect \
   grep -Fq 'task->ux_state |= SA_TYPE_HEAVY;' "${sched_assist_c}"
+check sched-assist-audio-build \
+  grep -Fq 'obj-y += sched_assist_audio.o' "${sched_assist_dir}/Makefile"
+check sched-assist-audio-im-hook \
+  grep -Fq 'oplus_sched_assist_audio_perf_addIm(task, im_flag);' "${sched_assist_c}"
+check sched-assist-audio-enqueue-hook \
+  grep -Fq 'oplus_sched_assist_audio_enqueue_hook(p);' kernel/sched/fair.c
 check sched-assist-proc-init \
   grep -Fq 'device_initcall(oplus_sched_assist_proc_init);' "${sched_assist_c}"
 
 for node in debug_enabled sched_impt_task im_flag im_flag_app; do
   check "sched-assist-node-${node}" \
     grep -Fq "proc_create(\"${node}\", 0666" "${sched_assist_c}"
+done
+
+for node in enable debug status; do
+  check "sched-assist-audio-node-${node}" \
+    grep -Fq "proc_create(\"${node}\", 0666" "${sched_assist_dir}/sched_assist_audio.c"
 done
 
 # CPU-jank control plane: preserve the reference hierarchy and mux command
@@ -85,6 +96,12 @@ check cpu-jank-parent \
   grep -Fq 'proc_mkdir(JANK_INFO_DIR, NULL)' "${sched_info_c}"
 check cpu-jank-child \
   grep -Fq 'proc_mkdir(JANK_INFO_PROC_NODE, jank_dir)' "${sched_info_c}"
+check cpu-jank-mux-function-bits \
+  grep -Fq '#define FUNCTION_BITS                   8' "${sched_info_c}"
+check cpu-jank-mux-periodic-selector \
+  grep -Fq '#define PEROID_GRAB_BIT                 1' "${sched_info_c}"
+check cpu-jank-live-sampling \
+  grep -Fq 'get_cpu_idle_time_us' "${sched_info_c}"
 check cpu-jank-mux-work \
   grep -Fq 'schedule_delayed_work(&grab_hotthread_work' "${sched_info_c}"
 check cpu-jank-mux-cancel \
@@ -107,5 +124,6 @@ cat <<EOF
 result=PASS
 proc_iomem=core-4.14
 sched_assist_im_flag=task-backed
-cpu_jank_control_plane=registered
+audio_sched_assist=task-boost-and-enqueue-hook
+cpu_jank_control_plane=h40-live-sampling
 EOF

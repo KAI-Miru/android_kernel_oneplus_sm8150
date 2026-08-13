@@ -42,6 +42,7 @@
 
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 #include <linux/sched_assist/sched_assist_common.h>
+#include <linux/sched_assist/sched_assist_audio.h>
 #include <linux/special_opt/special_opt.h>
 extern unsigned int walt_scale_demand_divisor;
 bool ux_task_misfit(struct task_struct *p, int cpu);
@@ -5445,6 +5446,7 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	}
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 	enqueue_ux_thread(rq, p);
+	oplus_sched_assist_audio_enqueue_hook(p);
 #endif
 
 	for_each_sched_entity(se) {
