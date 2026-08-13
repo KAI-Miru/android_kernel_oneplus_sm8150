@@ -1407,6 +1407,8 @@ struct task_struct {
 	int ux_depth;
 	u64 enqueue_time;
 	u64 inherit_ux_start;
+	/* Android 14 sched_assist IM classification, reset for every fork. */
+	int ux_im_flag;
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
 #if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_MMAP_LOCK_OPT)
 //#ifdef CONFIG_UXCHAIN_V2
