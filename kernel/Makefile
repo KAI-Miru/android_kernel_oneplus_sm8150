@@ -125,6 +125,7 @@ obj-$(CONFIG_HAS_IOMEM) += memremap.o
 
 # Stage 5: compile the existing H.40 scheduler-assist implementation.
 obj-y += sched_assist/
+obj-y += special_opt/
 
 # Android 14 ColorOS CPU-jank proc ABI, controlled through Kconfig.
 obj-$(CONFIG_OPLUS_FEATURE_CPU_JANKINFO) += sched_info/
