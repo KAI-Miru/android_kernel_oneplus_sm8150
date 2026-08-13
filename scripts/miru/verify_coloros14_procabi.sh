@@ -224,6 +224,8 @@ check frame-boost-h40-frequency-bits \
   grep -Fq '#define SCHED_CPUFREQ_DEF_FRAMEBOOST    (1U << 10)' "${frame_boost_dir}/frame_group.h"
 check_absent frame-boost-h40-private-sched-header \
   grep -Fq '#include <../kernel/sched/sched.h>' "${frame_boost_dir}/frame_group.h"
+check frame-boost-h40-version-api-header \
+  grep -Fq '#include <linux/version.h>' "${frame_boost_dir}/frame_group.h"
 check frame-boost-h40-walt-handoff \
   grep -Fq '#define FBG_CPUFREQ_UPDATE_FLAGS(flags) ((flags) | SCHED_CPUFREQ_WALT)' "${frame_group_c}"
 check frame-boost-h40-topology \
