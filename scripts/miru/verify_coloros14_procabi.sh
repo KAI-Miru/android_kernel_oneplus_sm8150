@@ -262,6 +262,10 @@ check frame-boost-h40-walt-handoff \
   grep -Fq '#define FBG_CPUFREQ_UPDATE_FLAGS(flags) ((flags) | SCHED_CPUFREQ_WALT)' "${frame_group_c}"
 check frame-boost-h40-topology \
   grep -Fq 'cpuid_topo->cluster_id' "${frame_group_c}"
+check frame-boost-h40-idle-adapter \
+  grep -Fq 'static inline bool fbg_available_idle_cpu(int cpu)' "${frame_boost_dir}/cluster_boost.c"
+check frame-boost-h40-idle-api \
+  grep -Fq 'return idle_cpu(cpu);' "${frame_boost_dir}/cluster_boost.c"
 
 cat <<EOF
 result=PASS
