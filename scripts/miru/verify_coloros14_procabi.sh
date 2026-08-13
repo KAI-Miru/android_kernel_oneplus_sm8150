@@ -19,6 +19,7 @@ config="$2"
 sched_assist_dir="${vendor_root}/oplus/kernel/oplus_performance/sched_assist"
 sched_info_dir="${vendor_root}/oplus/kernel/oplus_performance/sched_info"
 sched_assist_c="${sched_assist_dir}/sched_assist_common.c"
+sched_assist_slide_c="${sched_assist_dir}/sched_assist_slide.c"
 sched_info_c="${sched_info_dir}/oplus_sched_info.c"
 frame_boost_dir="${vendor_root}/oplus/kernel/oplus_performance/frame_boost"
 frame_boost_c="${frame_boost_dir}/frame_boost.c"
@@ -50,6 +51,7 @@ check kernel-root test -f Makefile
 check kernel-config test -f "${config}"
 check vendor-root test -d "${vendor_root}"
 check sched-assist-source test -f "${sched_assist_c}"
+check sched-assist-slide-source test -f "${sched_assist_slide_c}"
 check sched-info-source test -f "${sched_info_c}"
 check frame-boost-source test -f "${frame_boost_c}"
 check frame-boost-group-source test -f "${frame_group_c}"
@@ -230,6 +232,20 @@ check frame-boost-sysctl-enabled \
   grep -Fq '.procname	= "frame_boost_enabled"' "${frame_sysctl_c}"
 check frame-boost-sysctl-debug \
   grep -Fq '.procname	= "frame_boost_debug"' "${frame_sysctl_c}"
+check frame-boost-shared-boost-header \
+  grep -Fq '#include <linux/sched.h>' "${frame_sysctl_c}"
+check frame-boost-shared-input-owner \
+  grep -Fq 'int sysctl_input_boost_enabled = 0;' "${sched_assist_c}"
+check frame-boost-shared-slide-owner \
+  grep -Fq 'int sysctl_slide_boost_enabled = 0;' "${sched_assist_slide_c}"
+check_absent frame-boost-duplicate-input-state \
+  grep -Fq 'unsigned int sysctl_input_boost_enabled;' "${frame_sysctl_c}"
+check_absent frame-boost-duplicate-slide-state \
+  grep -Fq 'unsigned int sysctl_slide_boost_enabled;' "${frame_sysctl_c}"
+check_absent frame-boost-duplicate-input-export \
+  grep -Fq 'EXPORT_SYMBOL(sysctl_input_boost_enabled);' "${frame_sysctl_c}"
+check_absent frame-boost-duplicate-slide-export \
+  grep -Fq 'EXPORT_SYMBOL(sysctl_slide_boost_enabled);' "${frame_sysctl_c}"
 check frame-boost-h40-frequency-bits \
   grep -Fq '#define SCHED_CPUFREQ_DEF_FRAMEBOOST    (1U << 10)' "${frame_boost_dir}/frame_group.h"
 check_absent frame-boost-h40-private-sched-header \
