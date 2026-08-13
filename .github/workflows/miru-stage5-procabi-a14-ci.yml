@@ -42,41 +42,51 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
-          test -z "$(git -C source diff --check HEAD^)"
-          test -z "$(git -C source ls-files -u)"
-          test "$(sed -n 's/^VERSION = //p' source/Makefile | head -n1)" = 4
-          test "$(sed -n 's/^PATCHLEVEL = //p' source/Makefile | head -n1)" = 14
-          test "$(sed -n 's/^SUBLEVEL = //p' source/Makefile | head -n1)" = 357
-          test "$(sed -n 's/^EXTRAVERSION = //p' source/Makefile | head -n1)" = -openela
-          grep -Fq '#define STAGE3A_RECLAIM_PAGES 256' source/mm/process_reclaim.c
-          grep -Fq 'int min_idx = -1;' source/mm/process_reclaim.c
-          grep -Fq 'if (min_idx >= 0)' source/mm/process_reclaim.c
-          test -f source/scripts/miru/configure_mem_stage4.sh
-          grep -Fq -- '-DOPLUS_FEATURE_SCHED_ASSIST' source/Makefile
-          grep -Fq 'obj-y += sched_assist/' source/kernel/Makefile
-          grep -Fq 'obj-y += special_opt/' source/kernel/Makefile
-          grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_CPU_JANKINFO) += sched_info/' source/kernel/Makefile
-          test -L source/kernel/sched_info
-          test "$(readlink source/kernel/sched_info)" = '../../../vendor/oplus/kernel/oplus_performance/sched_info'
-          grep -Fq 'source "kernel/sched_info/Kconfig"' source/init/Kconfig
-          grep -Fq 'int ux_im_flag;' source/include/linux/sched.h
-          grep -Fxq 'CONFIG_OPLUS_FEATURE_CPU_JANKINFO=y' source/h40-repro/config/GM1911_11_H.40.config
+          check() {
+            local label="$1"
+            shift
+            if ! "$@"; then
+              echo "::error title=Stage 5 boundary check failed::${label}"
+              exit 1
+            fi
+            echo "boundary check passed: ${label}"
+          }
+
+          check source-head test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
+          check source-diff-clean test -z "$(git -C source diff --check HEAD^)"
+          check source-index-clean test -z "$(git -C source ls-files -u)"
+          check kernel-version test "$(sed -n 's/^VERSION = //p' source/Makefile | head -n1)" = 4
+          check kernel-patchlevel test "$(sed -n 's/^PATCHLEVEL = //p' source/Makefile | head -n1)" = 14
+          check kernel-sublevel test "$(sed -n 's/^SUBLEVEL = //p' source/Makefile | head -n1)" = 357
+          check kernel-extraversion test "$(sed -n 's/^EXTRAVERSION = //p' source/Makefile | head -n1)" = -openela
+          check reclaim-pages grep -Fq '#define STAGE3A_RECLAIM_PAGES 256' source/mm/process_reclaim.c
+          check reclaim-min-index grep -Fq 'int min_idx = -1;' source/mm/process_reclaim.c
+          check reclaim-index-guard grep -Fq 'if (min_idx >= 0)' source/mm/process_reclaim.c
+          check stage4-configurator test -f source/scripts/miru/configure_mem_stage4.sh
+          check sched-assist-macro grep -Fq -- '-DOPLUS_FEATURE_SCHED_ASSIST' source/Makefile
+          check sched-assist-build grep -Fq 'obj-y += sched_assist/' source/kernel/Makefile
+          check special-opt-build grep -Fq 'obj-y += special_opt/' source/kernel/Makefile
+          check cpu-jank-build grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_CPU_JANKINFO) += sched_info/' source/kernel/Makefile
+          check cpu-jank-symlink test -L source/kernel/sched_info
+          check cpu-jank-symlink-target test "$(readlink source/kernel/sched_info)" = '../../../vendor/oplus/kernel/oplus_performance/sched_info'
+          check cpu-jank-kconfig grep -Fq 'source "kernel/sched_info/Kconfig"' source/init/Kconfig
+          check task-im-flag grep -Fq 'int ux_im_flag;' source/include/linux/sched.h
+          check cpu-jank-config grep -Fxq 'CONFIG_OPLUS_FEATURE_CPU_JANKINFO=y' source/h40-repro/config/GM1911_11_H.40.config
 
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
-          test "${live_production}" = "${PRODUCTION_SHA}"
+          check production-ref test "${live_production}" = "${PRODUCTION_SHA}"
           live_modules_repair="$(git ls-remote https://github.com/KAI-Miru/android_kernel_modules_and_devicetree_oneplus_sm8150.git refs/heads/${MODULES_REPAIR_BRANCH} | awk 'NR == 1 {print $1}')"
-          test "${live_modules_repair}" = "${MODULES_REPAIR_SHA}"
+          check modules-ref test "${live_modules_repair}" = "${MODULES_REPAIR_SHA}"
 
           {
-            echo result=PASS
-            echo source_sha=${SOURCE_SHA}
-            echo production_sha=${PRODUCTION_SHA}
-            echo modules_base_sha=${MODULES_BASE_SHA}
-            echo modules_repair_sha=${MODULES_REPAIR_SHA}
-            echo modules_repair_branch=${MODULES_REPAIR_BRANCH}
-            echo expected_release=${EXPECTED_RELEASE}
-            echo production_write=NONE
+            echo "result=PASS"
+            echo "source_sha=${SOURCE_SHA}"
+            echo "production_sha=${PRODUCTION_SHA}"
+            echo "modules_base_sha=${MODULES_BASE_SHA}"
+            echo "modules_repair_sha=${MODULES_REPAIR_SHA}"
+            echo "modules_repair_branch=${MODULES_REPAIR_BRANCH}"
+            echo "expected_release=${EXPECTED_RELEASE}"
+            echo "production_write=NONE"
           } | tee BUILD-BOUNDARIES.txt
 
       - name: Prepare Stage 5 proc-ABI H.40 config
