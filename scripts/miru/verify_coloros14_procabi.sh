@@ -202,6 +202,10 @@ check frame-boost-proc-sysctrl \
   grep -Fq 'proc_create("sys_ctrl", (S_IRWXU|S_IRWXG)' "${frame_ioctl_c}"
 check frame-boost-proc-info \
   grep -Fq 'proc_create("info", S_IRUGO' "${frame_ioctl_c}"
+check frame-boost-cluster-ioctl-decode \
+  grep -Fq 'static long fbg_set_task_preferred_cluster(void __user *uarg)' "${frame_ioctl_c}"
+check frame-boost-cluster-ioctl-apply \
+  grep -Fq 'return __fbg_set_task_preferred_cluster(info.tid, info.cluster_id);' "${frame_ioctl_c}"
 check frame-boost-sysctl-enabled \
   grep -Fq '.procname	= "frame_boost_enabled"' "${frame_sysctl_c}"
 check frame-boost-sysctl-debug \
