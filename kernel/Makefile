@@ -123,13 +123,11 @@ obj-$(CONFIG_TORTURE_TEST) += torture.o
 
 obj-$(CONFIG_HAS_IOMEM) += memremap.o
 
-#ifdef OPLUS_FEATURE_SCHED_ASSIST
+# Stage 5: compile the existing H.40 scheduler-assist implementation.
 obj-y += sched_assist/
-#endif /* OPLUS_FEATURE_SCHED_ASSIST */
 
-#ifdef OPLUS_FEATURE_SCHED_ASSIST
-obj-y += special_opt/
-#endif /* OPLUS_FEATURE_SCHED_ASSIST */
+# Android 14 ColorOS CPU-jank proc ABI, controlled through Kconfig.
+obj-$(CONFIG_OPLUS_FEATURE_CPU_JANKINFO) += sched_info/
 
 $(obj)/configs.o: $(obj)/config_data.h
 
