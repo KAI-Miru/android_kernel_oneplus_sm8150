@@ -17,7 +17,7 @@ concurrency:
 
 env:
   SOURCE_BRANCH: miru-h40-stage5-procabi-a14-stage4base
-  SOURCE_SHA: 59a3d43f1b113aefeb9c294857dbd718b7152bba
+  SOURCE_SHA: 0ec9b35cbf5a0a4d68faa11b8f659b1418304d88
   PRODUCTION_SHA: 83c84c2b5d2210b15623e6b8bda14b7250624bb6
   MODULES_BASE_SHA: c03a4c6339b959f1a9b288a157d5b5d16fbcf015
   MODULES_REPAIR_BRANCH: miru-h40-stage5-procabi-a14
@@ -72,6 +72,7 @@ jobs:
           check cpu-jank-kconfig grep -Fq 'source "kernel/sched_info/Kconfig"' source/init/Kconfig
           check task-im-flag grep -Fq 'int ux_im_flag;' source/include/linux/sched.h
           check cpu-jank-config grep -Fxq 'CONFIG_OPLUS_FEATURE_CPU_JANKINFO=y' source/h40-repro/config/GM1911_11_H.40.config
+          check procabi-audit-script test -f source/scripts/miru/verify_coloros14_procabi.sh
 
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
           check production-ref test "${live_production}" = "${PRODUCTION_SHA}"
@@ -217,6 +218,9 @@ jobs:
           grep -Fq 'proc_create("sched_impt_task", 0666' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_assist/sched_assist_common.c"
           grep -Fq 'proc_create("im_flag", 0666' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_assist/sched_assist_common.c"
           grep -Fq 'proc_create("clm_mux_switch", 0666' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/oplus_sched_info.c"
+          bash -n scripts/miru/verify_coloros14_procabi.sh
+          bash scripts/miru/verify_coloros14_procabi.sh "${vendor_source}/vendor" "${out_dir}/.config" \
+            | tee "${report_dir}/COLOROS14-PROCABI-AUDIT.txt"
 
           python3 scripts/miru/prepare_external_modules_toolchain.py
           python3 scripts/miru/prepare_external_pinctrl_headers.py
@@ -270,6 +274,7 @@ jobs:
              "${report_dir}/MODULE-ABI-REPORT.txt" \
              "${report_dir}/PACKAGE-SUMMARY.txt" \
              "${report_dir}/vermagic.txt" \
+             "${report_dir}/COLOROS14-PROCABI-AUDIT.txt" \
              "${artifact_dir}/external-modules/"
           sha256sum "${runtime_archive}" "${audit_archive}" > "${artifact_dir}/external-modules/ARCHIVES-SHA256.txt"
           {
@@ -295,6 +300,7 @@ jobs:
           grep -Fxq 'external_module_count=32' "${external_dir}/EXTERNAL-MODULES-SUMMARY.txt"
           grep -Fxq 'abi_errors=0' "${external_dir}/EXTERNAL-MODULES-SUMMARY.txt"
           grep -Fxq "modules_repair_sha=${MODULES_REPAIR_SHA}" "${external_dir}/EXTERNAL-MODULES-SUMMARY.txt"
+          grep -Fxq 'result=PASS' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
           test "${live_production}" = "${PRODUCTION_SHA}"
           {
