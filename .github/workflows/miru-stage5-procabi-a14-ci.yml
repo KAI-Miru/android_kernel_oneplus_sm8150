@@ -206,6 +206,7 @@ jobs:
           vendor_source="${RUNNER_TEMP}/oneplus-sm8150-vendor-source"
           module_dir="${RUNNER_TEMP}/miru-external-modules/dropin"
           report_dir="${GITHUB_WORKSPACE}/external-module-diagnostics"
+          mkdir -p "${report_dir}"
           runtime_archive="${RUNNER_TEMP}/android-root/out/${PACKAGE_TAG}.7z"
           audit_archive="${RUNNER_TEMP}/android-root/out/${PACKAGE_TAG}-audit.zip"
 
