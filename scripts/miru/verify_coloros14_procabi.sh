@@ -188,6 +188,8 @@ check frame-boost-placement-hook \
   grep -Fq 'set_frame_group_task_to_perfer_cpu(p, &target_cpu)' kernel/sched/fair.c
 check frame-boost-migration-hook \
   grep -Fq 'fbg_skip_migration(p, env->src_cpu, env->dst_cpu)' kernel/sched/fair.c
+check frame-boost-walt-rotation-filter \
+  grep -Fq 'fbg_skip_migration(rq->curr, i, src_cpu)' kernel/sched/fair.c
 check frame-boost-upmigration-hook \
   grep -Fq 'fbg_need_up_migration(p, rq)' kernel/sched/fair.c
 check frame-boost-governor-util-hook \

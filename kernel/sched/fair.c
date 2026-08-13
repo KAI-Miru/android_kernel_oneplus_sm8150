@@ -13250,6 +13250,10 @@ static void walt_check_for_rotation(struct rq *src_rq)
 
 		if (rq->nr_running > 1)
 			continue;
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+		if (fbg_skip_migration(rq->curr, i, src_cpu))
+			continue;
+#endif
 
 		run = wc - rq->curr->last_enqueued_ts;
 
