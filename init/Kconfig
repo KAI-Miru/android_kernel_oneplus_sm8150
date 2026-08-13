@@ -2083,3 +2083,6 @@ config ASN1
 	  functions to call on what tags.
 
 source "kernel/Kconfig.locks"
+
+# Android 14 ColorOS CPU-jank proc ABI (external Oplus source via kernel/sched_info).
+source "kernel/sched_info/Kconfig"

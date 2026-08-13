@@ -446,6 +446,10 @@ KBUILD_CFLAGS    += -DCONFIG_EARLY_SERVICES
 endif
 
 KBUILD_CPPFLAGS := -D__KERNEL__
+
+# Stage 5: activate the proven H.40 scheduler-assist implementation.
+# The upstream H.40 source gates it with this non-Kconfig feature macro.
+KBUILD_CPPFLAGS += -DOPLUS_FEATURE_SCHED_ASSIST
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS_MODULE  := -DMODULE

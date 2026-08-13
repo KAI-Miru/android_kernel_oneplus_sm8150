@@ -1402,6 +1402,8 @@ struct task_struct {
 #endif
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 	int ux_state;
+	/* Android 14 sched_assist IM classification, reset for every fork. */
+	int ux_im_flag;
 	atomic64_t inherit_ux;
 	struct list_head ux_entry;
 	int ux_depth;
