@@ -70,6 +70,12 @@ check sched-assist-audio-enqueue-hook \
   grep -Fq 'oplus_sched_assist_audio_enqueue_hook(p);' kernel/sched/fair.c
 check sched-assist-proc-init \
   grep -Fq 'device_initcall(oplus_sched_assist_proc_init);' "${sched_assist_c}"
+check task-ux-state-proc-declaration \
+  grep -Fq 'extern const struct file_operations proc_ux_state_operations;' fs/proc/base.c
+check task-ux-state-proc-entry \
+  grep -Fq 'REG("ux_state", S_IRUGO | S_IWUGO, proc_ux_state_operations)' fs/proc/base.c
+check task-ux-state-system-owner \
+  grep -Fq 'inode->i_uid = GLOBAL_SYSTEM_UID;' fs/proc/base.c
 
 for node in debug_enabled sched_impt_task im_flag im_flag_app; do
   check "sched-assist-node-${node}" \
@@ -124,6 +130,7 @@ cat <<EOF
 result=PASS
 proc_iomem=core-4.14
 sched_assist_im_flag=task-backed
+task_ux_state=per-thread-registered
 audio_sched_assist=task-boost-and-enqueue-hook
 cpu_jank_control_plane=h40-live-sampling
 EOF
