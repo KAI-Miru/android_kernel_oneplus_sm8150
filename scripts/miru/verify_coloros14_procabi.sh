@@ -176,6 +176,14 @@ check frame-boost-switch-hook \
   grep -Fq 'fbg_android_rvh_schedule_handler(prev, next, rq);' kernel/sched/core.c
 check frame-boost-runtime-hook \
   grep -Fq 'fbg_update_cfs_util_hook(NULL, curtask, delta_exec, curr->vruntime);' kernel/sched/fair.c
+check frame-boost-rt-include \
+  grep -Fq '#include "../tuning/frame_group.h"' kernel/sched/rt.c
+check frame-boost-rt-runtime-hook \
+  grep -Fq 'fbg_update_rt_util_hook(NULL, curr, delta_exec);' kernel/sched/rt.c
+check frame-boost-rt-wakeup-filter \
+  grep -Fq 'fbg_rt_task_fits_capacity(task, cpu)' kernel/sched/rt.c
+check frame-boost-rt-pull-filter \
+  grep -Fq 'fbg_rt_task_fits_capacity(p, this_cpu)' kernel/sched/rt.c
 check frame-boost-placement-hook \
   grep -Fq 'set_frame_group_task_to_perfer_cpu(p, &target_cpu)' kernel/sched/fair.c
 check frame-boost-migration-hook \

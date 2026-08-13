@@ -13,6 +13,10 @@
 
 #include "walt.h"
 
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+#include "../tuning/frame_group.h"
+#endif /* CONFIG_OPLUS_FEATURE_FRAME_BOOST */
+
 int sched_rr_timeslice = RR_TIMESLICE;
 int sysctl_sched_rr_timeslice = (MSEC_PER_SEC * RR_TIMESLICE) / HZ;
 
@@ -1054,6 +1058,10 @@ static void update_curr_rt(struct rq *rq)
 	curr->se.exec_start = rq_clock_task(rq);
 	cpuacct_charge(curr, delta_exec);
 
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+	fbg_update_rt_util_hook(NULL, curr, delta_exec);
+#endif
+
 	sched_rt_avg_update(rq, delta_exec);
 
 	if (!rt_bandwidth_enabled())
@@ -1813,6 +1821,11 @@ retry:
 			if (sched_cpu_high_irqload(cpu))
 				continue;
 
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+			if (!fbg_rt_task_fits_capacity(task, cpu))
+				continue;
+#endif
+
 			util = cpu_util(cpu);
 
 			if (__cpu_overutilized(cpu, tutil))
@@ -2368,6 +2381,10 @@ static void pull_rt_task(struct rq *this_rq)
 			 */
 			if (p->prio < src_rq->curr->prio)
 				goto skip;
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+			if (!fbg_rt_task_fits_capacity(p, this_cpu))
+				goto skip;
+#endif
 
 			resched = true;
 
