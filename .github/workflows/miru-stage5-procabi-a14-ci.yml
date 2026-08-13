@@ -16,8 +16,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  SOURCE_BRANCH: miru-h40-stage5-procabi-a14
-  SOURCE_SHA: 7eb0cb07a7d643c1fbb3fa2759bcdd836942907c
+  SOURCE_BRANCH: miru-h40-stage5-procabi-a14-stage4base
+  SOURCE_SHA: 59a3d43f1b113aefeb9c294857dbd718b7152bba
   PRODUCTION_SHA: 83c84c2b5d2210b15623e6b8bda14b7250624bb6
   MODULES_BASE_SHA: c03a4c6339b959f1a9b288a157d5b5d16fbcf015
   MODULES_REPAIR_BRANCH: miru-h40-stage5-procabi-a14
