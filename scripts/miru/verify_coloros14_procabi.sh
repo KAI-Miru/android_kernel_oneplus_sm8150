@@ -36,6 +36,16 @@ check() {
   echo "PASS: ${label}"
 }
 
+check_absent() {
+  local label="$1"
+  shift
+  if "$@"; then
+    echo "FAIL: ${label}" >&2
+    exit 1
+  fi
+  echo "PASS: ${label}"
+}
+
 check kernel-root test -f Makefile
 check kernel-config test -f "${config}"
 check vendor-root test -d "${vendor_root}"
@@ -212,6 +222,8 @@ check frame-boost-sysctl-debug \
   grep -Fq '.procname	= "frame_boost_debug"' "${frame_sysctl_c}"
 check frame-boost-h40-frequency-bits \
   grep -Fq '#define SCHED_CPUFREQ_DEF_FRAMEBOOST    (1U << 10)' "${frame_boost_dir}/frame_group.h"
+check_absent frame-boost-h40-private-sched-header \
+  grep -Fq '#include <../kernel/sched/sched.h>' "${frame_boost_dir}/frame_group.h"
 check frame-boost-h40-walt-handoff \
   grep -Fq '#define FBG_CPUFREQ_UPDATE_FLAGS(flags) ((flags) | SCHED_CPUFREQ_WALT)' "${frame_group_c}"
 check frame-boost-h40-topology \
