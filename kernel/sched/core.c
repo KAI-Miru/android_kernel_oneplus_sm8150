@@ -52,6 +52,10 @@
 #include <linux/sched_assist/sched_assist_common.h>
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
 
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+#include "../tuning/frame_group.h"
+#endif /* CONFIG_OPLUS_FEATURE_FRAME_BOOST */
+
 DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
 /*
@@ -2501,6 +2505,9 @@ int sched_fork(unsigned long clone_flags, struct task_struct *p)
 	unsigned long flags;
 	int cpu;
 
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+	fbg_sched_fork_hook(NULL, p);
+#endif
 	init_new_task_load(p);
 	cpu = get_cpu();
 	__sched_fork(clone_flags, p);
@@ -2845,6 +2852,10 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 			 * task and put them back on the free list.
 			 */
 			kprobe_flush_task(prev);
+
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+			fbg_flush_task_hook(NULL, prev);
+#endif
 
 			/* Task is done with its stack. */
 			put_task_stack(prev);
@@ -3662,6 +3673,9 @@ static void __sched notrace __schedule(bool preempt)
 	clear_preempt_need_resched();
 
 	wallclock = sched_ktime_clock();
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+	fbg_android_rvh_schedule_handler(prev, next, rq);
+#endif
 	if (likely(prev != next)) {
 		if (!prev->on_rq)
 			prev->last_sleep_ts = wallclock;

@@ -127,6 +127,9 @@ obj-$(CONFIG_HAS_IOMEM) += memremap.o
 obj-y += sched_assist/
 obj-y += special_opt/
 
+# ColorOS 14 Frame Boost frame-group scheduler implementation.
+obj-$(CONFIG_OPLUS_FEATURE_FRAME_BOOST) += tuning/
+
 # Android 14 ColorOS CPU-jank proc ABI, controlled through Kconfig.
 obj-$(CONFIG_OPLUS_FEATURE_CPU_JANKINFO) += sched_info/
 

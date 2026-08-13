@@ -1410,6 +1410,16 @@ struct task_struct {
 	u64 enqueue_time;
 	u64 inherit_ux_start;
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
+
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+	/* ColorOS Frame Boost per-task frame-group state. */
+	struct list_head fbg_list;
+	unsigned int fbg_state;
+	int fbg_depth;
+	bool fbg_running;
+	int preferred_cluster_id;
+#endif /* CONFIG_OPLUS_FEATURE_FRAME_BOOST */
+
 #if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_MMAP_LOCK_OPT)
 //#ifdef CONFIG_UXCHAIN_V2
 	int ux_once;

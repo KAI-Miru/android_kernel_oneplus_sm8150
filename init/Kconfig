@@ -2086,3 +2086,6 @@ source "kernel/Kconfig.locks"
 
 # Android 14 ColorOS CPU-jank proc ABI (external Oplus source via kernel/sched_info).
 source "kernel/sched_info/Kconfig"
+
+# ColorOS 14 Frame Boost scheduler integration (external Oplus source via kernel/tuning).
+source "kernel/tuning/Kconfig"

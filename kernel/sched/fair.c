@@ -49,6 +49,10 @@ bool ux_task_misfit(struct task_struct *p, int cpu);
 #define scale_demand(d) ((d)/walt_scale_demand_divisor)
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
 
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+#include "../tuning/frame_group.h"
+#endif /* CONFIG_OPLUS_FEATURE_FRAME_BOOST */
+
 #ifdef OPLUS_FEATURE_HEALTHINFO
 // Add for get cpu load
 #ifdef CONFIG_OPLUS_HEALTHINFO
@@ -948,6 +952,9 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	if (entity_is_task(curr)) {
 		struct task_struct *curtask = task_of(curr);
 
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+		fbg_update_cfs_util_hook(NULL, curtask, delta_exec, curr->vruntime);
+#endif
 		trace_sched_stat_runtime(curtask, delta_exec, curr->vruntime);
 		cpuacct_charge(curtask, delta_exec);
 		account_group_exec_runtime(curtask, delta_exec);
@@ -7560,6 +7567,9 @@ enum fastpaths {
 	NONE = 0,
 	SYNC_WAKEUP,
 	PREV_CPU_FASTPATH,
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+	FRAME_BOOST_SELECT,
+#endif
 	MANY_WAKEUP,
 };
 
@@ -8423,6 +8433,10 @@ static int find_energy_efficient_cpu(struct sched_domain *sd,
 					eenv->cpu[eenv->next_idx].cpu_id;
 
 out:
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+	if (set_frame_group_task_to_perfer_cpu(p, &target_cpu))
+		fbt_env.fastpath = FRAME_BOOST_SELECT;
+#endif
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 	if (!fbt_env.fastpath)
 		set_ux_task_to_prefer_cpu(p, &target_cpu);
@@ -9411,6 +9425,11 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 	/* Don't detach task if it is under active migration */
 	if (env->src_rq->push_task == p)
 		return 0;
+
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+	if (fbg_skip_migration(p, env->src_cpu, env->dst_cpu))
+		return 0;
+#endif
 
 	/*
 	 * Aggressive migration if:
@@ -13294,9 +13313,16 @@ void check_for_migration(struct rq *rq, struct task_struct *p)
 	int prev_cpu = task_cpu(p);
 	struct sched_domain *sd = NULL;
 
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) || defined(CONFIG_OPLUS_FEATURE_FRAME_BOOST)
+	if (rq->misfit_task_load
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+		|| fbg_need_up_migration(p, rq)
+#endif
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
-	if (rq->misfit_task_load || (sched_assist_scene(SA_SLIDE) &&
-		is_heavy_ux_task(p) && ux_task_misfit(p, prev_cpu))) {
+		|| (sched_assist_scene(SA_SLIDE) &&
+		    is_heavy_ux_task(p) && ux_task_misfit(p, prev_cpu))
+#endif
+		) {
 #else
 	if (rq->misfit_task_load) {
 #endif

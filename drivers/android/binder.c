@@ -78,6 +78,10 @@
 #include "binder_internal.h"
 #include "binder_trace.h"
 
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+#include "../../include/linux/tuning/frame_group.h"
+#endif
+
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 #include <linux/sched_assist/sched_assist_binder.h>
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
@@ -2934,6 +2938,11 @@ static bool binder_proc_transaction(struct binder_transaction *t,
 		binder_enqueue_work_ilocked(&t->work, &node->async_todo);
 	}
 
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+	fbg_binder_wakeup_hook(NULL, current, proc->tsk,
+		thread ? thread->task : NULL, t->code, pending_async, !oneway);
+#endif
+
 	if (!pending_async)
 		binder_wakeup_thread_ilocked(proc, thread, !oneway /* sync */);
 
@@ -3600,6 +3609,9 @@ static void binder_transaction(struct binder_proc *proc,
 			binder_unset_inherit_ux(thread->task);
 		}
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+		fbg_binder_restore_priority_hook(NULL, in_reply_to, current);
+#endif
 		binder_restore_priority(current, in_reply_to->saved_priority);
 		binder_free_transaction(in_reply_to);
 	} else if (!(t->flags & TF_ONE_WAY)) {
@@ -3709,6 +3721,9 @@ err_invalid_target_handle:
 
 	BUG_ON(thread->return_error.cmd != BR_OK);
 	if (in_reply_to) {
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+		fbg_binder_restore_priority_hook(NULL, in_reply_to, current);
+#endif
 		binder_restore_priority(current, in_reply_to->saved_priority);
 		thread->return_error.cmd = BR_TRANSACTION_COMPLETE;
 		binder_enqueue_thread_work(thread, &thread->return_error.work);
@@ -4255,6 +4270,9 @@ static int binder_wait_for_work(struct binder_thread *thread,
 			list_add(&thread->waiting_thread_node,
 				 &proc->waiting_threads);
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+		fbg_binder_wait_for_work_hook(NULL, do_proc_work, thread, proc);
+#endif
 		binder_inner_proc_unlock(proc);
 #ifdef OPLUS_FEATURE_HEALTHINFO
 #ifdef CONFIG_OPLUS_JANK_INFO
@@ -4318,6 +4336,9 @@ retry:
 			wait_event_interruptible(binder_user_error_wait,
 						 binder_stop_on_user_error < 2);
 		}
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+		fbg_binder_restore_priority_hook(NULL, NULL, current);
+#endif
 		binder_restore_priority(current, proc->default_priority);
 	}
 
@@ -4570,6 +4591,9 @@ retry:
 				binder_set_inherit_ux(thread->task, t_from->task);
 			}
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+			fbg_sync_txn_recvd_hook(NULL, thread->task, t_from->task);
+#endif
 		} else {
 			trd->sender_pid = 0;
 		}
