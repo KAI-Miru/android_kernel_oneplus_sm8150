@@ -226,6 +226,10 @@ check_absent frame-boost-h40-private-sched-header \
   grep -Fq '#include <../kernel/sched/sched.h>' "${frame_boost_dir}/frame_group.h"
 check frame-boost-h40-version-api-header \
   grep -Fq '#include <linux/version.h>' "${frame_boost_dir}/frame_group.h"
+check frame-boost-cpu-util-helper-declaration \
+  grep -Fq 'unsigned long cpu_util_without(int cpu, struct task_struct *p);' kernel/sched/sched.h
+check frame-boost-cpu-util-helper-definition \
+  grep -Fq 'unsigned long cpu_util_without(int cpu, struct task_struct *p)' kernel/sched/fair.c
 check frame-boost-h40-walt-handoff \
   grep -Fq '#define FBG_CPUFREQ_UPDATE_FLAGS(flags) ((flags) | SCHED_CPUFREQ_WALT)' "${frame_group_c}"
 check frame-boost-h40-topology \

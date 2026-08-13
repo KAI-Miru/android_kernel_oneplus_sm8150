@@ -6083,7 +6083,7 @@ struct energy_env {
  * utilization of the specified task, whenever the task is currently
  * contributing to the CPU utilization.
  */
-static unsigned long cpu_util_without(int cpu, struct task_struct *p)
+unsigned long cpu_util_without(int cpu, struct task_struct *p)
 {
 	unsigned int util;
 
@@ -6900,7 +6900,7 @@ boosted_task_util(struct task_struct *task)
 	return util + margin;
 }
 
-static unsigned long cpu_util_without(int cpu, struct task_struct *p);
+unsigned long cpu_util_without(int cpu, struct task_struct *p);
 
 static unsigned long capacity_spare_without(int cpu, struct task_struct *p)
 {

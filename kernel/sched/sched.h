@@ -2076,6 +2076,12 @@ struct sched_walt_cpu_load {
 	u64 ws;
 };
 
+/*
+ * Frame Boost's preferred-cluster policy needs the scheduler's exact
+ * task-discounted utilization, rather than an approximation of cpu_util().
+ */
+unsigned long cpu_util_without(int cpu, struct task_struct *p);
+
 static inline unsigned long cpu_util_cum(int cpu, int delta)
 {
 	u64 util = cpu_rq(cpu)->cfs.avg.util_avg;
