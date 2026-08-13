@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0
 #
-# Source-level Android 14 ColorOS proc-ABI audit for Miru H.40 Stage 5.
+# Source-level Android 14 ColorOS proc-ABI audit for Miru H.40 Stage 6.
 #
 # Run from the kernel source root after the matching external vendor tree has
 # been fetched.  This intentionally validates registrations and task-state
@@ -20,6 +20,11 @@ sched_assist_dir="${vendor_root}/oplus/kernel/oplus_performance/sched_assist"
 sched_info_dir="${vendor_root}/oplus/kernel/oplus_performance/sched_info"
 sched_assist_c="${sched_assist_dir}/sched_assist_common.c"
 sched_info_c="${sched_info_dir}/oplus_sched_info.c"
+frame_boost_dir="${vendor_root}/oplus/kernel/oplus_performance/frame_boost"
+frame_boost_c="${frame_boost_dir}/frame_boost.c"
+frame_group_c="${frame_boost_dir}/frame_group.c"
+frame_ioctl_c="${frame_boost_dir}/frame_ioctl.c"
+frame_sysctl_c="${frame_boost_dir}/frame_sysctl.c"
 
 check() {
   local label="$1"
@@ -36,6 +41,10 @@ check kernel-config test -f "${config}"
 check vendor-root test -d "${vendor_root}"
 check sched-assist-source test -f "${sched_assist_c}"
 check sched-info-source test -f "${sched_info_c}"
+check frame-boost-source test -f "${frame_boost_c}"
+check frame-boost-group-source test -f "${frame_group_c}"
+check frame-boost-ioctl-source test -f "${frame_ioctl_c}"
+check frame-boost-sysctl-source test -f "${frame_sysctl_c}"
 
 # Native 4.14 resource procfs: this must remain core infrastructure, not an
 # Oplus compatibility replacement.
@@ -126,6 +135,84 @@ for node in \
     grep -Fq "proc_create(\"${node}\", 0666" "${sched_info_c}"
 done
 
+# Frame Boost is a scheduler control plane, not a collection of no-op proc
+# files.  Validate the task state, core hooks, WALT handoff, syscall ABI, and
+# the H.40-specific cpufreq flag allocation.
+check frame-boost-kconfig \
+  grep -Fq 'config OPLUS_FEATURE_FRAME_BOOST' "${frame_boost_dir}/Kconfig"
+check frame-boost-config-enabled \
+  grep -Fxq 'CONFIG_OPLUS_FEATURE_FRAME_BOOST=y' "${config}"
+check frame-boost-kbuild-link \
+  grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_FRAME_BOOST) += tuning/' kernel/Makefile
+check frame-boost-kconfig-link \
+  grep -Fq 'source "kernel/tuning/Kconfig"' init/Kconfig
+check frame-boost-kernel-symlink test -L kernel/tuning
+check frame-boost-kernel-symlink-target \
+  test "$(readlink kernel/tuning)" = '../../../vendor/oplus/kernel/oplus_performance/frame_boost'
+check frame-boost-header-symlink test -L include/linux/tuning
+check frame-boost-header-symlink-target \
+  test "$(readlink include/linux/tuning)" = '../../../../vendor/oplus/kernel/oplus_performance/frame_boost'
+
+for field in fbg_list fbg_state fbg_depth fbg_running preferred_cluster_id; do
+  check "frame-boost-task-field-${field}" \
+    grep -Fq "${field};" include/linux/sched.h
+done
+
+check frame-boost-fork-hook \
+  grep -Fq 'fbg_sched_fork_hook(NULL, p);' kernel/sched/core.c
+check frame-boost-exit-hook \
+  grep -Fq 'fbg_flush_task_hook(NULL, prev);' kernel/sched/core.c
+check frame-boost-switch-hook \
+  grep -Fq 'fbg_android_rvh_schedule_handler(prev, next, rq);' kernel/sched/core.c
+check frame-boost-runtime-hook \
+  grep -Fq 'fbg_update_cfs_util_hook(NULL, curtask, delta_exec, curr->vruntime);' kernel/sched/fair.c
+check frame-boost-placement-hook \
+  grep -Fq 'set_frame_group_task_to_perfer_cpu(p, &target_cpu)' kernel/sched/fair.c
+check frame-boost-migration-hook \
+  grep -Fq 'fbg_skip_migration(p, env->src_cpu, env->dst_cpu)' kernel/sched/fair.c
+check frame-boost-upmigration-hook \
+  grep -Fq 'fbg_need_up_migration(p, rq)' kernel/sched/fair.c
+check frame-boost-governor-util-hook \
+  grep -Fq 'fbg_freq_policy_util(sg_policy->flags, policy->cpus, &util);' kernel/sched/cpufreq_schedutil.c
+check frame-boost-governor-callback \
+  grep -Fq 'fbg_add_update_freq_hook(cpufreq_update_util);' kernel/sched/cpufreq_schedutil.c
+check frame-boost-binder-wake \
+  grep -Fq 'fbg_binder_wakeup_hook(NULL, current, proc->tsk,' drivers/android/binder.c
+check frame-boost-binder-restore \
+  grep -Fq 'fbg_binder_restore_priority_hook(NULL, in_reply_to, current);' drivers/android/binder.c
+check frame-boost-binder-wait \
+  grep -Fq 'fbg_binder_wait_for_work_hook(NULL, do_proc_work, thread, proc);' drivers/android/binder.c
+check frame-boost-binder-sync \
+  grep -Fq 'fbg_sync_txn_recvd_hook(NULL, thread->task, t_from->task);' drivers/android/binder.c
+
+for object in frame_info.o cluster_boost.o frame_boost.o frame_debug.o frame_group.o frame_ioctl.o frame_sysctl.o; do
+  check "frame-boost-object-${object}" \
+    grep -Fq "obj-y += ${object}" "${frame_boost_dir}/Makefile"
+done
+
+check frame-boost-init-sysctl \
+  grep -Fq 'fbg_sysctl_init();' "${frame_boost_c}"
+check frame-boost-init-ioctl \
+  grep -Fq 'frame_ioctl_init();' "${frame_boost_c}"
+check frame-boost-proc-parent \
+  grep -Fq 'proc_mkdir(FRAMEBOOST_PROC_NODE, NULL)' "${frame_ioctl_c}"
+check frame-boost-proc-ctrl \
+  grep -Fq 'proc_create("ctrl", S_IRWXUGO' "${frame_ioctl_c}"
+check frame-boost-proc-sysctrl \
+  grep -Fq 'proc_create("sys_ctrl", (S_IRWXU|S_IRWXG)' "${frame_ioctl_c}"
+check frame-boost-proc-info \
+  grep -Fq 'proc_create("info", S_IRUGO' "${frame_ioctl_c}"
+check frame-boost-sysctl-enabled \
+  grep -Fq '.procname	= "frame_boost_enabled"' "${frame_sysctl_c}"
+check frame-boost-sysctl-debug \
+  grep -Fq '.procname	= "frame_boost_debug"' "${frame_sysctl_c}"
+check frame-boost-h40-frequency-bits \
+  grep -Fq '#define SCHED_CPUFREQ_DEF_FRAMEBOOST    (1U << 10)' "${frame_boost_dir}/frame_group.h"
+check frame-boost-h40-walt-handoff \
+  grep -Fq '#define FBG_CPUFREQ_UPDATE_FLAGS(flags) ((flags) | SCHED_CPUFREQ_WALT)' "${frame_group_c}"
+check frame-boost-h40-topology \
+  grep -Fq 'cpuid_topo->cluster_id' "${frame_group_c}"
+
 cat <<EOF
 result=PASS
 proc_iomem=core-4.14
@@ -133,4 +220,5 @@ sched_assist_im_flag=task-backed
 task_ux_state=per-thread-registered
 audio_sched_assist=task-boost-and-enqueue-hook
 cpu_jank_control_plane=h40-live-sampling
+frame_boost_control_plane=task-group-walt-ioctl-sysctl
 EOF
