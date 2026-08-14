@@ -228,6 +228,12 @@ check frame-boost-cluster-ioctl-decode \
   grep -Fq 'static long fbg_set_task_preferred_cluster(void __user *uarg)' "${frame_ioctl_c}"
 check frame-boost-cluster-ioctl-apply \
   grep -Fq 'return __fbg_set_task_preferred_cluster(info.tid, info.cluster_id);' "${frame_ioctl_c}"
+check frame-boost-h40-im-sched-header \
+  grep -Fq '#include <linux/sched.h>' "${frame_ioctl_c}"
+check frame-boost-h40-im-state-guard \
+  grep -Fq '#ifdef OPLUS_FEATURE_SCHED_ASSIST' "${frame_ioctl_c}"
+check frame-boost-h40-im-state \
+  grep -Fq 'return task->ux_im_flag;' "${frame_ioctl_c}"
 check frame-boost-sysctl-enabled \
   grep -Fq '.procname	= "frame_boost_enabled"' "${frame_sysctl_c}"
 check frame-boost-sysctl-debug \
