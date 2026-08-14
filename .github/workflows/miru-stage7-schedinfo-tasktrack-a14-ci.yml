@@ -21,7 +21,7 @@ env:
   PRODUCTION_SHA: 83c84c2b5d2210b15623e6b8bda14b7250624bb6
   MODULES_BASE_SHA: 5a78fa49d8771c4ebff6a7e51b6e83ca740bb823
   MODULES_REPAIR_BRANCH: miru-h40-stage7-schedinfo-tasktrack-a14
-  MODULES_REPAIR_SHA: a72860dc5b1113597d4bd6abba98320cb118141e
+  MODULES_REPAIR_SHA: fa443a72f5b7a8eae26c301c697d6ec70586416f
   EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage7-schedinfo-tasktrack-a14-ci1+
   PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage7-schedinfo-tasktrack-a14-ci1
 
@@ -173,7 +173,7 @@ jobs:
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=a72860dc5b1113597d4bd6abba98320cb118141e',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=fa443a72f5b7a8eae26c301c697d6ec70586416f',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Stage 7 CPU-jank task-tracking stable build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage7-schedinfo-tasktrack-a14-ci1',
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage7-schedinfo-tasktrack-a14-ci1"',
@@ -189,7 +189,7 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage7-schedinfo-tasktrack-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=a72860dc5b1113597d4bd6abba98320cb118141e' build-stage7-schedinfo-tasktrack-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=fa443a72f5b7a8eae26c301c697d6ec70586416f' build-stage7-schedinfo-tasktrack-a14-stable.sh
           grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage7-schedinfo-tasktrack-a14-ci1' build-stage7-schedinfo-tasktrack-a14-stable.sh
 
       - name: Build Stage 7 CPU-jank task-tracking kernel with stable builder
