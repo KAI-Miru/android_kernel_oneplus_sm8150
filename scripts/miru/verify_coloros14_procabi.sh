@@ -167,6 +167,10 @@ check cpu-jank-tasktrack-explicit-gate \
   grep -Fq 'tasktrack_enabled && tasktrack_has_entries_locked()' "${tasktrack_c}"
 check cpu-jank-tasktrack-fastpath-gate \
   grep -Fq 'if (!READ_ONCE(tasktrack_active))' "${tasktrack_c}"
+check cpu-jank-tasktrack-untracked-fastpath \
+  grep -Fq 'if (!prev_tracked && !next_tracked)' "${tasktrack_c}"
+check cpu-jank-tasktrack-fast-pid-set \
+  grep -Fq 'tasktrack_pid_maybe_tracked' "${tasktrack_c}"
 check cpu-jank-tasktrack-sched-switch \
   grep -Fq 'register_trace_sched_switch(tasktrack_sched_switch, NULL)' "${tasktrack_c}"
 check cpu-jank-tasktrack-sched-waking \
