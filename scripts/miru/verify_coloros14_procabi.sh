@@ -216,6 +216,10 @@ check frame-boost-init-sysctl \
   grep -Fq 'fbg_sysctl_init();' "${frame_boost_c}"
 check frame-boost-init-ioctl \
   grep -Fq 'frame_ioctl_init();' "${frame_boost_c}"
+check frame-boost-ioctl-abi-header \
+  grep -Fq '#include "frame_ioctl.h"' "${frame_ioctl_c}"
+check frame-boost-ioctl-uaccess-header \
+  grep -Fq '#include <linux/uaccess.h>' "${frame_ioctl_c}"
 check frame-boost-proc-parent \
   grep -Fq 'proc_mkdir(FRAMEBOOST_PROC_NODE, NULL)' "${frame_ioctl_c}"
 check frame-boost-proc-ctrl \
