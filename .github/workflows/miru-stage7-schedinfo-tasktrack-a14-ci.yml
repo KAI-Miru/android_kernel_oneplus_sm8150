@@ -17,11 +17,11 @@ concurrency:
 
 env:
   SOURCE_BRANCH: miru-h40-stage7-schedinfo-tasktrack-a14
-  SOURCE_SHA: 7625c47dba9a850e89e8b5095bf35a7d00a2bbaf
+  SOURCE_SHA: 708eed98ac1fe1922537aae29b471f1224b8d0b3
   PRODUCTION_SHA: 83c84c2b5d2210b15623e6b8bda14b7250624bb6
   MODULES_BASE_SHA: 5a78fa49d8771c4ebff6a7e51b6e83ca740bb823
   MODULES_REPAIR_BRANCH: miru-h40-stage7-schedinfo-tasktrack-a14
-  MODULES_REPAIR_SHA: fa443a72f5b7a8eae26c301c697d6ec70586416f
+  MODULES_REPAIR_SHA: e892a9c730424c82bff50953b57674b53cdae35b
   EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage7-schedinfo-tasktrack-a14-ci1+
   PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage7-schedinfo-tasktrack-a14-ci1
 
@@ -83,6 +83,7 @@ jobs:
           check procabi-audit-script test -f source/scripts/miru/verify_coloros14_procabi.sh
           check cpu-jank-tasktrack-audit-source grep -Fq 'tasktrack_c="${sched_info_dir}/tasktrack.c"' source/scripts/miru/verify_coloros14_procabi.sh
           check cpu-jank-tasktrack-audit-gate grep -Fq 'tasktrack_enabled && tasktrack_has_entries_locked()' source/scripts/miru/verify_coloros14_procabi.sh
+          check cpu-jank-tasktrack-audit-fastpath grep -Fq 'if (!prev_tracked && !next_tracked)' source/scripts/miru/verify_coloros14_procabi.sh
 
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
           check production-ref test "${live_production}" = "${PRODUCTION_SHA}"
@@ -138,6 +139,7 @@ jobs:
           test "$(readlink kernel/sched_info)" = '../../../vendor/oplus/kernel/oplus_performance/sched_info'
           grep -Fq 'tasktrack_c="${sched_info_dir}/tasktrack.c"' scripts/miru/verify_coloros14_procabi.sh
           grep -Fq 'tasktrack_enabled && tasktrack_has_entries_locked()' scripts/miru/verify_coloros14_procabi.sh
+          grep -Fq 'if (!prev_tracked && !next_tracked)' scripts/miru/verify_coloros14_procabi.sh
           grep -Fq 'int ux_im_flag;' include/linux/sched.h
           grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_FRAME_BOOST) += tuning/' kernel/Makefile
           grep -Fq 'source "kernel/tuning/Kconfig"' init/Kconfig
@@ -173,7 +175,7 @@ jobs:
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=fa443a72f5b7a8eae26c301c697d6ec70586416f',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=e892a9c730424c82bff50953b57674b53cdae35b',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Stage 7 CPU-jank task-tracking stable build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage7-schedinfo-tasktrack-a14-ci1',
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage7-schedinfo-tasktrack-a14-ci1"',
@@ -189,7 +191,7 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage7-schedinfo-tasktrack-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=fa443a72f5b7a8eae26c301c697d6ec70586416f' build-stage7-schedinfo-tasktrack-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=e892a9c730424c82bff50953b57674b53cdae35b' build-stage7-schedinfo-tasktrack-a14-stable.sh
           grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage7-schedinfo-tasktrack-a14-ci1' build-stage7-schedinfo-tasktrack-a14-stable.sh
 
       - name: Build Stage 7 CPU-jank task-tracking kernel with stable builder
@@ -258,6 +260,7 @@ jobs:
           grep -Fq 'proc_create("clm_mux_switch", 0666' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/oplus_sched_info.c"
           grep -Fq 'proc_create("task_track_enable", 0666' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
           grep -Fq 'tasktrack_enabled && tasktrack_has_entries_locked()' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
+          grep -Fq 'if (!prev_tracked && !next_tracked)' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
           grep -Fq 'register_trace_sched_switch(tasktrack_sched_switch, NULL)' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
           ! grep -Fq 'trace_printk' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
           bash -n scripts/miru/verify_coloros14_procabi.sh
