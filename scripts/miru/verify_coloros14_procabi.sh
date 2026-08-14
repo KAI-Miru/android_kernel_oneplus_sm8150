@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0
 #
-# Source-level Android 14 ColorOS proc-ABI audit for Miru H.40 Stage 6.
+# Source-level Android 14 ColorOS proc-ABI audit for Miru H.40 Stage 7.
 #
 # Run from the kernel source root after the matching external vendor tree has
 # been fetched.  This intentionally validates registrations and task-state
@@ -21,6 +21,7 @@ sched_info_dir="${vendor_root}/oplus/kernel/oplus_performance/sched_info"
 sched_assist_c="${sched_assist_dir}/sched_assist_common.c"
 sched_assist_slide_c="${sched_assist_dir}/sched_assist_slide.c"
 sched_info_c="${sched_info_dir}/oplus_sched_info.c"
+tasktrack_c="${sched_info_dir}/tasktrack.c"
 frame_boost_dir="${vendor_root}/oplus/kernel/oplus_performance/frame_boost"
 frame_boost_c="${frame_boost_dir}/frame_boost.c"
 frame_group_c="${frame_boost_dir}/frame_group.c"
@@ -145,6 +146,37 @@ for node in \
   clm_mux_switch; do
   check "cpu-jank-node-${node}" \
     grep -Fq "proc_create(\"${node}\", 0666" "${sched_info_c}"
+done
+
+# Task tracking is a real scheduler telemetry backend.  It must preserve the
+# companion task_track ABI, account time in the reference window layout, and
+# keep the tracepoint hook out of the normal scheduling path until userspace
+# explicitly enables tracking for a selected PID.
+check cpu-jank-tasktrack-source test -f "${tasktrack_c}"
+check cpu-jank-tasktrack-kbuild \
+  grep -Fq 'oplus_schedinfo-y := oplus_sched_info.o tasktrack.o' "${sched_info_dir}/Makefile"
+check cpu-jank-tasktrack-init \
+  grep -Fq 'ret = tasktrack_proc_init(cpu_jank_dir);' "${sched_info_c}"
+check cpu-jank-tasktrack-exit \
+  grep -Fq 'tasktrack_deinit();' "${sched_info_c}"
+check cpu-jank-tasktrack-window-layout \
+  grep -Fq '#define TASKTRACK_WINDOW_COUNT' "${tasktrack_c}"
+check cpu-jank-tasktrack-window-duration \
+  grep -Fq '#define TASKTRACK_WINDOW_NS' "${tasktrack_c}"
+check cpu-jank-tasktrack-explicit-gate \
+  grep -Fq 'tasktrack_enabled && tasktrack_has_entries_locked()' "${tasktrack_c}"
+check cpu-jank-tasktrack-fastpath-gate \
+  grep -Fq 'if (!READ_ONCE(tasktrack_active))' "${tasktrack_c}"
+check cpu-jank-tasktrack-sched-switch \
+  grep -Fq 'register_trace_sched_switch(tasktrack_sched_switch, NULL)' "${tasktrack_c}"
+check cpu-jank-tasktrack-sched-waking \
+  grep -Fq 'register_trace_sched_waking(tasktrack_sched_waking, NULL)' "${tasktrack_c}"
+check_absent cpu-jank-tasktrack-no-trace-printk \
+  grep -Fq 'trace_printk' "${tasktrack_c}"
+
+for node in task_track task_track_enable; do
+  check "cpu-jank-tasktrack-node-${node}" \
+    grep -Fq "proc_create(\"${node}\", 0666" "${tasktrack_c}"
 done
 
 # Frame Boost is a scheduler control plane, not a collection of no-op proc
@@ -302,5 +334,6 @@ sched_assist_im_flag=task-backed
 task_ux_state=per-thread-registered
 audio_sched_assist=task-boost-and-enqueue-hook
 cpu_jank_control_plane=h40-live-sampling
+cpu_jank_tasktrack=on-demand-sched-tracepoint
 frame_boost_control_plane=task-group-walt-ioctl-sysctl
 EOF
