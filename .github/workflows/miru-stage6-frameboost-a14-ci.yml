@@ -22,8 +22,8 @@ env:
   MODULES_BASE_SHA: 5a78fa49d8771c4ebff6a7e51b6e83ca740bb823
   MODULES_REPAIR_BRANCH: miru-h40-stage6-frameboost-a14
   MODULES_REPAIR_SHA: a5a210267fe045cf0af31e165b8691f1bc29cd83
-  EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage6-frameboost-a14-ci8+
-  PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage6-frameboost-a14-ci8
+  EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage6-frameboost-a14-ci9+
+  PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage6-frameboost-a14-ci9
 
 jobs:
   build:
@@ -171,9 +171,9 @@ jobs:
           replacements = {
               'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=a5a210267fe045cf0af31e165b8691f1bc29cd83',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 memory Stage 6 proc-ABI stable build ==',
-              'KERNEL_LOCALVERSION=-miru-h40-stage6-frameboost-a14-ci8',
-              'CONFIG_LOCALVERSION="-miru-h40-stage6-frameboost-a14-ci8',
-              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-stage6-frameboost-a14-ci8+' || true)\"",
+              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage6-frameboost-a14-ci9',
+              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage6-frameboost-a14-ci9"',
+              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-stage6-frameboost-a14-ci9+' || true)\"",
               'echo "Clean kernel build and output validation: PASS"': final,
           }
           for old, new in replacements.items():
@@ -186,7 +186,7 @@ jobs:
           PY
           bash -n build-stage6-frameboost-a14-stable.sh
           grep -Fq 'VENDOR_SHA=a5a210267fe045cf0af31e165b8691f1bc29cd83' build-stage6-frameboost-a14-stable.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage6-frameboost-a14-ci8' build-stage6-frameboost-a14-stable.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage6-frameboost-a14-ci9' build-stage6-frameboost-a14-stable.sh
 
       - name: Build Stage 6 proc-ABI kernel with stable builder
         shell: bash
