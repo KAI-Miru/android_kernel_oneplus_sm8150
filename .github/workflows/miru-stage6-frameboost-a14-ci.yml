@@ -21,9 +21,9 @@ env:
   PRODUCTION_SHA: 83c84c2b5d2210b15623e6b8bda14b7250624bb6
   MODULES_BASE_SHA: 5a78fa49d8771c4ebff6a7e51b6e83ca740bb823
   MODULES_REPAIR_BRANCH: miru-h40-stage6-frameboost-a14
-  MODULES_REPAIR_SHA: c3b8ecfb79819e882dc451e0526eb2a77ca7f08b
-  EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage6-frameboost-a14-ci12+
-  PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage6-frameboost-a14-ci12
+  MODULES_REPAIR_SHA: 538919dfcb4a52512b17cd2bbc54c2dbcb5de186
+  EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage6-frameboost-a14-ci13+
+  PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage6-frameboost-a14-ci13
 
 jobs:
   build:
@@ -169,11 +169,11 @@ jobs:
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=c3b8ecfb79819e882dc451e0526eb2a77ca7f08b',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=538919dfcb4a52512b17cd2bbc54c2dbcb5de186',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 memory Stage 6 proc-ABI stable build ==',
-              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage6-frameboost-a14-ci12',
-              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage6-frameboost-a14-ci12"',
-              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-stage6-frameboost-a14-ci12+' || true)\"",
+              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage6-frameboost-a14-ci13',
+              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage6-frameboost-a14-ci13"',
+              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-stage6-frameboost-a14-ci13+' || true)\"",
               'echo "Clean kernel build and output validation: PASS"': final,
           }
           for old, new in replacements.items():
@@ -185,8 +185,8 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage6-frameboost-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=c3b8ecfb79819e882dc451e0526eb2a77ca7f08b' build-stage6-frameboost-a14-stable.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage6-frameboost-a14-ci12' build-stage6-frameboost-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=538919dfcb4a52512b17cd2bbc54c2dbcb5de186' build-stage6-frameboost-a14-stable.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage6-frameboost-a14-ci13' build-stage6-frameboost-a14-stable.sh
 
       - name: Build Stage 6 proc-ABI kernel with stable builder
         shell: bash
@@ -238,6 +238,8 @@ jobs:
           test -f "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/frame_group.c"
           test -f "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/frame_ioctl.c"
           test -f "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/frame_sysctl.c"
+          grep -Fq 'frame_boost_safe_mode' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/frame_sysctl.c"
+          grep -Fq '!__frame_boost_enabled() || atomic_read(&fbg_initialized) == 0' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/frame_group.c"
           grep -Fq 'obj-y += frame_ioctl.o' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/Makefile"
           ! grep -Fq '#include <../kernel/sched/sched.h>' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/frame_group.h"
           grep -Fq 'fbg_sysctl_init();' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/frame_boost.c"
