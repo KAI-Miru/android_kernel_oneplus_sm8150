@@ -203,7 +203,7 @@ check frame-boost-binder-wake \
 check frame-boost-binder-restore \
   grep -Fq 'fbg_binder_restore_priority_hook(NULL, in_reply_to, current);' drivers/android/binder.c
 check frame-boost-binder-wait \
-  grep -Fq 'fbg_binder_wait_for_work_hook(NULL, do_proc_work, thread, proc);' drivers/android/binder.c
+  grep -Fq 'fbg_binder_wait_for_work_hook(NULL, do_proc_work, thread->task);' drivers/android/binder.c
 check frame-boost-binder-sync \
   grep -Fq 'fbg_sync_txn_recvd_hook(NULL, thread->task, t_from->task);' drivers/android/binder.c
 
@@ -266,6 +266,20 @@ check frame-boost-h40-idle-adapter \
   grep -Fq 'static inline bool fbg_available_idle_cpu(int cpu)' "${frame_boost_dir}/cluster_boost.c"
 check frame-boost-h40-idle-api \
   grep -Fq 'return idle_cpu(cpu);' "${frame_boost_dir}/cluster_boost.c"
+check frame-boost-h40-group-binder-task-boundary \
+  grep -Fq 'struct task_struct *tsk);' "${frame_boost_dir}/frame_group.h"
+check_absent frame-boost-h40-group-private-binder-header \
+  grep -Fq '#include <../drivers/android/binder_internal.h>' "${frame_group_c}"
+check_absent frame-boost-h40-group-possible-ux \
+  grep -Fq 'POSSIBLE_UX_MASK' "${frame_group_c}"
+check frame-boost-h40-group-rt-adapter \
+  grep -Fq 'static inline bool fbg_rt_rq_is_runnable' "${frame_group_c}"
+check frame-boost-h40-group-rt-runnable-state \
+  grep -Fq 'return rt_rq->rt_nr_running && !rt_rq->rt_throttled;' "${frame_group_c}"
+check frame-boost-h40-group-idle-adapter \
+  grep -Fq 'static inline bool fbg_available_idle_cpu(int cpu)' "${frame_group_c}"
+check frame-boost-h40-group-idle-api \
+  grep -Fq 'return idle_cpu(cpu);' "${frame_group_c}"
 
 cat <<EOF
 result=PASS
