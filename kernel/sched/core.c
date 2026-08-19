@@ -52,6 +52,10 @@
 #include <linux/sched_assist/sched_assist_common.h>
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
 
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+#include <linux/task_sched_info.h>
+#endif
+
 #ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
 #include "../tuning/frame_group.h"
 #endif /* CONFIG_OPLUS_FEATURE_FRAME_BOOST */
@@ -2127,6 +2131,10 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags,
 
 	trace_sched_waking(p);
 
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+	update_wake_tid(p, current, other_runnable);
+#endif
+
 #ifdef CONFIG_OPLUS_FEATURE_RT_INFO
 	if (rt_handler != NULL)
 		rt_handler(p);
@@ -2271,6 +2279,10 @@ static void try_to_wake_up_local(struct task_struct *p, struct rq_flags *rf)
 		goto out;
 
 	trace_sched_waking(p);
+
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+	update_wake_tid(p, current, other_runnable);
+#endif
 
 	if (!task_on_rq_queued(p)) {
 		u64 wallclock = sched_ktime_clock();
@@ -3702,6 +3714,11 @@ static void __sched notrace __schedule(bool preempt)
 		++*switch_count;
 
 		trace_sched_switch(preempt, prev, next);
+
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+		update_wake_tid(prev, next, running_runnable);
+		update_running_start_time(prev, next);
+#endif
 
 		/* Also unlocks the rq: */
 		rq = context_switch(rq, prev, next, &rf);

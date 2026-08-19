@@ -61,6 +61,9 @@
 #include <linux/pipe_fs_i.h>
 #include <linux/oom.h>
 #include <linux/compat.h>
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+#include <linux/task_sched_info.h>
+#endif
 #include <linux/vmalloc.h>
 
 #include <linux/uaccess.h>
@@ -1254,6 +1257,9 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 	trace_task_rename(tsk, buf);
 	strlcpy(tsk->comm, buf, sizeof(tsk->comm));
 	task_unlock(tsk);
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+	get_target_thread_pid(tsk);
+#endif
 	perf_event_comm(tsk, exec);
 }
 

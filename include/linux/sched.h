@@ -788,6 +788,11 @@ struct task_struct {
 	unsigned int			flags;
 	unsigned int			ptrace;
 
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+	u64				wake_tid;
+	u64				running_start_time;
+#endif
+
 #ifdef CONFIG_SMP
 	struct llist_node		wake_entry;
 	int				on_cpu;

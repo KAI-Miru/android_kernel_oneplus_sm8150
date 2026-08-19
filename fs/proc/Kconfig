@@ -97,6 +97,15 @@ config OPLUS_CTP
 	  expose the ColorOS task_cpustats, sgeinfo and sgefreqinfo reports.
 	  The producer is disabled until task_cpustats_enable is set to 1.
 
+config OPLUS_SCHED
+	bool "Oplus task scheduler telemetry"
+	depends on PROC_FS && SYSFS && SMP && CPU_FREQ && SCHEDSTATS && OPLUS_CTP
+	default n
+	help
+	  Record scheduling delays for selected ColorOS system and application
+	  tasks and expose the task_info/task_sched_info control plane.  The
+	  scheduler fast paths remain disabled until userspace enables it.
+
 #ifdef OPLUS_FEATURE_HEALTHINFO
 source fs/proc/oplus_healthinfo/Kconfig
 #endif /* OPLUS_FEATURE_HEALTHINFO */

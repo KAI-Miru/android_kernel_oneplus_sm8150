@@ -53,6 +53,10 @@ bool ux_task_misfit(struct task_struct *p, int cpu);
 #include "../tuning/frame_group.h"
 #endif /* CONFIG_OPLUS_FEATURE_FRAME_BOOST */
 
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+#include <linux/task_sched_info.h>
+#endif
+
 #ifdef OPLUS_FEATURE_HEALTHINFO
 // Add for get cpu load
 #ifdef CONFIG_OPLUS_HEALTHINFO
@@ -1014,6 +1018,10 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 			return;
 		}
 		trace_sched_stat_wait(p, delta);
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+		update_task_sched_info(p, delta, task_sched_info_runnable,
+				       cpu_of(rq_of(cfs_rq)));
+#endif
 #ifdef OPLUS_FEATURE_HEALTHINFO
 // Add for get sched latency stat
 #ifdef CONFIG_OPLUS_HEALTHINFO
@@ -1064,6 +1072,10 @@ update_stats_enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		if (tsk) {
 			account_scheduler_latency(tsk, delta >> 10, 1);
 			trace_sched_stat_sleep(tsk, delta);
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+			update_task_sched_info(tsk, delta, task_sched_info_S,
+					       task_cpu(tsk));
+#endif
 #ifdef OPLUS_FEATURE_HEALTHINFO
 #ifdef CONFIG_OPLUS_JANK_INFO
 			update_jank_trace_info(tsk, JANK_TRACE_SSTATE, 0, delta);
@@ -1085,6 +1097,11 @@ update_stats_enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 		if (tsk) {
 			if (tsk->in_iowait) {
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+				update_task_sched_info(tsk, delta,
+						       task_sched_info_IO,
+						       task_cpu(tsk));
+#endif
 				schedstat_add(se->statistics.iowait_sum, delta);
 				schedstat_inc(se->statistics.iowait_count);
 				trace_sched_stat_iowait(tsk, delta);
@@ -1097,6 +1114,12 @@ update_stats_enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 #if defined(OPLUS_FEATURE_IOMONITOR) && defined(CONFIG_IOMONITOR)
 				iomonitor_record_iowait(tsk, (delta >> 20));
 #endif /*OPLUS_FEATURE_IOMONITOR*/
+			} else {
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+				update_task_sched_info(tsk, delta,
+						       task_sched_info_D,
+						       task_cpu(tsk));
+#endif
 			}
 #ifdef OPLUS_FEATURE_HEALTHINFO
 #ifdef CONFIG_OPLUS_HEALTHINFO

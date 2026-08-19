@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0
 #
-# Source-level Android 14 ColorOS proc-ABI audit for Miru H.40 Stage 8.
+# Source-level Android 14 ColorOS proc-ABI audit for Miru H.40 Stage 9.
 #
 # Run from the kernel source root after the matching external vendor tree has
 # been fetched.  This intentionally validates registrations and task-state
@@ -29,6 +29,8 @@ frame_ioctl_c="${frame_boost_dir}/frame_ioctl.c"
 frame_sysctl_c="${frame_boost_dir}/frame_sysctl.c"
 task_cpustats_c="fs/proc/task_cpustats.c"
 task_cpustats_h="${vendor_root}/oplus/kernel/oplus_performance/task_cpustats/task_cpustats.h"
+task_sched_info_c="fs/proc/task_sched_info.c"
+task_sched_info_h="include/linux/task_sched_info.h"
 
 check() {
   local label="$1"
@@ -146,6 +148,78 @@ check_absent task-cpustats-no-trace-printk \
 for node in task_cpustats sgeinfo sgefreqinfo; do
   check "task-cpustats-node-${node}" \
     grep -Fq "proc_create(\"${node}\", 0" "${task_cpustats_c}"
+done
+
+# Task scheduler telemetry is the complete ColorOS control plane and event
+# producer.  Stage 9A intentionally excludes only the frequency and CPU
+# isolation producer hooks added by Stage 9B.
+check task-sched-info-source test -f "${task_sched_info_c}"
+check task-sched-info-header test -f "${task_sched_info_h}"
+check task-sched-info-kconfig grep -Fq 'config OPLUS_SCHED' fs/proc/Kconfig
+check task-sched-info-config-enabled \
+  grep -Fxq 'CONFIG_OPLUS_SCHED=y' "${config}"
+check_absent task-sched-info-no-utils-monitor \
+  grep -Eq '^CONFIG_UTILS_MONITOR=[ym]$' "${config}"
+check task-sched-info-kbuild \
+  grep -Fq 'obj-$(CONFIG_OPLUS_SCHED) += task_sched_info.o' fs/proc/Makefile
+check task-sched-info-enable-default-off \
+  grep -Fq 'static unsigned int task_sched_info_enable;' "${task_sched_info_c}"
+check task-sched-info-ring-lock \
+  grep -Fq 'DEFINE_RAW_SPINLOCK(task_sched_ring_lock)' "${task_sched_info_c}"
+check task-sched-info-ring-enable-recheck \
+  grep -Fq 'if (!READ_ONCE(task_sched_info_enable))' "${task_sched_info_c}"
+check task-sched-info-private-snapshot \
+  grep -Fq 'struct task_sched_snapshot' "${task_sched_info_c}"
+check task-sched-info-notify-atomic \
+  grep -Fq 'atomic_t notify_pending' "${task_sched_info_c}"
+check task-sched-info-uevent-action \
+  grep -Fq '"SCHEDACTION=uevent"' "${task_sched_info_c}"
+check task-sched-info-uevent-sequence \
+  grep -Fq '"SCHEDNUM=%u"' "${task_sched_info_c}"
+check task-sched-info-module-control \
+  grep -Fq 'module_param_named(sched_info_ctrl, sched_info_ctrl, bool, 0644);' "${task_sched_info_c}"
+check task-sched-info-task-wake-field \
+  grep -Fq 'wake_tid;' include/linux/sched.h
+check task-sched-info-task-runtime-field \
+  grep -Fq 'running_start_time;' include/linux/sched.h
+check task-sched-info-fork-wake-reset \
+  grep -Fq 'p->wake_tid = 0;' kernel/fork.c
+check task-sched-info-fork-runtime-reset \
+  grep -Fq 'p->running_start_time = 0;' kernel/fork.c
+check task-sched-info-target-discovery \
+  grep -Fq 'get_target_thread_pid(tsk);' fs/exec.c
+check task-sched-info-enable-pid-scan \
+  grep -Fq 'for_each_process_thread(group, task)' "${task_sched_info_c}"
+check task-sched-info-forces-schedstats \
+  grep -Fq 'force_schedstat_enabled();' "${task_sched_info_c}"
+check task-sched-info-wake-hooks \
+  test "$(grep -Fc 'update_wake_tid(' kernel/sched/core.c)" -eq 3
+check task-sched-info-switch-runtime-hook \
+  test "$(grep -Fc 'update_running_start_time(prev, next);' kernel/sched/core.c)" -eq 1
+check task-sched-info-runnable-hook \
+  test "$(grep -Fc 'task_sched_info_runnable' kernel/sched/fair.c)" -eq 1
+check task-sched-info-sleep-hook \
+  test "$(grep -Fc 'task_sched_info_S' kernel/sched/fair.c)" -eq 1
+check task-sched-info-io-hook \
+  test "$(grep -Fc 'task_sched_info_IO' kernel/sched/fair.c)" -eq 1
+check task-sched-info-dstate-hook \
+  test "$(grep -Fc 'task_sched_info_D' kernel/sched/fair.c)" -eq 1
+check task-sched-info-direct-notify \
+  grep -Fq 'sched_action_trig();' "${task_sched_info_c}"
+check_absent task-sched-info-no-cpufreq-producer-stage9a \
+  grep -Fq 'update_freq_info(policy);' drivers/cpufreq/cpufreq.c
+check_absent task-sched-info-no-isolate-producer-stage9a \
+  grep -Fq 'update_cpu_isolate_info(' kernel/sched/core.c
+check_absent task-sched-info-no-global-reader-snapshot \
+  grep -Fq 'static u64 datainfo' "${task_sched_info_c}"
+check_absent task-sched-info-no-raw-address-output \
+  grep -Fq '%px' "${task_sched_info_c}"
+check_absent task-sched-info-no-trace-printk \
+  grep -Fq 'trace_printk' "${task_sched_info_c}"
+
+for node in pids_set sched_buffer task_sched_info_enable sched_info_threshold d_convert; do
+  check "task-sched-info-node-${node}" \
+    grep -Fq "proc_create(\"${node}\", 0666" "${task_sched_info_c}"
 done
 
 # Scheduler-assist wiring: per-task state, fork reset and linked build path.
@@ -423,5 +497,6 @@ audio_sched_assist=task-boost-and-enqueue-hook
 cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
 task_cpustats=real-tick-accounting
+task_sched_info=core-scheduler-telemetry
 frame_boost_control_plane=task-group-walt-ioctl-sysctl
 EOF
