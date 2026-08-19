@@ -206,10 +206,42 @@ check task-sched-info-dstate-hook \
   test "$(grep -Fc 'task_sched_info_D' kernel/sched/fair.c)" -eq 1
 check task-sched-info-direct-notify \
   grep -Fq 'sched_action_trig();' "${task_sched_info_c}"
-check_absent task-sched-info-no-cpufreq-producer-stage9a \
-  grep -Fq 'update_freq_info(policy);' drivers/cpufreq/cpufreq.c
-check_absent task-sched-info-no-isolate-producer-stage9a \
-  grep -Fq 'update_cpu_isolate_info(' kernel/sched/core.c
+check task-sched-info-frequency-declaration \
+  grep -Fq 'void update_freq_info(struct cpufreq_policy *policy);' "${task_sched_info_h}"
+check task-sched-info-limit-declaration \
+  grep -Fq 'void update_freq_limit_info(struct cpufreq_policy *policy);' "${task_sched_info_h}"
+check task-sched-info-isolate-declaration \
+  grep -Fq 'void update_cpu_isolate_info(int cpu, u64 type);' "${task_sched_info_h}"
+check task-sched-info-frequency-definition \
+  grep -Fq 'void update_freq_info(struct cpufreq_policy *policy)' "${task_sched_info_c}"
+check task-sched-info-limit-definition \
+  grep -Fq 'void update_freq_limit_info(struct cpufreq_policy *policy)' "${task_sched_info_c}"
+check task-sched-info-isolate-definition \
+  grep -Fq 'void update_cpu_isolate_info(int cpu, u64 type)' "${task_sched_info_c}"
+check task-sched-info-frequency-call \
+  test "$(grep -Fc 'update_freq_info(policy);' drivers/cpufreq/cpufreq.c)" -eq 1
+check task-sched-info-limit-call \
+  test "$(grep -Fc 'update_freq_limit_info(policy);' drivers/cpufreq/cpufreq.c)" -eq 1
+check task-sched-info-frequency-after-current \
+  awk '/policy->cur = freqs->new;/{assignment=NR} /update_freq_info\(policy\);/{call=NR} END{exit !(assignment && call > assignment && call - assignment <= 4)}' drivers/cpufreq/cpufreq.c
+check task-sched-info-limit-after-policy \
+  awk '/policy->max = new_policy->max;/{assignment=NR} /update_freq_limit_info\(policy\);/{call=NR} END{exit !(assignment && call > assignment && call - assignment <= 4)}' drivers/cpufreq/cpufreq.c
+check task-sched-info-isolate-call \
+  test "$(grep -Fc 'update_cpu_isolate_info(cpu, cpu_isolate);' kernel/sched/core.c)" -eq 1
+check task-sched-info-unisolate-call \
+  test "$(grep -Fc 'update_cpu_isolate_info(cpu, cpu_unisolate);' kernel/sched/core.c)" -eq 1
+check task-sched-info-isolate-success-only \
+  awk '/^int sched_isolate_cpu\(int cpu\)/{inside=1} inside && /update_cpu_isolate_info\(cpu, cpu_isolate\);/{seen=1} inside && /^out:/{out=1; exit} END{exit !(seen && out)}' kernel/sched/core.c
+check task-sched-info-unisolate-success-only \
+  awk '/^int sched_unisolate_cpu_unlocked\(int cpu\)/{inside=1} inside && /update_cpu_isolate_info\(cpu, cpu_unisolate\);/{seen=1} inside && /^out:/{out=1; exit} END{exit !(seen && out)}' kernel/sched/core.c
+check task-sched-info-frequency-disabled-fastpath \
+  grep -Fq 'if (!READ_ONCE(task_sched_info_enable) || !policy)' "${task_sched_info_c}"
+check task-sched-info-frequency-state-reset \
+  grep -Fq '[0 ... TASK_SCHED_CPU_COUNT - 1] = ~0U' "${task_sched_info_c}"
+check task-sched-info-frequency-limit-pack \
+  grep -Fq '((u64)min & 0x00ffffffULL)' "${task_sched_info_c}"
+check task-sched-info-isolate-pack \
+  grep -Fq '(type & 0xffULL)' "${task_sched_info_c}"
 check_absent task-sched-info-no-global-reader-snapshot \
   grep -Fq 'static u64 datainfo' "${task_sched_info_c}"
 check_absent task-sched-info-no-raw-address-output \
@@ -497,6 +529,6 @@ audio_sched_assist=task-boost-and-enqueue-hook
 cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
 task_cpustats=real-tick-accounting
-task_sched_info=core-scheduler-telemetry
+task_sched_info=full-scheduler-frequency-isolation-telemetry
 frame_boost_control_plane=task-group-walt-ioctl-sysctl
 EOF

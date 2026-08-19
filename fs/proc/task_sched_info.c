@@ -9,6 +9,7 @@
  */
 
 #include <linux/atomic.h>
+#include <linux/cpufreq.h>
 #include <linux/cred.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -39,6 +40,7 @@
 #define TASK_SCHED_MAX_PIDS		10
 #define TASK_SCHED_BUFFER_WORDS		3840
 #define TASK_SCHED_NOTIFY_WORDS		2560
+#define TASK_SCHED_CPU_COUNT		8
 #define TASK_SCHED_MAX_THRESHOLDS	5
 #define TASK_SCHED_DURATION_MAX		0x00ffffffULL
 #define TASK_SCHED_INPUT_LEN		(TASK_SCHED_MAX_PIDS * 21)
@@ -58,6 +60,7 @@ static bool sched_info_ctrl = true;
 
 static DEFINE_MUTEX(task_sched_control_lock);
 static DEFINE_MUTEX(task_sched_snapshot_lock);
+static DEFINE_RAW_SPINLOCK(task_sched_state_lock);
 static DEFINE_RAW_SPINLOCK(task_sched_ring_lock);
 static DEFINE_SEQLOCK(task_sched_targets_lock);
 
@@ -82,6 +85,15 @@ static u64 time_threshold[TASK_SCHED_MAX_THRESHOLDS] = {
 
 static unsigned long d_convert_info;
 static u64 enable_sched_clock[NR_CPUS];
+static unsigned int prev_freq[TASK_SCHED_CPU_COUNT] = {
+	[0 ... TASK_SCHED_CPU_COUNT - 1] = ~0U,
+};
+static unsigned int prev_freq_min[TASK_SCHED_CPU_COUNT] = {
+	[0 ... TASK_SCHED_CPU_COUNT - 1] = ~0U,
+};
+static unsigned int prev_freq_max[TASK_SCHED_CPU_COUNT] = {
+	[0 ... TASK_SCHED_CPU_COUNT - 1] = ~0U,
+};
 
 static atomic_t notify_pending = ATOMIC_INIT(0);
 static atomic_t uevent_id = ATOMIC_INIT(0);
@@ -95,6 +107,27 @@ static unsigned int task_sched_next_index(unsigned int index)
 {
 	index += 2;
 	return index < TASK_SCHED_BUFFER_WORDS ? index : 0;
+}
+
+static u64 task_sched_record_header(unsigned int type, unsigned int cpu,
+				    u64 clock)
+{
+	return (u64)(type & 0x1f) | ((u64)(cpu & 0x7) << 5) |
+	       ((clock & 0x00ffffffffffffffULL) << 8);
+}
+
+static void task_sched_reset_freq_state(void)
+{
+	unsigned long flags;
+	unsigned int cpu;
+
+	raw_spin_lock_irqsave(&task_sched_state_lock, flags);
+	for (cpu = 0; cpu < TASK_SCHED_CPU_COUNT; cpu++) {
+		prev_freq[cpu] = ~0U;
+		prev_freq_min[cpu] = ~0U;
+		prev_freq_max[cpu] = ~0U;
+	}
+	raw_spin_unlock_irqrestore(&task_sched_state_lock, flags);
 }
 
 static int task_sched_target_index(pid_t tgid)
@@ -372,6 +405,110 @@ void update_running_start_time(struct task_struct *prev,
 	WRITE_ONCE(next->running_start_time, clock);
 }
 
+void update_freq_info(struct cpufreq_policy *policy)
+{
+	struct task_sched_record record;
+	unsigned long flags;
+	unsigned int cpu;
+	unsigned int cur;
+	u64 clock;
+	u64 epoch;
+	bool changed = false;
+
+	if (!READ_ONCE(task_sched_info_enable) || !policy)
+		return;
+	cpu = READ_ONCE(policy->cpu);
+	if (cpu >= TASK_SCHED_CPU_COUNT || cpu >= nr_cpu_ids)
+		return;
+	clock = sched_clock_cpu(cpu);
+	epoch = READ_ONCE(enable_sched_clock[cpu]);
+	if (!epoch || clock < epoch)
+		return;
+	cur = READ_ONCE(policy->cur);
+
+	raw_spin_lock_irqsave(&task_sched_state_lock, flags);
+	if (READ_ONCE(task_sched_info_enable) &&
+	    epoch == READ_ONCE(enable_sched_clock[cpu]) &&
+	    prev_freq[cpu] != cur) {
+		prev_freq[cpu] = cur;
+		changed = true;
+	}
+	raw_spin_unlock_irqrestore(&task_sched_state_lock, flags);
+	if (!changed)
+		return;
+
+	record.one = task_sched_record_header(task_sched_info_freq, cpu, clock);
+	record.two = (u64)cur;
+	task_sched_put_record(&record);
+}
+
+void update_freq_limit_info(struct cpufreq_policy *policy)
+{
+	struct task_sched_record record;
+	unsigned long flags;
+	unsigned int cpu;
+	unsigned int min;
+	unsigned int max;
+	u64 clock;
+	u64 epoch;
+	bool changed = false;
+
+	if (!READ_ONCE(task_sched_info_enable) || !policy)
+		return;
+	cpu = READ_ONCE(policy->cpu);
+	if (cpu >= TASK_SCHED_CPU_COUNT || cpu >= nr_cpu_ids)
+		return;
+	clock = sched_clock_cpu(cpu);
+	epoch = READ_ONCE(enable_sched_clock[cpu]);
+	if (!epoch || clock < epoch)
+		return;
+	min = READ_ONCE(policy->min);
+	max = READ_ONCE(policy->max);
+
+	raw_spin_lock_irqsave(&task_sched_state_lock, flags);
+	if (READ_ONCE(task_sched_info_enable) &&
+	    epoch == READ_ONCE(enable_sched_clock[cpu]) &&
+	    (prev_freq_min[cpu] != min || prev_freq_max[cpu] != max)) {
+		prev_freq_min[cpu] = min;
+		prev_freq_max[cpu] = max;
+		changed = true;
+	}
+	raw_spin_unlock_irqrestore(&task_sched_state_lock, flags);
+	if (!changed)
+		return;
+
+	record.one = task_sched_record_header(task_sched_info_freq_limit, cpu,
+					      clock);
+	record.two = ((u64)min & 0x00ffffffULL) |
+		     (((u64)max & 0x00ffffffULL) << 24) |
+		     ((u64)(u16)current->pid << 48);
+	task_sched_put_record(&record);
+}
+
+void update_cpu_isolate_info(int cpu, u64 type)
+{
+	struct task_sched_record record;
+	u64 clock;
+	u64 epoch;
+
+	if (!READ_ONCE(task_sched_info_enable))
+		return;
+	if (cpu < 0 || cpu >= TASK_SCHED_CPU_COUNT || cpu >= nr_cpu_ids)
+		return;
+	if (type > cpu_isolate)
+		return;
+	clock = sched_clock_cpu(cpu);
+	epoch = READ_ONCE(enable_sched_clock[cpu]);
+	if (!epoch || clock < epoch ||
+	    !READ_ONCE(task_sched_info_enable))
+		return;
+
+	record.one = task_sched_record_header(task_sched_info_isolate, cpu,
+					      clock);
+	record.two = (type & 0xffULL) | ((u64)(u16)current->pid << 8);
+	task_sched_put_record(&record);
+}
+
 static u64 task_sched_realtime_us(void)
 {
 	struct timespec ts;
@@ -612,6 +749,7 @@ static ssize_t task_sched_info_enable_write(struct file *file,
 		if (!READ_ONCE(task_sched_info_enable)) {
 			task_sched_refresh_system_pids();
 			task_sched_reset_ring();
+			task_sched_reset_freq_state();
 			WRITE_ONCE(d_convert_info, 0);
 			write_seqlock_irqsave(&task_sched_targets_lock, flags);
 			write_pid_time = 0;

@@ -12,6 +12,7 @@
 #include <linux/types.h>
 
 struct task_struct;
+struct cpufreq_policy;
 
 enum task_sched_info_type {
 	task_sched_info_running = 0,
@@ -42,6 +43,9 @@ void update_wake_tid(struct task_struct *p, struct task_struct *current_task,
 void update_running_start_time(struct task_struct *prev,
 			       struct task_struct *next);
 void get_target_thread_pid(struct task_struct *task);
+void update_freq_info(struct cpufreq_policy *policy);
+void update_freq_limit_info(struct cpufreq_policy *policy);
+void update_cpu_isolate_info(int cpu, u64 type);
 
 void sched_action_trig(void);
 

@@ -6166,6 +6166,9 @@ int sched_isolate_cpu(int cpu)
 	calc_load_migrate(rq);
 	update_max_interval();
 	sched_update_group_capacities(cpu);
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+	update_cpu_isolate_info(cpu, cpu_isolate);
+#endif
 
 out:
 	cpu_maps_update_done();
@@ -6216,6 +6219,9 @@ int sched_unisolate_cpu_unlocked(int cpu)
 		if (!test_and_set_bit(NOHZ_BALANCE_KICK, nohz_flags(cpu)))
 			smp_send_reschedule(cpu);
 	}
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
+	update_cpu_isolate_info(cpu, cpu_unisolate);
+#endif
 
 out:
 	trace_sched_isolate(cpu, cpumask_bits(cpu_isolated_mask)[0],
