@@ -450,6 +450,9 @@ KBUILD_CPPFLAGS := -D__KERNEL__
 # Stage 5: activate the proven H.40 scheduler-assist implementation.
 # The upstream H.40 source gates it with this non-Kconfig feature macro.
 KBUILD_CPPFLAGS += -DOPLUS_FEATURE_SCHED_ASSIST
+
+# Stage 8: expose the ColorOS 14 task CPU accounting control plane.
+KBUILD_CPPFLAGS += -DOPLUS_FEATURE_TASK_CPUSTATS
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS_MODULE  := -DMODULE

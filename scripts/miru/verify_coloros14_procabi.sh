@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0
 #
-# Source-level Android 14 ColorOS proc-ABI audit for Miru H.40 Stage 7.
+# Source-level Android 14 ColorOS proc-ABI audit for Miru H.40 Stage 8.
 #
 # Run from the kernel source root after the matching external vendor tree has
 # been fetched.  This intentionally validates registrations and task-state
@@ -27,6 +27,8 @@ frame_boost_c="${frame_boost_dir}/frame_boost.c"
 frame_group_c="${frame_boost_dir}/frame_group.c"
 frame_ioctl_c="${frame_boost_dir}/frame_ioctl.c"
 frame_sysctl_c="${frame_boost_dir}/frame_sysctl.c"
+task_cpustats_c="fs/proc/task_cpustats.c"
+task_cpustats_h="${vendor_root}/oplus/kernel/oplus_performance/task_cpustats/task_cpustats.h"
 
 check() {
   local label="$1"
@@ -64,6 +66,87 @@ check frame-boost-sysctl-source test -f "${frame_sysctl_c}"
 check proc-iomem-registration \
   grep -Fq 'proc_create("iomem", 0400, NULL, &proc_iomem_operations);' kernel/resource.c
 check procfs-enabled grep -Fxq 'CONFIG_PROC_FS=y' "${config}"
+
+# Task CPU statistics: this is the functional ColorOS 14 tick producer and
+# five-second reporter, not merely the userspace-visible enable node.
+check task-cpustats-source test -f "${task_cpustats_c}"
+check task-cpustats-header test -f "${task_cpustats_h}"
+check task-cpustats-feature-macro \
+  grep -Fq -- '-DOPLUS_FEATURE_TASK_CPUSTATS' Makefile
+check task-cpustats-kconfig \
+  grep -Fq 'config OPLUS_CTP' fs/proc/Kconfig
+check task-cpustats-config-enabled \
+  grep -Fxq 'CONFIG_OPLUS_CTP=y' "${config}"
+check task-cpustats-kbuild \
+  grep -Fq 'proc-$(CONFIG_OPLUS_CTP) += task_cpustats.o' fs/proc/Makefile
+check task-cpustats-header-symlink test -L include/linux/task_cpustats.h
+check task-cpustats-header-target \
+  test "$(readlink include/linux/task_cpustats.h)" = '../../../../vendor/oplus/kernel/oplus_performance/task_cpustats/task_cpustats.h'
+check task-cpustats-producer-declaration \
+  grep -Fq 'extern void account_task_time(struct task_struct *p, unsigned int ticks,' "${task_cpustats_h}"
+check task-cpustats-sysctl-include \
+  grep -Fq '#include <linux/task_cpustats.h>' kernel/sysctl.c
+check task-cpustats-sysctl-node \
+  grep -Fq '.procname	= "task_cpustats_enable"' kernel/sysctl.c
+check task-cpustats-sysctl-storage \
+  grep -Fq '.data		= &sysctl_task_cpustats_enable' kernel/sysctl.c
+check task-cpustats-sysctl-mode \
+  grep -Fq '.mode		= 0666' kernel/sysctl.c
+check task-cpustats-sysctl-range-min \
+  grep -Fq '.extra1		= &zero' kernel/sysctl.c
+check task-cpustats-sysctl-range-max \
+  grep -Fq '.extra2		= &one' kernel/sysctl.c
+check task-cpustats-four-tick-hooks \
+  test "$(grep -Fc 'account_task_time(p, ticks,' kernel/sched/cputime.c)" -eq 4
+check task-cpustats-disabled-fastpath \
+  grep -Fq 'if (!READ_ONCE(sysctl_task_cpustats_enable))' "${task_cpustats_c}"
+check task-cpustats-percpu-ring \
+  grep -Fq 'DEFINE_PER_CPU(struct kernel_task_cpustat, ktask_cpustat);' "${task_cpustats_c}"
+check task-cpustats-ring-window \
+  grep -Fq 'MAX_CTP_WINDOW' "${task_cpustats_h}"
+check task-cpustats-five-second-report \
+  grep -Fq '#define CTP_WINDOW_SZ	5' "${task_cpustats_c}"
+check task-cpustats-race-safe-record \
+  grep -Fq 'guard->seq[idx]' "${task_cpustats_c}"
+check task-cpustats-serialized-snapshot \
+  grep -Fq 'DEFINE_SEMAPHORE(task_cpustats_snapshot_sem)' "${task_cpustats_c}"
+check task-cpustats-static-aggregate \
+  grep -Fq 'static struct acct_cpustat cpustats[MAX_PID];' "${task_cpustats_c}"
+check task-cpustats-donor-width-output \
+  grep -Fq 'unsigned int pwr;' "${task_cpustats_c}"
+check_absent task-cpustats-no-vmalloc-churn \
+  grep -Fq 'vzalloc' "${task_cpustats_c}"
+check task-cpustats-h40-energy-header \
+  grep -Fq '#include <linux/sched/energy.h>' "${task_cpustats_c}"
+check task-cpustats-h40-energy-table \
+  grep -Fq 'sge_array[cpu][SD_LEVEL0]' "${task_cpustats_c}"
+check task-cpustats-exact-frequency \
+  grep -Fq 'if (state->frequency == freq)' "${task_cpustats_c}"
+check_absent task-cpustats-no-nearest-frequency-fabrication \
+  grep -Fq 'best_delta' "${task_cpustats_c}"
+check task-cpustats-lockless-tick-frequency \
+  grep -Fq 'policy ? READ_ONCE(policy->cur) : 0' "${task_cpustats_c}"
+check task-cpustats-donor-jiffy-conversion \
+  grep -Fq 'nsecs_to_jiffies(TICK_NSEC)' "${task_cpustats_c}"
+check task-cpustats-frequency-table \
+  grep -Fq 'cpufreq_for_each_valid_entry' "${task_cpustats_c}"
+check_absent task-cpustats-no-generic-energy-model \
+  grep -Fq '#include <linux/energy_model.h>' "${task_cpustats_c}"
+check_absent task-cpustats-no-em-cpu-get \
+  grep -Fq 'em_cpu_get' "${task_cpustats_c}"
+check task-cpustats-policy-lifetime \
+  grep -Fq 'cpufreq_cpu_put(policy);' "${task_cpustats_c}"
+check task-cpustats-proc-create-unwind \
+  grep -Fq 'remove_proc_entry("sgefreqinfo", NULL);' "${task_cpustats_c}"
+check_absent task-cpustats-no-log-spam \
+  grep -Fq 'pr_err' "${task_cpustats_c}"
+check_absent task-cpustats-no-trace-printk \
+  grep -Fq 'trace_printk' "${task_cpustats_c}"
+
+for node in task_cpustats sgeinfo sgefreqinfo; do
+  check "task-cpustats-node-${node}" \
+    grep -Fq "proc_create(\"${node}\", 0" "${task_cpustats_c}"
+done
 
 # Scheduler-assist wiring: per-task state, fork reset and linked build path.
 check sched-assist-feature-macro \
@@ -339,5 +422,6 @@ task_ux_state=per-thread-registered
 audio_sched_assist=task-boost-and-enqueue-hook
 cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
+task_cpustats=real-tick-accounting
 frame_boost_control_plane=task-group-walt-ioctl-sysctl
 EOF

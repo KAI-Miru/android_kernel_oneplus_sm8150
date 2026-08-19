@@ -88,6 +88,15 @@ config PROC_UID
 	depends on PROC_FS && RT_MUTEXES
 	help
 	Provides aggregated per-uid information under /proc/uid.
+config OPLUS_CTP
+	bool "Oplus task CPU statistics"
+	depends on PROC_FS && PROC_SYSCTL && CPU_FREQ && IRQ_TIME_ACCOUNTING
+	default n
+	help
+	  Collect per-task CPU residency in a per-CPU scheduler-tick ring and
+	  expose the ColorOS task_cpustats, sgeinfo and sgefreqinfo reports.
+	  The producer is disabled until task_cpustats_enable is set to 1.
+
 #ifdef OPLUS_FEATURE_HEALTHINFO
 source fs/proc/oplus_healthinfo/Kconfig
 #endif /* OPLUS_FEATURE_HEALTHINFO */

@@ -6,6 +6,9 @@
 #include <linux/context_tracking.h>
 #include <linux/sched/cputime.h>
 #include <linux/cpufreq_times.h>
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_CTP)
+#include <linux/task_cpustats.h>
+#endif
 #include "sched.h"
 #include "walt.h"
 
@@ -407,14 +410,26 @@ static void irqtime_account_process_tick(struct task_struct *p, int user_tick,
 		 * Also, p->stime needs to be updated for ksoftirqd.
 		 */
 		account_system_index_time(p, cputime, CPUTIME_SOFTIRQ);
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_CTP)
+		account_task_time(p, ticks, CPUTIME_SOFTIRQ);
+#endif
 	} else if (user_tick) {
 		account_user_time(p, cputime);
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_CTP)
+		account_task_time(p, ticks, CPUTIME_USER);
+#endif
 	} else if (p == rq->idle) {
 		account_idle_time(cputime);
 	} else if (p->flags & PF_VCPU) { /* System time or guest time */
 		account_guest_time(p, cputime);
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_CTP)
+		account_task_time(p, ticks, CPUTIME_USER);
+#endif
 	} else {
 		account_system_index_time(p, cputime, CPUTIME_SYSTEM);
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_CTP)
+		account_task_time(p, ticks, CPUTIME_SYSTEM);
+#endif
 	}
 }
 

@@ -36,6 +36,4 @@ proc-$(CONFIG_PROC_PAGE_MONITOR)	+= page.o
 #ifdef OPLUS_FEATURE_HEALTHINFO
 obj-y	+= oplus_healthinfo/
 #endif /* OPLUS_FEATURE_HEALTHINFO */
-#ifdef OPLUS_FEATURE_TASK_CPUSTATS
-proc-y  += task_cpustats.o
-#endif /* OPLUS_FEATURE_TASK_CPUSTATS */
+proc-$(CONFIG_OPLUS_CTP) += task_cpustats.o

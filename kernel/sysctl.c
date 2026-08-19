@@ -63,6 +63,9 @@
 #include <linux/binfmts.h>
 #include <linux/sched/sysctl.h>
 #include <linux/sched/coredump.h>
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_CTP)
+#include <linux/task_cpustats.h>
+#endif
 #include <linux/kexec.h>
 #include <linux/bpf.h>
 #include <linux/mount.h>
@@ -420,6 +423,17 @@ out:
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
 
 static struct ctl_table kern_table[] = {
+#if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_CTP)
+	{
+		.procname	= "task_cpustats_enable",
+		.data		= &sysctl_task_cpustats_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0666,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero,
+		.extra2		= &one,
+	},
+#endif
 	{
 		.procname	= "sched_child_runs_first",
 		.data		= &sysctl_sched_child_runs_first,
