@@ -322,18 +322,34 @@ jobs:
           readelf -rW "${fair_obj}" > "${fair_relocs}"
           readelf -rW "${exec_obj}" > "${exec_relocs}"
           readelf -rW "${cpufreq_obj}" > "${cpufreq_relocs}"
+          echo checking-relocation=update_wake_tid
           grep -Fq 'update_wake_tid' "${core_relocs}"
+          echo checking-relocation=update_running_start_time
           grep -Fq 'update_running_start_time' "${core_relocs}"
+          echo checking-relocation=update_task_sched_info
           grep -Fq 'update_task_sched_info' "${fair_relocs}"
+          echo checking-relocation=get_target_thread_pid
           grep -Fq 'get_target_thread_pid' "${exec_relocs}"
           for symbol in update_task_sched_info update_wake_tid update_running_start_time get_target_thread_pid sched_action_trig; do
+            echo checking-system-map-symbol="${symbol}"
             grep -Eq "[[:space:]][Tt][[:space:]]${symbol}$" "${out_dir}/System.map"
           done
-          for literal in task_info task_sched_info pids_set sched_buffer task_sched_info_enable sched_info_threshold d_convert sched_info_ctrl 'SCHEDACTION=uevent' 'SCHEDNUM=%u'; do
+          for literal in task_info pids_set sched_buffer task_sched_info_enable sched_info_threshold d_convert 'SCHEDACTION=uevent' 'SCHEDNUM=%u'; do
+            echo checking-vmlinux-literal="${literal}"
             grep -Fxq "${literal}" "${strings_file}"
           done
+          # BFD tail-merges suffix string literals at final link.  Check the
+          # retained full proc path and built-in module-parameter spelling,
+          # rather than suffixes that need not remain standalone strings.
+          for literal in task_info/task_sched_info task_sched_info.sched_info_ctrl; do
+            echo checking-vmlinux-literal="${literal}"
+            grep -Fxq "${literal}" "${strings_file}"
+          done
+          echo checking-stage9a-absence=update_freq_info
           ! grep -Fq 'update_freq_info' "${cpufreq_relocs}"
+          echo checking-stage9a-absence=update_freq_limit_info
           ! grep -Fq 'update_freq_limit_info' "${cpufreq_relocs}"
+          echo checking-stage9a-absence=update_cpu_isolate_info
           ! grep -Fq 'update_cpu_isolate_info' "${core_relocs}"
           {
             echo result=PASS
@@ -811,20 +827,37 @@ jobs:
           readelf -rW "${fair_obj}" > "${fair_relocs}"
           readelf -rW "${exec_obj}" > "${exec_relocs}"
           readelf -rW "${cpufreq_obj}" > "${cpufreq_relocs}"
+          echo checking-relocation=update_wake_tid
           grep -Fq 'update_wake_tid' "${core_relocs}"
+          echo checking-relocation=update_running_start_time
           grep -Fq 'update_running_start_time' "${core_relocs}"
+          echo checking-relocation=update_task_sched_info
           grep -Fq 'update_task_sched_info' "${fair_relocs}"
+          echo checking-relocation=get_target_thread_pid
           grep -Fq 'get_target_thread_pid' "${exec_relocs}"
           for symbol in update_task_sched_info update_wake_tid update_running_start_time get_target_thread_pid sched_action_trig; do
+            echo checking-system-map-symbol="${symbol}"
             grep -Eq "[[:space:]][Tt][[:space:]]${symbol}$" "${out_dir}/System.map"
           done
-          for literal in task_info task_sched_info pids_set sched_buffer task_sched_info_enable sched_info_threshold d_convert sched_info_ctrl 'SCHEDACTION=uevent' 'SCHEDNUM=%u'; do
+          for literal in task_info pids_set sched_buffer task_sched_info_enable sched_info_threshold d_convert 'SCHEDACTION=uevent' 'SCHEDNUM=%u'; do
+            echo checking-vmlinux-literal="${literal}"
             grep -Fxq "${literal}" "${strings_file}"
           done
+          # BFD tail-merges suffix string literals at final link.  Check the
+          # retained full proc path and built-in module-parameter spelling,
+          # rather than suffixes that need not remain standalone strings.
+          for literal in task_info/task_sched_info task_sched_info.sched_info_ctrl; do
+            echo checking-vmlinux-literal="${literal}"
+            grep -Fxq "${literal}" "${strings_file}"
+          done
+          echo checking-stage9b-relocation=update_freq_info
           grep -Fq 'update_freq_info' "${cpufreq_relocs}"
+          echo checking-stage9b-relocation=update_freq_limit_info
           grep -Fq 'update_freq_limit_info' "${cpufreq_relocs}"
+          echo checking-stage9b-relocation=update_cpu_isolate_info-count-2
           test "$(grep -Fc 'update_cpu_isolate_info' "${core_relocs}")" -eq 2
           for symbol in update_freq_info update_freq_limit_info update_cpu_isolate_info; do
+            echo checking-system-map-symbol="${symbol}"
             grep -Eq "[[:space:]][Tt][[:space:]]${symbol}$" "${out_dir}/System.map"
           done
           {
