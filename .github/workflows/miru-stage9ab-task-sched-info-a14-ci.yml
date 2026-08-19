@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-stage9a-task-sched-info-a14
-      SOURCE_SHA: 9d0cc7ef4984a486ed01696b35b1a0c69c2984c5
+      SOURCE_SHA: 29d7d81080e7208e9466d7ab886ae8ba48cdebb7
       PARENT_SHA: a218e2e10987ac4d1bcb5094c199e8d36b8ac1f9
       MODULES_REPAIR_BRANCH: miru-h40-stage9a-task-sched-info-a14
       MODULES_REPAIR_SHA: e892a9c730424c82bff50953b57674b53cdae35b
@@ -511,8 +511,8 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-stage9b-task-sched-info-a14
-      SOURCE_SHA: 478c369694b7c37adb301050b14405ec968aed4c
-      PARENT_SHA: 9d0cc7ef4984a486ed01696b35b1a0c69c2984c5
+      SOURCE_SHA: eb9ff9456a6b242ce6bfe3c057fc00bc26c16db6
+      PARENT_SHA: 29d7d81080e7208e9466d7ab886ae8ba48cdebb7
       MODULES_REPAIR_BRANCH: miru-h40-stage9b-task-sched-info-a14
       MODULES_REPAIR_SHA: e892a9c730424c82bff50953b57674b53cdae35b
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9b-task-sched-info-a14-ci1+
