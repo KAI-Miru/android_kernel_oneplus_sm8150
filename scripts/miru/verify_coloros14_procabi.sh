@@ -44,6 +44,7 @@ game_opt_dir="drivers/soc/oplus/game_opt"
 game_opt_ctrl_c="${game_opt_dir}/game_ctrl.c"
 game_opt_cpu_load_c="${game_opt_dir}/cpu_load.c"
 game_opt_task_util_c="${game_opt_dir}/task_util.c"
+game_opt_rt_info_c="${game_opt_dir}/rt_info.c"
 game_opt_header="include/linux/oplus_game_opt.h"
 
 check() {
@@ -525,7 +526,7 @@ check gameopt-zero-before-init \
 check_absent gameopt-cpu-load-no-write-handler \
   grep -Eq '\.(write|unlocked_ioctl)[[:space:]]*=' "${game_opt_cpu_load_c}"
 check_absent gameopt-no-control-objects \
-  grep -Eq 'cpufreq_limits\.o|rt_info\.o|dstate_dump\.o' "${game_opt_dir}/Makefile"
+  grep -Eq 'cpufreq_limits\.o|dstate_dump\.o' "${game_opt_dir}/Makefile"
 check gameopt-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-gameopt-cpu-load
 
@@ -567,6 +568,48 @@ check_absent gameopt-task-runtime-no-stack-capture \
   grep -E 'get_wchan|stack_trace|save_stack|trace_printk' "${game_opt_task_util_c}"
 check gameopt-task-runtime-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-gameopt-task-runtime
+
+# Stage 9G adds the donor render-thread waker ABI without its D-state coupling.
+# Accounting is off until userspace writes up to two target TIDs, the wakeup
+# hook never waits for the reporting lock, and a static pool caps state at 256
+# wakers across both targets.
+check gameopt-render-waker-source test -f "${game_opt_rt_info_c}"
+check gameopt-render-waker-init \
+  grep -Fq 'ret = rt_info_init();' "${game_opt_ctrl_c}"
+check gameopt-render-waker-build \
+  grep -Fq 'rt_info.o' "${game_opt_dir}/Makefile"
+check gameopt-render-waker-node \
+  grep -Fq 'proc_create_data("render_thread_info", 0664' "${game_opt_rt_info_c}"
+check gameopt-render-count-node \
+  grep -Fq 'proc_create_data("rt_num", 0444' "${game_opt_rt_info_c}"
+check gameopt-render-waker-grammar \
+  grep -Fq '%d;%s;%d;%llu;%u' "${game_opt_rt_info_c}"
+check gameopt-render-waker-default-off \
+  grep -Fq 'need_stat_wake = ATOMIC_INIT(0)' "${game_opt_rt_info_c}"
+check gameopt-render-waker-two-target-cap \
+  grep -Fq '#define MAX_RT_NUM 2' "${game_opt_rt_info_c}"
+check gameopt-render-waker-pool-cap \
+  grep -Fq '#define MAX_WAKER_COUNT 256' "${game_opt_rt_info_c}"
+check gameopt-render-waker-static-pool \
+  grep -Fq 'waker_pool[MAX_WAKER_COUNT]' "${game_opt_rt_info_c}"
+check gameopt-render-waker-trylock \
+  grep -Fq 'raw_spin_trylock_irqsave(&rt_info_lock' "${game_opt_rt_info_c}"
+check gameopt-render-waker-wakeup-hook \
+  grep -Fq 'g_rt_try_to_wake_up(p);' kernel/sched/core.c
+check gameopt-render-waker-death-hook \
+  grep -Fq 'g_rt_waker_task_dead(prev);' kernel/sched/core.c
+check gameopt-render-waker-public-api \
+  grep -Fq 'void g_rt_try_to_wake_up(struct task_struct *task);' "${game_opt_header}"
+check gameopt-render-waker-reset-on-read \
+  grep -Fq 'waker->increment = 0;' "${game_opt_rt_info_c}"
+check gameopt-render-waker-only-write \
+  test "$(grep -Ec '\.write[[:space:]]*=' "${game_opt_rt_info_c}")" -eq 1
+check_absent gameopt-render-waker-no-ioctl \
+  grep -Eq '\.unlocked_ioctl[[:space:]]*=' "${game_opt_rt_info_c}"
+check_absent gameopt-render-waker-no-dstate-coupling \
+  grep -Fq 'rt_set_dstate_interested_threads' "${game_opt_rt_info_c}"
+check gameopt-render-waker-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-gameopt-render-waker
 
 # Frame Boost is a scheduler control plane, not a collection of no-op proc
 # files.  Validate the task state, core hooks, WALT handoff, syscall ABI, and
@@ -727,6 +770,7 @@ cpu_jank_tasktrack=on-demand-sched-tracepoint
 cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup
 gameopt_cpu_load=donor-time-in-state-idle-frequency
 gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting
+gameopt_render_waker=opt-in-bounded-wakeup-accounting
 task_cpustats=real-tick-accounting
 task_sched_info=full-scheduler-frequency-isolation-telemetry
 frame_boost_control_plane=task-group-walt-ioctl-sysctl

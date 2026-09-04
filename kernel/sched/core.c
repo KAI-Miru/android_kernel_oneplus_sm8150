@@ -2210,6 +2210,8 @@ try_to_wake_up(struct task_struct *p, unsigned int state, int wake_flags,
 		atomic_dec(&task_rq(p)->nr_iowait);
 	}
 
+	g_rt_try_to_wake_up(p);
+
 	cpu = select_task_rq(p, p->wake_cpu, SD_BALANCE_WAKE, wake_flags,
 			     sibling_count_hint);
 	if (task_cpu(p) != cpu) {
@@ -2865,6 +2867,7 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 			 */
 			kprobe_flush_task(prev);
 			g_rt_task_dead(prev);
+			g_rt_waker_task_dead(prev);
 
 #ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
 			fbg_flush_task_hook(NULL, prev);

@@ -36,9 +36,17 @@ static int __init game_ctrl_init(void)
 		return ret;
 	}
 
+	ret = rt_info_init();
+	if (ret) {
+		cpu_load_exit();
+		remove_proc_subtree("game_opt", NULL);
+		game_opt_dir = NULL;
+		return ret;
+	}
+
 	return 0;
 }
 
 module_init(game_ctrl_init);
 MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("Oplus GameOpt CPU-load telemetry");
+MODULE_DESCRIPTION("Oplus GameOpt bounded performance telemetry");

@@ -1,0 +1,22 @@
+What:		/proc/game_opt/render_thread_info
+Date:		September 2026
+Contact:	Miru kernel maintainers
+Description:
+		Read/write interface for bounded render-thread waker telemetry.
+		Writing up to two decimal thread IDs enables accounting for wakeups
+		to those render threads by threads in the same process.  Writing an
+		empty string or zero disables accounting.  Accounting is disabled
+		at boot, uses a non-blocking scheduler hot-path lock, and stores at
+		most 256 waker records.  Reads return the ten most active wakers per
+		render thread as:
+
+		<tid>;<comm>;<render_tid>;<total_wakes>;<wakes_since_read>
+
+		Reading resets only the final per-read wake counter.
+
+What:		/proc/game_opt/rt_num
+Date:		September 2026
+Contact:	Miru kernel maintainers
+Description:
+		Read-only diagnostic summary of the configured render threads and
+		the bounded waker-record pool.  The first line is "rt_num <count>".

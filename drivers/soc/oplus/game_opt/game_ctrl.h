@@ -9,5 +9,6 @@ extern struct proc_dir_entry *game_opt_dir;
 int cpu_load_init(void);
 void cpu_load_exit(void);
 int task_util_init(void);
+int rt_info_init(void);
 
 #endif /* _OPLUS_GAME_CTRL_H */
