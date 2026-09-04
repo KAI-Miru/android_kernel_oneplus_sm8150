@@ -535,8 +535,8 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-stage9f-gameopt-task-runtime
-      SOURCE_SHA: b70ddad1636313d21cb903c832a3cecbe67786d9
-      PARENT_SHA: 6e202c3a0db636957ab1a977539d81a2c8934588
+      SOURCE_SHA: 4a7ac61fc469218f3df1da3728a6a9c7dfc6c8e5
+      PARENT_SHA: b70ddad1636313d21cb903c832a3cecbe67786d9
       MODULES_REPAIR_BRANCH: miru-h40-stage9f-gameopt-task-runtime
       MODULES_REPAIR_SHA: 1890dce28344b4ad3fc78a10b2ebf64fe49187e7
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9f-gameopt-task-runtime-ci1+
@@ -629,6 +629,7 @@ jobs:
           check gameopt-task-runtime-no-private-header test "$(grep -Fc 'kernel/sched/sched.h' source/drivers/soc/oplus/game_opt/task_util.c)" -eq 0
           check gameopt-task-runtime-abi-document test -f source/Documentation/ABI/testing/procfs-oplus-gameopt-task-runtime
           check gameopt-task-runtime-audit grep -Fq 'gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting' source/scripts/miru/verify_coloros14_procabi.sh
+          check gameopt-task-runtime-write-audit grep -Fq 'gameopt-task-runtime-game-pid-only-write' source/scripts/miru/verify_coloros14_procabi.sh
           check task-cpustats-feature-macro grep -Fq -- '-DOPLUS_FEATURE_TASK_CPUSTATS' source/Makefile
           check task-cpustats-config grep -Fxq 'CONFIG_OPLUS_CTP=y' source/h40-repro/config/GM1911_11_H.40.config
           check task-cpustats-kconfig grep -Fq 'config OPLUS_CTP' source/fs/proc/Kconfig
