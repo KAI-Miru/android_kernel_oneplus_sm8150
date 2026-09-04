@@ -522,8 +522,8 @@ check gameopt-cpufreq-postchange \
   grep -Fq 'event != CPUFREQ_POSTCHANGE' "${game_opt_cpu_load_c}"
 check gameopt-zero-before-init \
   grep -Fq '*util_pct = 0;' "${game_opt_cpu_load_c}"
-check_absent gameopt-no-write-handler \
-  grep -Eq '\.(write|unlocked_ioctl)[[:space:]]*=' "${game_opt_dir}"/*.c
+check_absent gameopt-cpu-load-no-write-handler \
+  grep -Eq '\.(write|unlocked_ioctl)[[:space:]]*=' "${game_opt_cpu_load_c}"
 check_absent gameopt-no-control-objects \
   grep -Eq 'cpufreq_limits\.o|rt_info\.o|dstate_dump\.o' "${game_opt_dir}/Makefile"
 check gameopt-abi-document \
@@ -547,6 +547,10 @@ check gameopt-task-runtime-cap \
   grep -Fq '#define MAX_TID_COUNT 256' "${game_opt_task_util_c}"
 check gameopt-task-runtime-trylocks \
   test "$(grep -Fc 'raw_spin_trylock_irqsave(&game_task_lock' "${game_opt_task_util_c}")" -eq 2
+check gameopt-task-runtime-game-pid-only-write \
+  test "$(grep -Ec '\.write[[:space:]]*=' "${game_opt_task_util_c}")" -eq 1
+check_absent gameopt-task-runtime-no-ioctl \
+  grep -Eq '\.unlocked_ioctl[[:space:]]*=' "${game_opt_task_util_c}"
 check gameopt-task-runtime-fair-hook \
   test "$(grep -Fc 'g_update_task_runtime(curtask, delta_exec);' kernel/sched/fair.c)" -eq 1
 check gameopt-task-runtime-rt-hook \
