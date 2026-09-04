@@ -498,7 +498,7 @@ check gameopt-config-enabled \
 check gameopt-kbuild-link \
   grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += oplus/game_opt/' drivers/soc/Makefile
 check gameopt-trimmed-objects \
-  grep -Fxq 'game_opt-y := game_ctrl.o cpu_load.o task_util.o' "${game_opt_dir}/Makefile"
+  grep -Fxq 'game_opt-y := game_ctrl.o cpu_load.o task_util.o rt_info.o' "${game_opt_dir}/Makefile"
 check gameopt-proc-parent \
   grep -Fq 'proc_mkdir("game_opt", NULL)' "${game_opt_ctrl_c}"
 check gameopt-cpu-load-node \
