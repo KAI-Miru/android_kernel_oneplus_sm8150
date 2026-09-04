@@ -1,0 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
+#ifndef _OPLUS_GAME_CTRL_H
+#define _OPLUS_GAME_CTRL_H
+
+#include <linux/proc_fs.h>
+
+extern struct proc_dir_entry *game_opt_dir;
+
+int cpu_load_init(void);
+
+#endif /* _OPLUS_GAME_CTRL_H */

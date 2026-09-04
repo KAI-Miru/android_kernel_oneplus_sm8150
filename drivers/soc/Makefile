@@ -53,3 +53,5 @@ obj-$(CONFIG_OPLUS_FEATURE_RT_INFO) += oplus/rt_info/
 
 #Add for NandSwap
 obj-$(CONFIG_NANDSWAP)		+= oplus/oplus_nandswap/
+
+obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += oplus/game_opt/

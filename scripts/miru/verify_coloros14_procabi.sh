@@ -40,6 +40,10 @@ task_sched_info_c="fs/proc/task_sched_info.c"
 task_sched_info_h="include/linux/task_sched_info.h"
 proactive_compact_c="fs/proc/oplus_proactive_compact.c"
 storage_log_c="fs/proc/oplus_storage_log.c"
+game_opt_dir="drivers/soc/oplus/game_opt"
+game_opt_ctrl_c="${game_opt_dir}/game_ctrl.c"
+game_opt_cpu_load_c="${game_opt_dir}/cpu_load.c"
+game_opt_header="include/linux/oplus_game_opt.h"
 
 check() {
   local label="$1"
@@ -477,6 +481,53 @@ check cpu-jank-reporting-node-version \
 check cpu-jank-reporting-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-cpu-jank-reporting
 
+# Stage 9E is the first isolated GameOpt batch: the donor's read-only CPU-load
+# sampler, backed by cpuidle transitions and a cpufreq transition notifier.
+# Writable frequency controls and scheduler policy are deliberately excluded.
+check gameopt-cpu-load-source test -f "${game_opt_cpu_load_c}"
+check gameopt-control-source test -f "${game_opt_ctrl_c}"
+check gameopt-public-header test -f "${game_opt_header}"
+check gameopt-kconfig-source \
+  grep -Fq 'source "drivers/soc/oplus/game_opt/Kconfig"' drivers/soc/Kconfig
+check gameopt-kconfig \
+  grep -Fq 'config OPLUS_FEATURE_GAME_OPT' "${game_opt_dir}/Kconfig"
+check gameopt-config-enabled \
+  grep -Fxq 'CONFIG_OPLUS_FEATURE_GAME_OPT=y' "${config}"
+check gameopt-kbuild-link \
+  grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += oplus/game_opt/' drivers/soc/Makefile
+check gameopt-trimmed-objects \
+  grep -Fxq 'game_opt-y := game_ctrl.o cpu_load.o' "${game_opt_dir}/Makefile"
+check gameopt-proc-parent \
+  grep -Fq 'proc_mkdir("game_opt", NULL)' "${game_opt_ctrl_c}"
+check gameopt-cpu-load-node \
+  grep -Fq 'proc_create_data("cpu_load", 0444' "${game_opt_cpu_load_c}"
+check gameopt-cpu-load-grammar \
+  grep -Fq 'CPU:%d busy_pct:%d util_pct:%d' "${game_opt_cpu_load_c}"
+check gameopt-reset-on-read \
+  grep -Fq 'reset_cur_state_after_read(icpu, now);' "${game_opt_cpu_load_c}"
+check gameopt-idle-public-declaration \
+  grep -Fq 'void g_time_in_state_update_idle(int cpu, unsigned int new_idle_index);' "${game_opt_header}"
+check gameopt-idle-definition \
+  grep -Fq 'void g_time_in_state_update_idle(int cpu, unsigned int new_idle_index)' "${game_opt_cpu_load_c}"
+check gameopt-idle-hooks \
+  test "$(grep -Fc 'g_time_in_state_update_idle(dev->cpu,' drivers/cpuidle/cpuidle.c)" -eq 2
+check gameopt-idle-enter-hook \
+  grep -Fq 'g_time_in_state_update_idle(dev->cpu, 1);' drivers/cpuidle/cpuidle.c
+check gameopt-idle-exit-hook \
+  grep -Fq 'g_time_in_state_update_idle(dev->cpu, 0);' drivers/cpuidle/cpuidle.c
+check gameopt-cpufreq-notifier \
+  grep -Fq 'cpufreq_register_notifier(&cpufreq_transition_notifier,' "${game_opt_cpu_load_c}"
+check gameopt-cpufreq-postchange \
+  grep -Fq 'event != CPUFREQ_POSTCHANGE' "${game_opt_cpu_load_c}"
+check gameopt-zero-before-init \
+  grep -Fq '*util_pct = 0;' "${game_opt_cpu_load_c}"
+check_absent gameopt-no-write-handler \
+  grep -Eq '\.(write|unlocked_ioctl)[[:space:]]*=' "${game_opt_dir}"/*.c
+check_absent gameopt-no-control-objects \
+  grep -Eq 'cpufreq_limits\.o|task_util\.o|rt_info\.o|dstate_dump\.o' "${game_opt_dir}/Makefile"
+check gameopt-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-gameopt-cpu-load
+
 # Frame Boost is a scheduler control plane, not a collection of no-op proc
 # files.  Validate the task state, core hooks, WALT handoff, syscall ABI, and
 # the H.40-specific cpufreq flag allocation.
@@ -634,6 +685,7 @@ audio_sched_assist=task-boost-and-enqueue-hook
 cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
 cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup
+gameopt_cpu_load=donor-time-in-state-idle-frequency
 task_cpustats=real-tick-accounting
 task_sched_info=full-scheduler-frequency-isolation-telemetry
 frame_boost_control_plane=task-group-walt-ioctl-sysctl

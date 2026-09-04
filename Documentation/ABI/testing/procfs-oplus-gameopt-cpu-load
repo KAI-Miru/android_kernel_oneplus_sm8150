@@ -1,0 +1,16 @@
+What:		/proc/game_opt/cpu_load
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only ColorOS 14 GameOpt CPU-load telemetry derived from the
+		OnePlus 9R Android 14 implementation.  One line is emitted for
+		each possible CPU using this exact grammar:
+
+		CPU:<cpu> busy_pct:<busy> util_pct:<util>
+
+		busy_pct is the non-idle percentage since the previous read.
+		util_pct weights active time by the current CPU frequency as a
+		percentage of that CPU policy's maximum frequency.  Reading the
+		file resets the sampling interval.  Stage 9E adds no writable
+		GameOpt control nodes.
+Users:		vendor.oplus.hardware.gameopt-service

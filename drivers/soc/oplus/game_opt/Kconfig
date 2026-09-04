@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config OPLUS_FEATURE_GAME_OPT
+	bool "Oplus game optimization telemetry"
+	depends on CPU_FREQ && CPU_IDLE && PROC_FS
+	default n
+	help
+	  Build the read-only /proc/game_opt/cpu_load telemetry used by the
+	  ColorOS 14 GameOpt service.  Stage 9E intentionally excludes the
+	  donor's frequency controls and scheduler policy nodes.
