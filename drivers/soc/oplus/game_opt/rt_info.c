@@ -194,6 +194,7 @@ void g_rt_waker_task_dead(struct task_struct *task)
 static bool get_task_name(pid_t tid, char name[TASK_COMM_LEN])
 {
 	struct task_struct *task;
+	char comm[TASK_COMM_LEN];
 
 	rcu_read_lock();
 	task = find_task_by_vpid(tid);
@@ -203,7 +204,8 @@ static bool get_task_name(pid_t tid, char name[TASK_COMM_LEN])
 	if (!task)
 		return false;
 
-	get_task_comm(name, task);
+	get_task_comm(comm, task);
+	memcpy(name, comm, sizeof(comm));
 	put_task_struct(task);
 	return true;
 }

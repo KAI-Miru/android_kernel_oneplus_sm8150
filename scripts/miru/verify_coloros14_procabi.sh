@@ -600,6 +600,10 @@ check gameopt-render-waker-death-hook \
   grep -Fq 'g_rt_waker_task_dead(prev);' kernel/sched/core.c
 check gameopt-render-waker-public-api \
   grep -Fq 'void g_rt_try_to_wake_up(struct task_struct *task);' "${game_opt_header}"
+check gameopt-render-waker-task-name-buffer \
+  grep -Fq 'char comm[TASK_COMM_LEN];' "${game_opt_rt_info_c}"
+check gameopt-render-waker-task-name-copy \
+  grep -Fq 'memcpy(name, comm, sizeof(comm));' "${game_opt_rt_info_c}"
 check gameopt-render-waker-reset-on-read \
   grep -Fq 'waker->increment = 0;' "${game_opt_rt_info_c}"
 check gameopt-render-waker-only-write \
