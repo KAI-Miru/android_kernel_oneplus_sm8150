@@ -533,8 +533,8 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-stage9f-gameopt-task-runtime
-      SOURCE_SHA: 6e202c3a0db636957ab1a977539d81a2c8934588
-      PARENT_SHA: 58640efa97c686775a610f60b3498870e86312ea
+      SOURCE_SHA: b70ddad1636313d21cb903c832a3cecbe67786d9
+      PARENT_SHA: 6e202c3a0db636957ab1a977539d81a2c8934588
       MODULES_REPAIR_BRANCH: miru-h40-stage9f-gameopt-task-runtime
       MODULES_REPAIR_SHA: 1890dce28344b4ad3fc78a10b2ebf64fe49187e7
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9f-gameopt-task-runtime-ci1+
@@ -622,6 +622,8 @@ jobs:
           check gameopt-task-runtime-fair-hook test "$(grep -Fc 'g_update_task_runtime(curtask, delta_exec);' source/kernel/sched/fair.c)" -eq 1
           check gameopt-task-runtime-rt-hook test "$(grep -Fc 'g_update_task_runtime(curr, delta_exec);' source/kernel/sched/rt.c)" -eq 1
           check gameopt-task-runtime-death-hook test "$(grep -Fc 'g_rt_task_dead(prev);' source/kernel/sched/core.c)" -eq 1
+          check gameopt-task-name-local-buffer grep -Fq 'char comm[TASK_COMM_LEN];' source/drivers/soc/oplus/game_opt/task_util.c
+          check gameopt-task-name-buffer-copy grep -Fq 'memcpy(name, comm, sizeof(comm));' source/drivers/soc/oplus/game_opt/task_util.c
           check gameopt-task-runtime-no-private-header test "$(grep -Fc 'kernel/sched/sched.h' source/drivers/soc/oplus/game_opt/task_util.c)" -eq 0
           check gameopt-task-runtime-abi-document test -f source/Documentation/ABI/testing/procfs-oplus-gameopt-task-runtime
           check gameopt-task-runtime-audit grep -Fq 'gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting' source/scripts/miru/verify_coloros14_procabi.sh
@@ -752,6 +754,8 @@ jobs:
           test "$(grep -Fc 'g_update_task_runtime(curtask, delta_exec);' kernel/sched/fair.c)" -eq 1
           test "$(grep -Fc 'g_update_task_runtime(curr, delta_exec);' kernel/sched/rt.c)" -eq 1
           test "$(grep -Fc 'g_rt_task_dead(prev);' kernel/sched/core.c)" -eq 1
+          grep -Fq 'char comm[TASK_COMM_LEN];' drivers/soc/oplus/game_opt/task_util.c
+          grep -Fq 'memcpy(name, comm, sizeof(comm));' drivers/soc/oplus/game_opt/task_util.c
           ! grep -Eq 'get_wchan|stack_trace|save_stack|trace_printk' drivers/soc/oplus/game_opt/task_util.c
           grep -Fq 'gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting' scripts/miru/verify_coloros14_procabi.sh
           grep -Fq -- '-DOPLUS_FEATURE_TASK_CPUSTATS' Makefile
