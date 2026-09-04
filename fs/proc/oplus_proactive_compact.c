@@ -10,6 +10,7 @@
 
 #define pr_fmt(fmt) "oplus_proactive_compact: " fmt
 
+#include <linux/sysctl.h>
 #include <linux/compaction.h>
 #include <linux/init.h>
 #include <linux/math64.h>
