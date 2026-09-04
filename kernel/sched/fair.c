@@ -956,6 +956,8 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	if (entity_is_task(curr)) {
 		struct task_struct *curtask = task_of(curr);
 
+		g_update_task_runtime(curtask, delta_exec);
+
 #ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
 		fbg_update_cfs_util_hook(NULL, curtask, delta_exec, curr->vruntime);
 #endif

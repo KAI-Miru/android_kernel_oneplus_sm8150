@@ -28,6 +28,14 @@ static int __init game_ctrl_init(void)
 		return ret;
 	}
 
+	ret = task_util_init();
+	if (ret) {
+		cpu_load_exit();
+		remove_proc_entry("game_opt", NULL);
+		game_opt_dir = NULL;
+		return ret;
+	}
+
 	return 0;
 }
 

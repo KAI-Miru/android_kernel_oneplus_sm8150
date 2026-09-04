@@ -1057,6 +1057,7 @@ static void update_curr_rt(struct rq *rq)
 
 	curr->se.exec_start = rq_clock_task(rq);
 	cpuacct_charge(curr, delta_exec);
+	g_update_task_runtime(curr, delta_exec);
 
 #ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
 	fbg_update_rt_util_hook(NULL, curr, delta_exec);

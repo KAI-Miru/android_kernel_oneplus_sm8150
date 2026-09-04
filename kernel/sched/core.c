@@ -2864,6 +2864,7 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 			 * task and put them back on the free list.
 			 */
 			kprobe_flush_task(prev);
+			g_rt_task_dead(prev);
 
 #ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
 			fbg_flush_task_hook(NULL, prev);

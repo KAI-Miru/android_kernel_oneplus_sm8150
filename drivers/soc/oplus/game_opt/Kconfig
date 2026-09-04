@@ -5,6 +5,7 @@ config OPLUS_FEATURE_GAME_OPT
 	depends on CPU_FREQ && CPU_IDLE && PROC_FS
 	default n
 	help
-	  Build the read-only /proc/game_opt/cpu_load telemetry used by the
-	  ColorOS 14 GameOpt service.  Stage 9E intentionally excludes the
-	  donor's frequency controls and scheduler policy nodes.
+	  Build the /proc/game_opt telemetry used by the ColorOS 14 GameOpt
+	  service.  CPU load is sampled continuously; per-task runtime
+	  accounting remains dormant until userspace selects a game PID.
+	  Frequency controls and unrelated scheduler policy nodes are excluded.

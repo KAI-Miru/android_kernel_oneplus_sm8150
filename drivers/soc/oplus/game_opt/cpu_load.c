@@ -281,3 +281,15 @@ int cpu_load_init(void)
 
 	return 0;
 }
+
+void cpu_load_exit(void)
+{
+	if (!READ_ONCE(initialized))
+		return;
+
+	WRITE_ONCE(initialized, false);
+	cpufreq_unregister_notifier(&cpufreq_transition_notifier,
+				    CPUFREQ_TRANSITION_NOTIFIER);
+	remove_proc_entry("cpu_load", game_opt_dir);
+	time_in_state_free();
+}

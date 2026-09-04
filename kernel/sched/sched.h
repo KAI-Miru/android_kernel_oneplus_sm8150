@@ -32,6 +32,7 @@
 #include <linux/irq_work.h>
 #include <linux/tick.h>
 #include <linux/slab.h>
+#include <linux/oplus_game_opt.h>
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>

@@ -43,6 +43,7 @@ storage_log_c="fs/proc/oplus_storage_log.c"
 game_opt_dir="drivers/soc/oplus/game_opt"
 game_opt_ctrl_c="${game_opt_dir}/game_ctrl.c"
 game_opt_cpu_load_c="${game_opt_dir}/cpu_load.c"
+game_opt_task_util_c="${game_opt_dir}/task_util.c"
 game_opt_header="include/linux/oplus_game_opt.h"
 
 check() {
@@ -496,7 +497,7 @@ check gameopt-config-enabled \
 check gameopt-kbuild-link \
   grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += oplus/game_opt/' drivers/soc/Makefile
 check gameopt-trimmed-objects \
-  grep -Fxq 'game_opt-y := game_ctrl.o cpu_load.o' "${game_opt_dir}/Makefile"
+  grep -Fxq 'game_opt-y := game_ctrl.o cpu_load.o task_util.o' "${game_opt_dir}/Makefile"
 check gameopt-proc-parent \
   grep -Fq 'proc_mkdir("game_opt", NULL)' "${game_opt_ctrl_c}"
 check gameopt-cpu-load-node \
@@ -524,9 +525,44 @@ check gameopt-zero-before-init \
 check_absent gameopt-no-write-handler \
   grep -Eq '\.(write|unlocked_ioctl)[[:space:]]*=' "${game_opt_dir}"/*.c
 check_absent gameopt-no-control-objects \
-  grep -Eq 'cpufreq_limits\.o|task_util\.o|rt_info\.o|dstate_dump\.o' "${game_opt_dir}/Makefile"
+  grep -Eq 'cpufreq_limits\.o|rt_info\.o|dstate_dump\.o' "${game_opt_dir}/Makefile"
 check gameopt-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-gameopt-cpu-load
+
+# Stage 9F adds the donor-compatible process selector and heavy-thread runtime
+# report.  Its CFS/RT producers are dormant until a valid game PID is written,
+# use a trylock, and cap state at 256 threads.
+check gameopt-task-runtime-source test -f "${game_opt_task_util_c}"
+check gameopt-task-runtime-init \
+  grep -Fq 'ret = task_util_init();' "${game_opt_ctrl_c}"
+check gameopt-game-pid-node \
+  grep -Fq 'proc_create_data("game_pid", 0664' "${game_opt_task_util_c}"
+check gameopt-heavy-task-node \
+  grep -Fq 'proc_create_data("heavy_task_info", 0444' "${game_opt_task_util_c}"
+check gameopt-heavy-task-grammar \
+  grep -Fq '%d;%s;%u' "${game_opt_task_util_c}"
+check gameopt-task-runtime-default-off \
+  grep -Fq 'need_stat_runtime = ATOMIC_INIT(0)' "${game_opt_task_util_c}"
+check gameopt-task-runtime-cap \
+  grep -Fq '#define MAX_TID_COUNT 256' "${game_opt_task_util_c}"
+check gameopt-task-runtime-trylocks \
+  test "$(grep -Fc 'raw_spin_trylock_irqsave(&game_task_lock' "${game_opt_task_util_c}")" -eq 2
+check gameopt-task-runtime-fair-hook \
+  test "$(grep -Fc 'g_update_task_runtime(curtask, delta_exec);' kernel/sched/fair.c)" -eq 1
+check gameopt-task-runtime-rt-hook \
+  test "$(grep -Fc 'g_update_task_runtime(curr, delta_exec);' kernel/sched/rt.c)" -eq 1
+check gameopt-task-runtime-death-hook \
+  test "$(grep -Fc 'g_rt_task_dead(prev);' kernel/sched/core.c)" -eq 1
+check gameopt-task-runtime-public-api \
+  grep -Fq 'void g_update_task_runtime(struct task_struct *task, u64 runtime);' "${game_opt_header}"
+check gameopt-task-runtime-reset-on-read \
+  grep -Fq 'info->sum_exec_scale = 0;' "${game_opt_task_util_c}"
+check_absent gameopt-task-runtime-no-private-sched-header \
+  grep -Fq 'kernel/sched/sched.h' "${game_opt_task_util_c}"
+check_absent gameopt-task-runtime-no-stack-capture \
+  grep -E 'get_wchan|stack_trace|save_stack|trace_printk' "${game_opt_task_util_c}"
+check gameopt-task-runtime-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-gameopt-task-runtime
 
 # Frame Boost is a scheduler control plane, not a collection of no-op proc
 # files.  Validate the task state, core hooks, WALT handoff, syscall ABI, and
@@ -686,6 +722,7 @@ cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
 cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup
 gameopt_cpu_load=donor-time-in-state-idle-frequency
+gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting
 task_cpustats=real-tick-accounting
 task_sched_info=full-scheduler-frequency-isolation-telemetry
 frame_boost_control_plane=task-group-walt-ioctl-sysctl

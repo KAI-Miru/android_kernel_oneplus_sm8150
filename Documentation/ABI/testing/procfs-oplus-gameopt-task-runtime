@@ -1,0 +1,23 @@
+What:		/proc/game_opt/game_pid
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read/write ColorOS 14 GameOpt process selector.  Writing a positive
+		process leader PID starts bounded CFS/RT runtime accounting for that
+		process.  Writing zero or a negative value stops accounting and
+		releases the selection.  Reading returns the selected PID or -1.
+
+What:		/proc/game_opt/heavy_task_info
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only, reset-on-read task runtime report for the process selected
+		through game_pid.  At most ten active threads are returned, sorted by
+		frequency- and capacity-scaled utilization, using this grammar:
+
+		<tid>;<comm>;<util>
+
+		util is clamped to the donor-compatible range 0..1024.  Runtime
+		accounting is disabled until userspace selects a valid process and
+		the scheduler hooks use a non-blocking lock with a 256-thread cap.
+Users:		vendor.oplus.hardware.gameopt-service
