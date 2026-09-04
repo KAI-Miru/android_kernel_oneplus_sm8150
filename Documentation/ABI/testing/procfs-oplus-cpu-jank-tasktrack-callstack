@@ -1,0 +1,25 @@
+What:		/proc/jank_info/cpu_jank_info/callstack
+Date:		September 2026
+KernelVersion:	4.14.357-openela-miru-h40
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only ColorOS 14 task-stall call-stack feed.  Each populated
+		record uses the OnePlus 9R grammar:
+
+		[realtime_seconds.realtime_nanoseconds] [pid] [symbol<-symbol]
+
+		The feed retains at most 64 records and up to four kernel frames per
+		record.  A record is captured only when one of the four explicitly
+		selected task_track PIDs leaves a non-I/O uninterruptible sleep that
+		lasted at least 50 ms.  task_track_enable must be nonzero, so the
+		producer and its existing sched_switch/sched_waking tracepoints are
+		absent from the normal scheduling path.
+
+		H.40 uses its native CONFIG_STACKTRACE task walker while the waking
+		task still has a saved non-running context.  Storage is a fixed static
+		ring.  This ABI adds no Binder, Futex, scheduler-tick, or dynamically
+		allocated capture path.  A read before any qualifying stall returns
+		<NULL>; a read while task tracking is disabled returns the donor's
+		disabled message.
+Users:		ColorOS performance diagnostics compatible with the OnePlus 9R
+		Android 14 CPU-jank ABI.

@@ -436,9 +436,7 @@ for node in task_track task_track_enable; do
 done
 
 # Stage 9I derives the donor's latency and I/O-wait event feeds from the same
-# four-PID, explicitly armed tracepoint backend.  Both feeds are static rings;
-# stack capture, Binder/Futex hooks, UX tick accounting and their ABIs remain
-# outside this batch.
+# four-PID, explicitly armed tracepoint backend.  Both feeds are static rings.
 for node in sched_latency sched_iowait; do
   check "cpu-jank-tasktrack-event-node-${node}" \
     grep -Fq "proc_create(\"${node}\", 0444" "${tasktrack_c}"
@@ -465,16 +463,41 @@ check cpu-jank-tasktrack-event-clock \
   grep -Fq 'ktime_get_real_ts64(&event->timestamp);' "${tasktrack_c}"
 check cpu-jank-tasktrack-event-grammar \
   grep -Fq '"%d,%llu,%llu.%lu\n"' "${tasktrack_c}"
-check_absent cpu-jank-tasktrack-no-callstack-node \
-  grep -Fq 'proc_create("callstack"' "${tasktrack_c}"
 check_absent cpu-jank-tasktrack-no-ux-throttle-node \
   grep -Fq 'proc_create("ux_throttle"' "${tasktrack_c}"
-check_absent cpu-jank-tasktrack-no-stack-capture \
-  grep -E 'get_wchan|stack_trace|save_stack' "${tasktrack_c}"
 check_absent cpu-jank-tasktrack-no-binder-futex-hooks \
   grep -E 'binder_wait|futex_sleep' "${tasktrack_c}"
 check cpu-jank-tasktrack-latency-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-cpu-jank-tasktrack-latency
+
+# Stage 9J ports the directly consumed callstack feed without importing the
+# donor's Binder/Futex attribution or scheduler-tick extensions.  It captures
+# four native 4.14 stack frames only for a selected PID leaving a non-I/O
+# uninterruptible stall of at least 50 ms, into a fixed 64-record ring.
+check cpu-jank-tasktrack-callstack-node \
+  grep -Fq 'proc_create("callstack", 0444' "${tasktrack_c}"
+check cpu-jank-tasktrack-callstack-config \
+  grep -Fxq 'CONFIG_STACKTRACE=y' "${config}"
+check cpu-jank-tasktrack-callstack-bound \
+  grep -Fq '#define TASKTRACK_CALLSTACK_COUNT' "${tasktrack_c}"
+check cpu-jank-tasktrack-callstack-depth \
+  grep -Fq '#define TASKTRACK_CALLSTACK_DEPTH' "${tasktrack_c}"
+check cpu-jank-tasktrack-callstack-threshold \
+  grep -Fq '#define TASKTRACK_CALLSTACK_THRESHOLD_NS' "${tasktrack_c}"
+check cpu-jank-tasktrack-callstack-ring \
+  grep -Fq 'tasktrack_callstacks[TASKTRACK_CALLSTACK_COUNT]' "${tasktrack_c}"
+check cpu-jank-tasktrack-callstack-static-snapshot \
+  grep -Fq 'tasktrack_callstack_snapshot[TASKTRACK_CALLSTACK_COUNT]' "${tasktrack_c}"
+check cpu-jank-tasktrack-callstack-producer \
+  grep -Fq 'entry->state == TASKTRACK_DISKSLEEP' "${tasktrack_c}"
+check cpu-jank-tasktrack-callstack-capture \
+  grep -Fq 'save_stack_trace_tsk(task, &trace);' "${tasktrack_c}"
+check cpu-jank-tasktrack-callstack-format \
+  grep -Fq '"[%llu.%lu] [%d] ["' "${tasktrack_c}"
+check_absent cpu-jank-tasktrack-callstack-no-dynamic-allocation \
+  grep -E 'k(m|z)alloc|vmalloc|kvzalloc' "${tasktrack_c}"
+check cpu-jank-tasktrack-callstack-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-cpu-jank-tasktrack-callstack
 
 # Stage 9H exposes OP9R's top_hotthread grammar through a bounded H.40-native
 # delayed sampler.  It must remain inert until the existing CPU-jank monitor
@@ -850,6 +873,7 @@ audio_sched_assist=task-boost-and-enqueue-hook
 cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
 cpu_jank_tasktrack_latency=on-demand-bounded-sched-events
+cpu_jank_tasktrack_callstack=on-demand-bounded-dsleep-stacktrace
 cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup
 cpu_jank_hotthread=opt-in-bounded-workqueue-sampling
 gameopt_cpu_load=donor-time-in-state-idle-frequency
