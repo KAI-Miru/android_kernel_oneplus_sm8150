@@ -1,10 +1,10 @@
-name: Miru H.40 Stage 9H 9R CPU-jank hot-thread build
+name: Miru H.40 Stage 9I 9R tasktrack latency build
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - miru-h40-stage9h-cpu-jank-hotthread-ci-trigger
+      - miru-h40-stage9i-tasktrack-latency-ci-trigger
     paths:
       - '.github/workflows/miru-stage9ab-task-sched-info-a14-ci.yml'
 
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-stage9h-cpu-jank-hotthread
+  group: miru-h40-stage9i-tasktrack-latency
   cancel-in-progress: true
 
 env:
@@ -530,20 +530,20 @@ jobs:
             build-diagnostics/**
             external-module-diagnostics/**
 
-  build-stage9h:
+  build-stage9i:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
-      SOURCE_BRANCH: miru-h40-stage9h-cpu-jank-hotthread
-      SOURCE_SHA: 49bdee3dd26c7913589ba372b3aeb6d22ede7ed4
-      PARENT_SHA: 28db5bac1a1b671e5487a893b5c78443aadf0fba
-      MODULES_REPAIR_BRANCH: miru-h40-stage9h-cpu-jank-hotthread
-      MODULES_REPAIR_SHA: 9b7ecc95ced734c2e4fad11fe7b6d77da3ac5fa8
-      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9h-cpu-jank-hotthread-ci1+
-      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage9h-cpu-jank-hotthread-ci1
+      SOURCE_BRANCH: miru-h40-stage9i-tasktrack-latency
+      SOURCE_SHA: 4a8760a4b748abd1eba8010a2957026b66c5b752
+      PARENT_SHA: 49bdee3dd26c7913589ba372b3aeb6d22ede7ed4
+      MODULES_REPAIR_BRANCH: miru-h40-stage9i-tasktrack-latency
+      MODULES_REPAIR_SHA: 9e3996ecbde941e1517f4050b5090d92c84b3c3d
+      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9i-tasktrack-latency-ci1+
+      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage9i-tasktrack-latency-ci1
 
     steps:
-      - name: Checkout Stage 9H CPU-jank hot-thread source
+      - name: Checkout Stage 9I tasktrack latency source
         uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_SHA }}
@@ -558,7 +558,7 @@ jobs:
             local label="$1"
             shift
             if ! "$@"; then
-              echo "::error title=Stage 9H boundary check failed::${label}"
+              echo "::error title=Stage 9I boundary check failed::${label}"
               exit 1
             fi
             echo "boundary check passed: ${label}"
@@ -605,6 +605,8 @@ jobs:
           check cpu-jank-hotthread-audit grep -Fq 'cpu_jank_hotthread=opt-in-bounded-workqueue-sampling' source/scripts/miru/verify_coloros14_procabi.sh
           check cpu-jank-hotthread-audit-source grep -Fq 'cpu_jank_hotthread_c="${sched_info_dir}/osi_hotthread.c"' source/scripts/miru/verify_coloros14_procabi.sh
           check cpu-jank-hotthread-abi-document test -f source/Documentation/ABI/testing/procfs-oplus-cpu-jank-hotthread
+          check cpu-jank-tasktrack-latency-audit grep -Fq 'cpu_jank_tasktrack_latency=on-demand-bounded-sched-events' source/scripts/miru/verify_coloros14_procabi.sh
+          check cpu-jank-tasktrack-latency-document test -f source/Documentation/ABI/testing/procfs-oplus-cpu-jank-tasktrack-latency
           check gameopt-config grep -Fxq 'CONFIG_OPLUS_FEATURE_GAME_OPT=y' source/h40-repro/config/GM1911_11_H.40.config
           check gameopt-kconfig grep -Fq 'source "drivers/soc/oplus/game_opt/Kconfig"' source/drivers/soc/Kconfig
           check gameopt-kbuild grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += oplus/game_opt/' source/drivers/soc/Makefile
@@ -713,7 +715,7 @@ jobs:
             echo "production_write=NONE"
           } | tee BUILD-BOUNDARIES.txt
 
-      - name: Prepare Stage 9H CPU-jank hot-thread H.40 config
+      - name: Prepare Stage 9I tasktrack latency H.40 config
         shell: bash
         working-directory: source
         run: |
@@ -721,7 +723,7 @@ jobs:
           cp h40-repro/config/GM1911_11_H.40.config "${RUNNER_TEMP}/stage9b-task-sched-info-a14.config"
           bash scripts/miru/configure_mem_stage4.sh "${RUNNER_TEMP}/stage9b-task-sched-info-a14.config"
 
-      - name: Generate stable Stage 9H 4.14.357 build driver
+      - name: Generate stable Stage 9I 4.14.357 build driver
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -734,7 +736,7 @@ jobs:
 
           start = text.index('# Fetch only the distant commits required by the source-level sanity checks.')
           end = text.index("# GitHub's Ubuntu image contains most dependencies already")
-          gate = '''# Exact Stage 9H CPU-jank hot-thread source sanity gate.
+          gate = '''# Exact Stage 9I tasktrack latency source sanity gate.
           source_head="$(git rev-parse HEAD)"
           test "${source_head}" = "${SOURCE_SHA}"
           test -z "$(git ls-files -u)"
@@ -752,6 +754,8 @@ jobs:
           grep -Fq 'tasktrack_c="${sched_info_dir}/tasktrack.c"' scripts/miru/verify_coloros14_procabi.sh
           grep -Fq 'tasktrack_enabled && tasktrack_has_entries_locked()' scripts/miru/verify_coloros14_procabi.sh
           grep -Fq 'if (!prev_tracked && !next_tracked)' scripts/miru/verify_coloros14_procabi.sh
+          grep -Fq 'cpu_jank_tasktrack_latency=on-demand-bounded-sched-events' scripts/miru/verify_coloros14_procabi.sh
+          test -f Documentation/ABI/testing/procfs-oplus-cpu-jank-tasktrack-latency
           test -f include/linux/oplus_jankinfo.h
           grep -Fq 'jankinfo_update_time_info(rq, p, TICK_NSEC);' kernel/sched/cputime.c
           test "$(grep -Fc 'jankinfo_update_freq_reach_limit_count(policy' drivers/cpufreq/cpufreq.c)" -eq 3
@@ -859,16 +863,16 @@ jobs:
               'printf \'%s\\n\' "${EXPECTED_RELEASE}" > "${ARTIFACT_DIR}/KERNEL-RELEASE.txt"',
               'printf \'%s\\n\' "${SOURCE_SHA}" > "${ARTIFACT_DIR}/SOURCE-SHA.txt"',
               'printf \'%s\\n\' "${MODULES_REPAIR_SHA}" > "${ARTIFACT_DIR}/VENDOR-SHA.txt"',
-              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/STAGE9H-CPU-JANK-HOTTHREAD-IMAGE-SHA256.txt"',
-              'echo "Stage 9H CPU-jank hot-thread kernel build: PASS"',
+              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/STAGE9I-TASKTRACK-LATENCY-IMAGE-SHA256.txt"',
+              'echo "Stage 9I tasktrack latency kernel build: PASS"',
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=9b7ecc95ced734c2e4fad11fe7b6d77da3ac5fa8',
-              '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Stage 9H CPU-jank hot-thread stable build ==',
-              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage9h-cpu-jank-hotthread-ci1',
-              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage9h-cpu-jank-hotthread-ci1"',
-              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-stage9h-cpu-jank-hotthread-ci1+' || true)\"",
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=9e3996ecbde941e1517f4050b5090d92c84b3c3d',
+              '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Stage 9I tasktrack latency stable build ==',
+              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage9i-tasktrack-latency-ci1',
+              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage9i-tasktrack-latency-ci1"',
+              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-stage9i-tasktrack-latency-ci1+' || true)\"",
               'echo "Clean kernel build and output validation: PASS"': final,
           }
           for old, new in replacements.items():
@@ -880,10 +884,10 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=9b7ecc95ced734c2e4fad11fe7b6d77da3ac5fa8' build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage9h-cpu-jank-hotthread-ci1' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=9e3996ecbde941e1517f4050b5090d92c84b3c3d' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage9i-tasktrack-latency-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
-      - name: Build Stage 9H CPU-jank hot-thread kernel with stable builder
+      - name: Build Stage 9I tasktrack latency kernel with stable builder
         shell: bash
         working-directory: source
         env:
@@ -967,7 +971,7 @@ jobs:
             echo workqueue_notification=absent
           } | tee "${artifact_dir}/CPU-JANK-REPORTING-BINARY-AUDIT.txt"
           cpu_jank_hotthread_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_info/osi_hotthread.o' -print -quit)"
-          hotthread_strings="${RUNNER_TEMP}/stage9h-hotthread.strings"
+          hotthread_strings="${RUNNER_TEMP}/stage9i-hotthread.strings"
           test -s "${cpu_jank_hotthread_obj}"
           strings "${cpu_jank_hotthread_obj}" > "${hotthread_strings}"
           grep -Fxq 'top_hotthread' "${hotthread_strings}"
@@ -986,6 +990,23 @@ jobs:
             echo dynamic_sampling_allocation=absent
             echo cpu_jank_hotthread=opt-in-bounded-workqueue-sampling
           } | tee "${artifact_dir}/CPU-JANK-HOTTHREAD-BINARY-AUDIT.txt"
+          tasktrack_latency_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_info/tasktrack.o' -print -quit)"
+          tasktrack_latency_strings="${RUNNER_TEMP}/stage9i-tasktrack-latency.strings"
+          test -s "${tasktrack_latency_obj}"
+          strings "${tasktrack_latency_obj}" > "${tasktrack_latency_strings}"
+          grep -Fxq 'sched_latency' "${tasktrack_latency_strings}"
+          grep -Fxq 'sched_iowait' "${tasktrack_latency_strings}"
+          grep -Fq '%d,%llu,%llu.%lu' "${tasktrack_latency_strings}"
+          {
+            echo result=PASS
+            echo proc_nodes=sched_latency,sched_iowait
+            echo records_per_feed=64
+            echo threshold_ns=1000000
+            echo producer=existing-on-demand-sched-switch-and-waking
+            echo callstack=absent
+            echo ux_throttle=absent
+            echo cpu_jank_tasktrack_latency=on-demand-bounded-sched-events
+          } | tee "${artifact_dir}/CPU-JANK-TASKTRACK-LATENCY-BINARY-AUDIT.txt"
           cpuidle_obj="${out_dir}/drivers/cpuidle/cpuidle.o"
           test -s "${cpuidle_obj}"
           readelf -rW "${cpuidle_obj}" | grep -Fq 'g_time_in_state_update_idle'
@@ -1178,6 +1199,14 @@ jobs:
           grep -Fq 'if (!prev_tracked && !next_tracked)' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
           grep -Fq 'register_trace_sched_switch(tasktrack_sched_switch, NULL)' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
           ! grep -Fq 'trace_printk' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
+          grep -Fq 'proc_create("sched_latency", 0444' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
+          grep -Fq 'proc_create("sched_iowait", 0444' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
+          grep -Fq '#define TASKTRACK_EVENT_COUNT' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
+          grep -Fq '#define TASKTRACK_EVENT_THRESHOLD_NS' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
+          grep -Fq 'entry->state == TASKTRACK_RUNNABLE' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
+          grep -Fq 'entry->state == TASKTRACK_DISKSLEEP_INIOWAIT' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
+          grep -Fq 'if (task->in_iowait)' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
+          ! grep -Eq 'proc_create\("callstack"|proc_create\("ux_throttle"|get_wchan|stack_trace|save_stack|binder_wait|futex_sleep' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
           grep -Fq 'osi_hotthread.o' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/Makefile"
           grep -Fq 'proc_create("top_hotthread", 0444' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/osi_hotthread.c"
           grep -Fq 'static bool hotthread_enabled;' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/osi_hotthread.c"
@@ -1233,7 +1262,7 @@ jobs:
               ('4.14.190-miru-h40-lts190-ci1+', release, 1),
               ('miru-v3-modules-dropin-4.14.190', package_tag, 4),
               ('Miru 4.14.190 rebuilt external module ABI report',
-               'Miru Stage 9H Android 14 CPU-jank hot-thread external module report', 1),
+               'Miru Stage 9I Android 14 tasktrack latency external module report', 1),
           )
           for old, new, expected_count in replacements:
               actual = text.count(old)
@@ -1290,6 +1319,7 @@ jobs:
           grep -Fxq 'task_sched_info=full-scheduler-frequency-isolation-telemetry' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'cpu_jank_hotthread=opt-in-bounded-workqueue-sampling' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
+          grep -Fxq 'cpu_jank_tasktrack_latency=on-demand-bounded-sched-events' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'gameopt_cpu_load=donor-time-in-state-idle-frequency' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'gameopt_render_waker=opt-in-bounded-wakeup-accounting' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
@@ -1297,6 +1327,8 @@ jobs:
           grep -Fxq 'cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup' "${artifact_dir}/CPU-JANK-REPORTING-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/CPU-JANK-HOTTHREAD-BINARY-AUDIT.txt"
           grep -Fxq 'cpu_jank_hotthread=opt-in-bounded-workqueue-sampling' "${artifact_dir}/CPU-JANK-HOTTHREAD-BINARY-AUDIT.txt"
+          test -s "${artifact_dir}/CPU-JANK-TASKTRACK-LATENCY-BINARY-AUDIT.txt"
+          grep -Fxq 'cpu_jank_tasktrack_latency=on-demand-bounded-sched-events' "${artifact_dir}/CPU-JANK-TASKTRACK-LATENCY-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/GAMEOPT-CPU-LOAD-BINARY-AUDIT.txt"
           grep -Fxq 'gameopt_cpu_load=donor-time-in-state-idle-frequency' "${artifact_dir}/GAMEOPT-CPU-LOAD-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/GAMEOPT-TASK-RUNTIME-BINARY-AUDIT.txt"
@@ -1322,6 +1354,7 @@ jobs:
             echo task_sched_info=full-scheduler-frequency-isolation-telemetry
             echo cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup
             echo cpu_jank_hotthread=opt-in-bounded-workqueue-sampling
+            echo cpu_jank_tasktrack_latency=on-demand-bounded-sched-events
             echo gameopt_cpu_load=donor-time-in-state-idle-frequency
             echo gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting
             echo gameopt_render_waker=opt-in-bounded-wakeup-accounting
@@ -1329,11 +1362,11 @@ jobs:
             echo production_write=NONE
           } | tee "${artifact_dir}/FINAL-CANDIDATE-SUMMARY.txt"
 
-      - name: Upload Stage 9H CPU-jank hot-thread kernel and modules
+      - name: Upload Stage 9I tasktrack latency kernel and modules
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: miru-h40-stage9h-cpu-jank-hotthread-kernel-and-modules
+          name: miru-h40-stage9i-tasktrack-latency-kernel-and-modules
           if-no-files-found: error
           retention-days: 30
           path: |
