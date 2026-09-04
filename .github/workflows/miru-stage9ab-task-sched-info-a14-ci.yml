@@ -1018,7 +1018,9 @@ jobs:
             echo checking-system-map-symbol="${symbol}"
             grep -Eq "[[:space:]][Tt][[:space:]]${symbol}$" "${out_dir}/System.map"
           done
-          for literal in task_info pids_set sched_buffer task_sched_info_enable sched_info_threshold d_convert 'SCHEDACTION=uevent' 'SCHEDNUM=%u'; do
+          # Stage 9F's heavy_task_info lets BFD tail-merge the shorter
+          # task_info string.  The complete proc path below is authoritative.
+          for literal in pids_set sched_buffer task_sched_info_enable sched_info_threshold d_convert 'SCHEDACTION=uevent' 'SCHEDNUM=%u'; do
             echo checking-vmlinux-literal="${literal}"
             grep -Fxq "${literal}" "${strings_file}"
           done
