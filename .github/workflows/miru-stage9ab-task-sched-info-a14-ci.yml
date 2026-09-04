@@ -1008,7 +1008,7 @@ jobs:
           grep -Fq 'static inline int cpufreq_table_find_index' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/osi_freq.c"
           grep -Fq 'return cpufreq_table_find_index_al(policy, target_freq);' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/osi_freq.c"
           grep -Fq 'return cpufreq_table_find_index_dl(policy, target_freq);' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/osi_freq.c"
-          grep -Fq '#define JANK_VERSION "v4.1@20230306"' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/osi_version.h"
+          grep -Eq '^#define[[:space:]]+JANK_VERSION[[:space:]]+"v4\.1@20230306"$' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/osi_version.h"
           for node in cpu_info cpu_info_sig cpu_load cpu_load32 cpu_load32_scale; do
             grep -Fq "proc_create(\"${node}\"" "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/osi_cpuload.c"
           done
