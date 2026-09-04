@@ -536,7 +536,7 @@ jobs:
       SOURCE_SHA: 9b58afcccb85f347345007a092ea0efecf960e0b
       PARENT_SHA: 6bc781debd74167d7c873574eebc1da31ec13742
       MODULES_REPAIR_BRANCH: miru-h40-stage9d-cpu-jank-reporting
-      MODULES_REPAIR_SHA: 844a287ebc399c0341aed8bdfcbaa9a4618d011d
+      MODULES_REPAIR_SHA: 1890dce28344b4ad3fc78a10b2ebf64fe49187e7
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9d-cpu-jank-reporting-ci1+
       PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage9d-cpu-jank-reporting-ci1
 
@@ -782,7 +782,7 @@ jobs:
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=844a287ebc399c0341aed8bdfcbaa9a4618d011d',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=1890dce28344b4ad3fc78a10b2ebf64fe49187e7',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Stage 9D CPU-jank reporting stable build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage9d-cpu-jank-reporting-ci1',
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage9d-cpu-jank-reporting-ci1"',
@@ -798,7 +798,7 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=844a287ebc399c0341aed8bdfcbaa9a4618d011d' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=1890dce28344b4ad3fc78a10b2ebf64fe49187e7' build-stage9b-task-sched-info-a14-stable.sh
           grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage9d-cpu-jank-reporting-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
       - name: Build Stage 9D CPU-jank reporting kernel with stable builder
@@ -1005,6 +1005,9 @@ jobs:
           ! grep -Fq '#include <../kernel/sched/sched.h>' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/oplus_sched_info.c"
           grep -Fq '#define CLM_PROC_NUMBUF                 32' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/oplus_sched_info.c"
           ! grep -Fq '#define PROC_NUMBUF' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/oplus_sched_info.c"
+          grep -Fq 'static inline int cpufreq_table_find_index' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/osi_freq.c"
+          grep -Fq 'return cpufreq_table_find_index_al(policy, target_freq);' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/osi_freq.c"
+          grep -Fq 'return cpufreq_table_find_index_dl(policy, target_freq);' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/osi_freq.c"
           grep -Fq '#define JANK_VERSION "v4.1@20230306"' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/osi_version.h"
           for node in cpu_info cpu_info_sig cpu_load cpu_load32 cpu_load32_scale; do
             grep -Fq "proc_create(\"${node}\"" "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/osi_cpuload.c"
