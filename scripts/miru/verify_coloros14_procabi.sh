@@ -435,6 +435,47 @@ for node in task_track task_track_enable; do
     grep -Fq "proc_create(\"${node}\", 0666" "${tasktrack_c}"
 done
 
+# Stage 9I derives the donor's latency and I/O-wait event feeds from the same
+# four-PID, explicitly armed tracepoint backend.  Both feeds are static rings;
+# stack capture, Binder/Futex hooks, UX tick accounting and their ABIs remain
+# outside this batch.
+for node in sched_latency sched_iowait; do
+  check "cpu-jank-tasktrack-event-node-${node}" \
+    grep -Fq "proc_create(\"${node}\", 0444" "${tasktrack_c}"
+done
+check cpu-jank-tasktrack-event-bound \
+  grep -Fq '#define TASKTRACK_EVENT_COUNT' "${tasktrack_c}"
+check cpu-jank-tasktrack-event-threshold \
+  grep -Fq '#define TASKTRACK_EVENT_THRESHOLD_NS' "${tasktrack_c}"
+check cpu-jank-tasktrack-latency-ring \
+  grep -Fq 'tasktrack_latency_events[TASKTRACK_EVENT_COUNT]' "${tasktrack_c}"
+check cpu-jank-tasktrack-iowait-ring \
+  grep -Fq 'tasktrack_iowait_events[TASKTRACK_EVENT_COUNT]' "${tasktrack_c}"
+check cpu-jank-tasktrack-event-read-lock \
+  grep -Fq 'DEFINE_MUTEX(tasktrack_event_read_lock)' "${tasktrack_c}"
+check cpu-jank-tasktrack-static-snapshot \
+  grep -Fq 'tasktrack_event_snapshot[TASKTRACK_EVENT_COUNT]' "${tasktrack_c}"
+check cpu-jank-tasktrack-latency-state \
+  grep -Fq 'entry->state == TASKTRACK_RUNNABLE' "${tasktrack_c}"
+check cpu-jank-tasktrack-iowait-state \
+  grep -Fq 'entry->state == TASKTRACK_DISKSLEEP_INIOWAIT' "${tasktrack_c}"
+check cpu-jank-tasktrack-native-iowait \
+  grep -Fq 'if (task->in_iowait)' "${tasktrack_c}"
+check cpu-jank-tasktrack-event-clock \
+  grep -Fq 'ktime_get_real_ts64(&event->timestamp);' "${tasktrack_c}"
+check cpu-jank-tasktrack-event-grammar \
+  grep -Fq '"%d,%llu,%llu.%lu\n"' "${tasktrack_c}"
+check_absent cpu-jank-tasktrack-no-callstack-node \
+  grep -Fq 'proc_create("callstack"' "${tasktrack_c}"
+check_absent cpu-jank-tasktrack-no-ux-throttle-node \
+  grep -Fq 'proc_create("ux_throttle"' "${tasktrack_c}"
+check_absent cpu-jank-tasktrack-no-stack-capture \
+  grep -E 'get_wchan|stack_trace|save_stack' "${tasktrack_c}"
+check_absent cpu-jank-tasktrack-no-binder-futex-hooks \
+  grep -E 'binder_wait|futex_sleep' "${tasktrack_c}"
+check cpu-jank-tasktrack-latency-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-cpu-jank-tasktrack-latency
+
 # Stage 9H exposes OP9R's top_hotthread grammar through a bounded H.40-native
 # delayed sampler.  It must remain inert until the existing CPU-jank monitor
 # controls enable it and must not add another scheduler-tick hook or allocate
@@ -808,6 +849,7 @@ task_ux_state=per-thread-registered
 audio_sched_assist=task-boost-and-enqueue-hook
 cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
+cpu_jank_tasktrack_latency=on-demand-bounded-sched-events
 cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup
 cpu_jank_hotthread=opt-in-bounded-workqueue-sampling
 gameopt_cpu_load=donor-time-in-state-idle-frequency

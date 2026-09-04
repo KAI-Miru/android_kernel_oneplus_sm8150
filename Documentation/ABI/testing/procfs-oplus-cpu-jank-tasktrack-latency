@@ -1,0 +1,23 @@
+What:		/proc/jank_info/cpu_jank_info/sched_latency
+What:		/proc/jank_info/cpu_jank_info/sched_iowait
+Date:		September 2026
+KernelVersion:	4.14.357-openela-miru-h40
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only ColorOS 14 task-tracking event feeds.  Each file emits
+		64 records followed by a blank line.  Records use the donor grammar:
+
+		pid,duration_ns,realtime_seconds.realtime_nanoseconds
+
+		`sched_latency` records runnable-to-running delays of at least 1 ms.
+		`sched_iowait` records uninterruptible I/O-wait intervals of at
+		least 1 ms.  Events are collected only for the four-PID task_track
+		selection while task_track_enable is nonzero.  The implementation
+		reuses the existing on-demand sched_switch and sched_waking
+		tracepoints and two static 64-record rings.
+
+		This batch deliberately does not register Binder, Futex, scheduler-
+		tick, or stack-capture hooks.  The donor callstack and ux_throttle
+		ABIs remain absent until their producers can be ported independently.
+Users:		ColorOS performance diagnostics compatible with the OnePlus 9R
+		Android 14 CPU-jank ABI.
