@@ -33,17 +33,36 @@ static void oplus_fill_contig_page_info(struct zone *zone,
 					struct oplus_contig_page_info *info)
 {
 	unsigned int order;
+#if defined(OPLUS_FEATURE_MULTI_FREEAREA) && \
+	defined(CONFIG_PHYSICAL_ANTI_FRAGMENTATION)
+	int flc;
+#endif
 
 	info->free_pages = 0;
 	info->free_blocks_suitable = 0;
+#if defined(OPLUS_FEATURE_MULTI_FREEAREA) && \
+	defined(CONFIG_PHYSICAL_ANTI_FRAGMENTATION)
+	for (flc = 0; flc < FREE_AREA_COUNTS; flc++) {
+#endif
 	for (order = 0; order < MAX_ORDER; order++) {
-		unsigned long blocks = zone->free_area[order].nr_free;
+		unsigned long blocks;
+
+#if defined(OPLUS_FEATURE_MULTI_FREEAREA) && \
+	defined(CONFIG_PHYSICAL_ANTI_FRAGMENTATION)
+		blocks = zone->free_area[flc][order].nr_free;
+#else
+		blocks = zone->free_area[order].nr_free;
+#endif
 
 		info->free_pages += blocks << order;
 		if (order >= suitable_order)
 			info->free_blocks_suitable +=
 				blocks << (order - suitable_order);
 	}
+#if defined(OPLUS_FEATURE_MULTI_FREEAREA) && \
+	defined(CONFIG_PHYSICAL_ANTI_FRAGMENTATION)
+	}
+#endif
 }
 
 static unsigned int oplus_fragmentation_for_order(struct zone *zone,
