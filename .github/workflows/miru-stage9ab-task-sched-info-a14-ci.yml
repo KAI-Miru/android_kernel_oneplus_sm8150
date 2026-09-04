@@ -535,8 +535,8 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-stage9g-gameopt-render-waker
-      SOURCE_SHA: f25b6d287cc005b8cdf97035f9d234cb86df51f7
-      PARENT_SHA: 13b7c65530fb65e4daee4f6f83b8e37f7e047ecf
+      SOURCE_SHA: 28db5bac1a1b671e5487a893b5c78443aadf0fba
+      PARENT_SHA: f25b6d287cc005b8cdf97035f9d234cb86df51f7
       MODULES_REPAIR_BRANCH: miru-h40-stage9g-gameopt-render-waker
       MODULES_REPAIR_SHA: 1890dce28344b4ad3fc78a10b2ebf64fe49187e7
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9g-gameopt-render-waker-ci1+
