@@ -205,12 +205,14 @@ static u16 calc_util(u64 sum_exec_scale, u64 window_size)
 static bool get_task_name(pid_t tid, char *name)
 {
 	struct task_struct *task;
+	char comm[TASK_COMM_LEN];
 	bool found = false;
 
 	rcu_read_lock();
 	task = find_task_by_vpid(tid);
 	if (task) {
-		get_task_comm(name, task);
+		get_task_comm(comm, task);
+		memcpy(name, comm, sizeof(comm));
 		found = true;
 	}
 	rcu_read_unlock();
