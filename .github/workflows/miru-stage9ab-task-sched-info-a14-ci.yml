@@ -535,8 +535,8 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-stage9g-gameopt-render-waker
-      SOURCE_SHA: 13b7c65530fb65e4daee4f6f83b8e37f7e047ecf
-      PARENT_SHA: 4a7ac61fc469218f3df1da3728a6a9c7dfc6c8e5
+      SOURCE_SHA: f25b6d287cc005b8cdf97035f9d234cb86df51f7
+      PARENT_SHA: 13b7c65530fb65e4daee4f6f83b8e37f7e047ecf
       MODULES_REPAIR_BRANCH: miru-h40-stage9g-gameopt-render-waker
       MODULES_REPAIR_SHA: 1890dce28344b4ad3fc78a10b2ebf64fe49187e7
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9g-gameopt-render-waker-ci1+
@@ -636,6 +636,8 @@ jobs:
           check gameopt-render-waker-default-off grep -Fq 'need_stat_wake = ATOMIC_INIT(0)' source/drivers/soc/oplus/game_opt/rt_info.c
           check gameopt-render-waker-static-pool grep -Fq 'waker_pool[MAX_WAKER_COUNT]' source/drivers/soc/oplus/game_opt/rt_info.c
           check gameopt-render-waker-trylock grep -Fq 'raw_spin_trylock_irqsave(&rt_info_lock' source/drivers/soc/oplus/game_opt/rt_info.c
+          check gameopt-render-waker-task-name-buffer grep -Fq 'char comm[TASK_COMM_LEN];' source/drivers/soc/oplus/game_opt/rt_info.c
+          check gameopt-render-waker-task-name-copy grep -Fq 'memcpy(name, comm, sizeof(comm));' source/drivers/soc/oplus/game_opt/rt_info.c
           check gameopt-render-waker-wakeup-hook grep -Fq 'g_rt_try_to_wake_up(p);' source/kernel/sched/core.c
           check gameopt-render-waker-death-hook grep -Fq 'g_rt_waker_task_dead(prev);' source/kernel/sched/core.c
           check gameopt-render-waker-no-dstate test "$(grep -Fc 'rt_set_dstate_interested_threads' source/drivers/soc/oplus/game_opt/rt_info.c)" -eq 0
@@ -778,6 +780,8 @@ jobs:
           grep -Fq 'need_stat_wake = ATOMIC_INIT(0)' drivers/soc/oplus/game_opt/rt_info.c
           grep -Fq 'waker_pool[MAX_WAKER_COUNT]' drivers/soc/oplus/game_opt/rt_info.c
           grep -Fq 'raw_spin_trylock_irqsave(&rt_info_lock' drivers/soc/oplus/game_opt/rt_info.c
+          grep -Fq 'char comm[TASK_COMM_LEN];' drivers/soc/oplus/game_opt/rt_info.c
+          grep -Fq 'memcpy(name, comm, sizeof(comm));' drivers/soc/oplus/game_opt/rt_info.c
           grep -Fq 'g_rt_try_to_wake_up(p);' kernel/sched/core.c
           grep -Fq 'g_rt_waker_task_dead(prev);' kernel/sched/core.c
           ! grep -Fq 'rt_set_dstate_interested_threads' drivers/soc/oplus/game_opt/rt_info.c
