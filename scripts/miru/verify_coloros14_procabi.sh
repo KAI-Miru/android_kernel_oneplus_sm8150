@@ -22,6 +22,13 @@ sched_assist_c="${sched_assist_dir}/sched_assist_common.c"
 sched_assist_slide_c="${sched_assist_dir}/sched_assist_slide.c"
 sched_info_c="${sched_info_dir}/oplus_sched_info.c"
 tasktrack_c="${sched_info_dir}/tasktrack.c"
+cpu_jank_base_c="${sched_info_dir}/osi_base.c"
+cpu_jank_cpuload_c="${sched_info_dir}/osi_cpuload.c"
+cpu_jank_freq_c="${sched_info_dir}/osi_freq.c"
+cpu_jank_loadindicator_c="${sched_info_dir}/osi_loadindicator.c"
+cpu_jank_onlinecpu_c="${sched_info_dir}/osi_onlinecpu.c"
+cpu_jank_topology_c="${sched_info_dir}/osi_topology.c"
+cpu_jank_version_c="${sched_info_dir}/osi_version.c"
 frame_boost_dir="${vendor_root}/oplus/kernel/oplus_performance/frame_boost"
 frame_boost_c="${frame_boost_dir}/frame_boost.c"
 frame_group_c="${frame_boost_dir}/frame_group.c"
@@ -392,7 +399,7 @@ done
 # explicitly enables tracking for a selected PID.
 check cpu-jank-tasktrack-source test -f "${tasktrack_c}"
 check cpu-jank-tasktrack-kbuild \
-  grep -Fq 'oplus_schedinfo-y := oplus_sched_info.o tasktrack.o' "${sched_info_dir}/Makefile"
+  grep -Fq 'oplus_schedinfo-y := oplus_sched_info.o tasktrack.o \' "${sched_info_dir}/Makefile"
 check cpu-jank-tasktrack-init \
   grep -Fq 'ret = tasktrack_proc_init(cpu_jank_dir);' "${sched_info_c}"
 check cpu-jank-tasktrack-exit \
@@ -420,6 +427,55 @@ for node in task_track task_track_enable; do
   check "cpu-jank-tasktrack-node-${node}" \
     grep -Fq "proc_create(\"${node}\", 0666" "${tasktrack_c}"
 done
+
+# CPU-jank reporting is a functional donor-derived telemetry batch.  It has
+# one bounded tick producer and cpufreq counters, but no stack walk, uevent,
+# workqueue, futex, Binder or donor busy-loop debug producer.
+for source in \
+  "${cpu_jank_base_c}" \
+  "${cpu_jank_cpuload_c}" \
+  "${cpu_jank_freq_c}" \
+  "${cpu_jank_loadindicator_c}" \
+  "${cpu_jank_onlinecpu_c}" \
+  "${cpu_jank_topology_c}" \
+  "${cpu_jank_version_c}"; do
+  check "cpu-jank-reporting-source-$(basename "${source}")" test -f "${source}"
+done
+
+for object in osi_base.o osi_topology.o osi_onlinecpu.o osi_freq.o \
+  osi_cpuload.o osi_loadindicator.o osi_version.o; do
+  check "cpu-jank-reporting-object-${object}" \
+    grep -Fq "${object}" "${sched_info_dir}/Makefile"
+done
+
+check cpu-jank-reporting-header test -f include/linux/oplus_jankinfo.h
+check cpu-jank-reporting-tick-hook \
+  grep -Fq 'jankinfo_update_time_info(rq, p, TICK_NSEC);' kernel/sched/cputime.c
+check cpu-jank-reporting-init-gate \
+  grep -Fq 'if (unlikely(jankinfo_init == false))' "${cpu_jank_cpuload_c}"
+check cpu-jank-reporting-cpufreq-hooks test \
+  "$(grep -Fc 'jankinfo_update_freq_reach_limit_count(policy' drivers/cpufreq/cpufreq.c)" -eq 3
+check cpu-jank-reporting-hotthread-grammar \
+  grep -Fq 'seq_puts(m, "- - -");' "${cpu_jank_cpuload_c}"
+check_absent cpu-jank-reporting-no-hotthread-producer \
+  grep -Fq 'jank_hotthread_update_tick' "${cpu_jank_cpuload_c}"
+check_absent cpu-jank-reporting-no-stack-capture \
+  grep -E 'get_wchan|stack_trace|save_stack' "${cpu_jank_cpuload_c}"
+check_absent cpu-jank-reporting-no-workqueue \
+  grep -E 'schedule_work|queue_work|schedule_delayed_work' "${cpu_jank_cpuload_c}"
+check_absent cpu-jank-reporting-no-uevent \
+  grep -Fq 'kobject_uevent' "${cpu_jank_cpuload_c}"
+
+for node in cpu_info cpu_info_sig cpu_load cpu_load32 cpu_load32_scale; do
+  check "cpu-jank-reporting-node-${node}" \
+    grep -Fq "proc_create(\"${node}\"" "${cpu_jank_cpuload_c}"
+done
+check cpu-jank-reporting-node-load-indicator \
+  grep -Fq 'proc_create("load_indicator"' "${cpu_jank_loadindicator_c}"
+check cpu-jank-reporting-node-version \
+  grep -Fq 'proc_create("version"' "${cpu_jank_version_c}"
+check cpu-jank-reporting-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-cpu-jank-reporting
 
 # Frame Boost is a scheduler control plane, not a collection of no-op proc
 # files.  Validate the task state, core hooks, WALT handoff, syscall ABI, and
@@ -577,6 +633,7 @@ task_ux_state=per-thread-registered
 audio_sched_assist=task-boost-and-enqueue-hook
 cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
+cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup
 task_cpustats=real-tick-accounting
 task_sched_info=full-scheduler-frequency-isolation-telemetry
 frame_boost_control_plane=task-group-walt-ioctl-sysctl

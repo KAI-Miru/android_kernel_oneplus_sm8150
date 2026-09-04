@@ -1,0 +1,36 @@
+What:		/proc/jank_info/cpu_jank_info/version
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Reports the OnePlus Android 14 CPU-jank ABI version string.
+
+What:		/proc/jank_info/cpu_jank_info/cpu_load
+What:		/proc/jank_info/cpu_jank_info/cpu_load32
+What:		/proc/jank_info/cpu_jank_info/cpu_load32_scale
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only aggregate load percentages derived from the donor's
+		128 ms CPU-time windows. cpu_load32 covers compat tasks and
+		cpu_load32_scale applies msmnile WALT frequency/capacity scaling.
+
+What:		/proc/jank_info/cpu_jank_info/cpu_info
+What:		/proc/jank_info/cpu_jank_info/cpu_info_sig
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only OnePlus Android 14 composite CPU telemetry. cpu_info
+		reports the 64-window history and cpu_info_sig reports one window.
+		Busy ratio, cgroup ratio, frequency, transition and online-mask
+		fields use live accounting. The final three hot-thread fields keep
+		the donor grammar but report '-' until the separate task-tracking
+		producer is ported and validated.
+
+What:		/proc/jank_info/cpu_jank_info/load_indicator
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only cumulative high-load window counters for total, default,
+		foreground, background and top-app cgroups.
+
+Users:		OnePlus Android 14 vendor performance service

@@ -9,6 +9,7 @@
 #if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_CTP)
 #include <linux/task_cpustats.h>
 #endif
+#include <linux/oplus_jankinfo.h>
 #include "sched.h"
 #include "walt.h"
 
@@ -518,6 +519,7 @@ void account_process_tick(struct task_struct *p, int user_tick)
 
 	if (sched_clock_irqtime) {
 		irqtime_account_process_tick(p, user_tick, rq, 1);
+		jankinfo_update_time_info(rq, p, TICK_NSEC);
 		return;
 	}
 
@@ -535,6 +537,8 @@ void account_process_tick(struct task_struct *p, int user_tick)
 		account_system_time(p, HARDIRQ_OFFSET, cputime);
 	else
 		account_idle_time(cputime);
+
+	jankinfo_update_time_info(rq, p, TICK_NSEC);
 }
 
 /*

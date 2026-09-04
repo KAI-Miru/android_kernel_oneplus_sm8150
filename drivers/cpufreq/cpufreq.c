@@ -20,6 +20,7 @@
 #include <linux/cpu.h>
 #include <linux/cpufreq.h>
 #include <linux/cpufreq_times.h>
+#include <linux/oplus_jankinfo.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/init.h>
@@ -525,6 +526,9 @@ EXPORT_SYMBOL_GPL(cpufreq_disable_fast_switch);
 unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 					 unsigned int target_freq)
 {
+	unsigned int old_target_freq = target_freq;
+	unsigned int resolved_freq;
+
 	target_freq = clamp_val(target_freq, policy->min, policy->max);
 	policy->cached_target_freq = target_freq;
 
@@ -534,13 +538,19 @@ unsigned int cpufreq_driver_resolve_freq(struct cpufreq_policy *policy,
 		idx = cpufreq_frequency_table_target(policy, target_freq,
 						     CPUFREQ_RELATION_L);
 		policy->cached_resolved_idx = idx;
-		return policy->freq_table[idx].frequency;
+		resolved_freq = policy->freq_table[idx].frequency;
+		goto out;
 	}
 
 	if (cpufreq_driver->resolve_freq)
-		return cpufreq_driver->resolve_freq(policy, target_freq);
+		resolved_freq = cpufreq_driver->resolve_freq(policy, target_freq);
+	else
+		resolved_freq = target_freq;
 
-	return target_freq;
+out:
+	jankinfo_update_freq_reach_limit_count(policy, old_target_freq,
+			resolved_freq, OPLUS_JANKINFO_FREQ_CLAMP);
+	return resolved_freq;
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_resolve_freq);
 
@@ -1937,7 +1947,12 @@ unsigned int cpufreq_driver_fast_switch(struct cpufreq_policy *policy,
 					unsigned int target_freq)
 {
 	int ret;
+	unsigned int old_target_freq = target_freq;
+
 	target_freq = clamp_val(target_freq, policy->min, policy->max);
+	jankinfo_update_freq_reach_limit_count(policy, old_target_freq,
+			target_freq, OPLUS_JANKINFO_FREQ_CLAMP |
+			OPLUS_JANKINFO_FREQ_INCREASE);
 
         ret = cpufreq_driver->fast_switch(policy, target_freq);
 	if (ret) {
@@ -2044,6 +2059,8 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 
 	/* Make sure that target_freq is within supported range */
 	target_freq = clamp_val(target_freq, policy->min, policy->max);
+	jankinfo_update_freq_reach_limit_count(policy, old_target_freq,
+			target_freq, OPLUS_JANKINFO_FREQ_CLAMP);
 
 	pr_debug("target for CPU %u: %u kHz, relation %u, requested %u kHz\n",
 		 policy->cpu, target_freq, relation, old_target_freq);
