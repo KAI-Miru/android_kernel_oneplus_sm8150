@@ -1,0 +1,21 @@
+What:		/proc/task_info/task_sched_info/sched_stats
+Date:		September 2026
+Contact:	Miru H.40 kernel maintainers
+Description:
+		Read-only containment and activity counters for the ColorOS task
+		scheduler telemetry port.  The file reports whether recording and
+		uevent notification are enabled, record/ring-overrun counts,
+		coalesced/suppressed notification counts, uevent count, deferred
+		backtrace queue/drop counts, and the last producer type/CPU.
+
+		The interface is diagnostic only.  Writing is not supported and
+		counter values must not be used as a scheduler control ABI.
+
+What:		/proc/task_info/task_sched_info/sched_info_threshold
+Date:		September 2026
+Contact:	Miru H.40 kernel maintainers
+Description:
+		Five nanosecond thresholds for running, runnable, block/IO, D, and
+		S telemetry records.  Each supplied threshold must be at least
+		4,000,000 ns, matching the Android 14 OnePlus 9R donor floor.
+		Smaller values fail with ERANGE.

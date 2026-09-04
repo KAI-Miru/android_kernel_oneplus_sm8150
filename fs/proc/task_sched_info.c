@@ -12,6 +12,8 @@
 #include <linux/cpufreq.h>
 #include <linux/cred.h>
 #include <linux/init.h>
+#include <linux/irq_work.h>
+#include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/kobject.h>
 #include <linux/module.h>
@@ -22,6 +24,7 @@
 #include <linux/sched/clock.h>
 #include <linux/sched/signal.h>
 #include <linux/sched/stat.h>
+#include <linux/sched/task.h>
 #include <linux/seqlock.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
@@ -40,8 +43,10 @@
 #define TASK_SCHED_MAX_PIDS		10
 #define TASK_SCHED_BUFFER_WORDS		3840
 #define TASK_SCHED_NOTIFY_WORDS		2560
+#define TASK_SCHED_NOTIFY_MIN_MS	1000
 #define TASK_SCHED_CPU_COUNT		8
 #define TASK_SCHED_MAX_THRESHOLDS	5
+#define TASK_SCHED_THRESHOLD_MIN_NS	4000000ULL
 #define TASK_SCHED_DURATION_MAX		0x00ffffffULL
 #define TASK_SCHED_INPUT_LEN		(TASK_SCHED_MAX_PIDS * 21)
 
@@ -62,6 +67,7 @@ static DEFINE_MUTEX(task_sched_control_lock);
 static DEFINE_MUTEX(task_sched_snapshot_lock);
 static DEFINE_RAW_SPINLOCK(task_sched_state_lock);
 static DEFINE_RAW_SPINLOCK(task_sched_ring_lock);
+static DEFINE_RAW_SPINLOCK(task_sched_backtrace_lock);
 static DEFINE_SEQLOCK(task_sched_targets_lock);
 
 static u64 task_sched_ring[2][TASK_SCHED_BUFFER_WORDS];
@@ -97,7 +103,22 @@ static unsigned int prev_freq_max[TASK_SCHED_CPU_COUNT] = {
 
 static atomic_t notify_pending = ATOMIC_INIT(0);
 static atomic_t uevent_id = ATOMIC_INIT(0);
-static struct work_struct sched_detect_work;
+static atomic_t last_producer_type = ATOMIC_INIT(-1);
+static atomic_t last_producer_cpu = ATOMIC_INIT(-1);
+static atomic64_t record_count = ATOMIC64_INIT(0);
+static atomic64_t ring_overrun_count = ATOMIC64_INIT(0);
+static atomic64_t notify_request_count = ATOMIC64_INIT(0);
+static atomic64_t notify_coalesced_count = ATOMIC64_INIT(0);
+static atomic64_t notify_suppressed_count = ATOMIC64_INIT(0);
+static atomic64_t uevent_count = ATOMIC64_INIT(0);
+static atomic64_t backtrace_queued_count = ATOMIC64_INIT(0);
+static atomic64_t backtrace_dropped_count = ATOMIC64_INIT(0);
+static struct irq_work sched_notify_irq_work;
+static struct delayed_work sched_detect_work;
+static unsigned long sched_last_notify_jiffies;
+static struct irq_work task_sched_backtrace_irq_work;
+static struct work_struct task_sched_backtrace_work;
+static struct task_struct *task_sched_backtrace_task;
 static struct kobject *sched_kobj;
 
 static struct proc_dir_entry *task_info_dir;
@@ -165,6 +186,7 @@ static void task_sched_reset_ring(void)
 	task_sched_notify_count = 0;
 	raw_spin_unlock_irqrestore(&task_sched_ring_lock, flags);
 	atomic_set(&notify_pending, 0);
+	WRITE_ONCE(sched_last_notify_jiffies, 0);
 	mutex_unlock(&task_sched_snapshot_lock);
 }
 
@@ -183,19 +205,35 @@ static void task_sched_put_record(const struct task_sched_record *record)
 
 	next = task_sched_next_index(task_sched_write);
 	task_sched_write = next;
-	if (task_sched_read == next)
+	if (task_sched_read == next) {
 		task_sched_read = task_sched_next_index(task_sched_read);
+		atomic64_inc(&ring_overrun_count);
+	}
+	atomic64_inc(&record_count);
+	atomic_set(&last_producer_type, record->one & 0x1f);
+	atomic_set(&last_producer_cpu, (record->one >> 5) & 0x7);
 
 	task_sched_notify_count += 2;
 	if (task_sched_notify_count >= TASK_SCHED_NOTIFY_WORDS) {
 		task_sched_notify_count -= TASK_SCHED_NOTIFY_WORDS;
-		atomic_set(&notify_pending, 1);
 		notify = true;
 	}
 out:
 	raw_spin_unlock_irqrestore(&task_sched_ring_lock, flags);
 	if (notify)
 		sched_action_trig();
+}
+
+static void task_sched_notify_irq_workfn(struct irq_work *work)
+{
+	unsigned long earliest;
+	unsigned long delay = 0;
+
+	earliest = READ_ONCE(sched_last_notify_jiffies) +
+		msecs_to_jiffies(TASK_SCHED_NOTIFY_MIN_MS);
+	if (time_before(jiffies, earliest))
+		delay = earliest - jiffies;
+	schedule_delayed_work(&sched_detect_work, delay);
 }
 
 static void task_sched_detect_workfn(struct work_struct *work)
@@ -208,24 +246,35 @@ static void task_sched_detect_workfn(struct work_struct *work)
 	};
 	unsigned int id;
 
-	while (atomic_xchg(&notify_pending, 0)) {
-		if (!READ_ONCE(task_sched_info_enable) ||
-		    !READ_ONCE(sched_info_ctrl) || !sched_kobj)
-			break;
-
-		id = atomic_inc_return(&uevent_id) - 1;
-		snprintf(schednum, sizeof(schednum), "SCHEDNUM=%u", id);
-		kobject_uevent_env(sched_kobj, KOBJ_CHANGE, envp);
+	if (!atomic_xchg(&notify_pending, 0))
+		return;
+	if (!READ_ONCE(task_sched_info_enable) ||
+	    !READ_ONCE(sched_info_ctrl) || !sched_kobj) {
+		atomic64_inc(&notify_suppressed_count);
+		return;
 	}
+
+	id = atomic_inc_return(&uevent_id) - 1;
+	snprintf(schednum, sizeof(schednum), "SCHEDNUM=%u", id);
+	kobject_uevent_env(sched_kobj, KOBJ_CHANGE, envp);
+	WRITE_ONCE(sched_last_notify_jiffies, jiffies);
+	atomic64_inc(&uevent_count);
 }
 
 void sched_action_trig(void)
 {
 	if (!READ_ONCE(task_sched_info_enable) ||
-	    !READ_ONCE(sched_info_ctrl) || !sched_kobj)
+	    !READ_ONCE(sched_info_ctrl) || !sched_kobj) {
+		atomic64_inc(&notify_suppressed_count);
 		return;
+	}
 
-	schedule_work(&sched_detect_work);
+	atomic64_inc(&notify_request_count);
+	if (atomic_cmpxchg(&notify_pending, 0, 1)) {
+		atomic64_inc(&notify_coalesced_count);
+		return;
+	}
+	irq_work_queue(&sched_notify_irq_work);
 }
 
 void get_target_thread_pid(struct task_struct *task)
@@ -307,10 +356,21 @@ void update_wake_tid(struct task_struct *p, struct task_struct *current_task,
 	WRITE_ONCE(p->wake_tid, wake);
 }
 
-static void task_sched_backtrace(struct task_struct *p)
+static void task_sched_backtrace_workfn(struct work_struct *work)
 {
 	struct task_sched_record record;
+	struct task_struct *p;
+	unsigned long flags;
 	unsigned long address;
+
+	raw_spin_lock_irqsave(&task_sched_backtrace_lock, flags);
+	p = task_sched_backtrace_task;
+	task_sched_backtrace_task = NULL;
+	raw_spin_unlock_irqrestore(&task_sched_backtrace_lock, flags);
+	if (!p)
+		return;
+	if (!READ_ONCE(task_sched_info_enable))
+		goto put_task;
 
 	address = get_wchan(p);
 	record.one = (u64)task_sched_info_backtrace |
@@ -321,6 +381,52 @@ static void task_sched_backtrace(struct task_struct *p)
 		cmpxchg(&d_convert_info, 0UL, address);
 
 	task_sched_put_record(&record);
+put_task:
+	put_task_struct(p);
+}
+
+static void task_sched_backtrace_irq_workfn(struct irq_work *work)
+{
+	schedule_work(&task_sched_backtrace_work);
+}
+
+static void task_sched_queue_backtrace(struct task_struct *p)
+{
+	unsigned long flags;
+	bool queued = false;
+
+	get_task_struct(p);
+	raw_spin_lock_irqsave(&task_sched_backtrace_lock, flags);
+	if (READ_ONCE(task_sched_info_enable) &&
+	    !task_sched_backtrace_task) {
+		task_sched_backtrace_task = p;
+		queued = true;
+	}
+	raw_spin_unlock_irqrestore(&task_sched_backtrace_lock, flags);
+
+	if (!queued) {
+		put_task_struct(p);
+		atomic64_inc(&backtrace_dropped_count);
+		return;
+	}
+
+	atomic64_inc(&backtrace_queued_count);
+	irq_work_queue(&task_sched_backtrace_irq_work);
+}
+
+static void task_sched_cancel_backtrace(void)
+{
+	struct task_struct *p;
+	unsigned long flags;
+
+	irq_work_sync(&task_sched_backtrace_irq_work);
+	cancel_work_sync(&task_sched_backtrace_work);
+	raw_spin_lock_irqsave(&task_sched_backtrace_lock, flags);
+	p = task_sched_backtrace_task;
+	task_sched_backtrace_task = NULL;
+	raw_spin_unlock_irqrestore(&task_sched_backtrace_lock, flags);
+	if (p)
+		put_task_struct(p);
 }
 
 void update_task_sched_info(struct task_struct *p, u64 delay, int type,
@@ -366,7 +472,7 @@ void update_task_sched_info(struct task_struct *p, u64 delay, int type,
 		record.two |= wake_tid << 40;
 		break;
 	case task_sched_info_D:
-		task_sched_backtrace(p);
+		task_sched_queue_backtrace(p);
 		/* fall through */
 	case task_sched_info_IO:
 	case task_sched_info_S:
@@ -782,7 +888,9 @@ static ssize_t task_sched_info_enable_write(struct file *file,
 		WRITE_ONCE(d_convert_info, 0);
 		for (i = 0; i < nr_cpu_ids; i++)
 			WRITE_ONCE(enable_sched_clock[i], 0);
-		cancel_work_sync(&sched_detect_work);
+		irq_work_sync(&sched_notify_irq_work);
+		cancel_delayed_work_sync(&sched_detect_work);
+		task_sched_cancel_backtrace();
 	}
 	mutex_unlock(&task_sched_control_lock);
 	return count;
@@ -850,8 +958,16 @@ static ssize_t sched_info_threshold_write(struct file *file,
 	}
 	if (!nr)
 		return -EINVAL;
+	for (i = 0; i < nr; i++) {
+		if (values[i] < TASK_SCHED_THRESHOLD_MIN_NS)
+			return -ERANGE;
+	}
 
 	mutex_lock(&task_sched_control_lock);
+	if (!READ_ONCE(task_sched_info_enable)) {
+		mutex_unlock(&task_sched_control_lock);
+		return -EFAULT;
+	}
 	for (i = 0; i < nr; i++)
 		WRITE_ONCE(time_threshold[i], values[i]);
 	mutex_unlock(&task_sched_control_lock);
@@ -892,11 +1008,57 @@ static const struct file_operations d_convert_fops = {
 	.release	= single_release,
 };
 
+static int sched_stats_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "enabled %u\n", READ_ONCE(task_sched_info_enable));
+	seq_printf(m, "notify_enabled %u\n", READ_ONCE(sched_info_ctrl));
+	seq_printf(m, "notify_pending %d\n", atomic_read(&notify_pending));
+	seq_printf(m, "records %lld\n",
+		   (long long)atomic64_read(&record_count));
+	seq_printf(m, "ring_overruns %lld\n",
+		   (long long)atomic64_read(&ring_overrun_count));
+	seq_printf(m, "notify_requests %lld\n",
+		   (long long)atomic64_read(&notify_request_count));
+	seq_printf(m, "notify_coalesced %lld\n",
+		   (long long)atomic64_read(&notify_coalesced_count));
+	seq_printf(m, "notify_suppressed %lld\n",
+		   (long long)atomic64_read(&notify_suppressed_count));
+	seq_printf(m, "uevents %lld\n",
+		   (long long)atomic64_read(&uevent_count));
+	seq_printf(m, "backtraces_queued %lld\n",
+		   (long long)atomic64_read(&backtrace_queued_count));
+	seq_printf(m, "backtraces_dropped %lld\n",
+		   (long long)atomic64_read(&backtrace_dropped_count));
+	seq_printf(m, "last_producer_type %d\n",
+		   atomic_read(&last_producer_type));
+	seq_printf(m, "last_producer_cpu %d\n",
+		   atomic_read(&last_producer_cpu));
+	seq_printf(m, "last_uevent_jiffies %lu\n",
+		   READ_ONCE(sched_last_notify_jiffies));
+	return 0;
+}
+
+static int sched_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, sched_stats_show, NULL);
+}
+
+static const struct file_operations sched_stats_fops = {
+	.open		= sched_stats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 static int __init task_sched_info_init(void)
 {
 	struct proc_dir_entry *sched_dir;
 
-	INIT_WORK(&sched_detect_work, task_sched_detect_workfn);
+	init_irq_work(&sched_notify_irq_work, task_sched_notify_irq_workfn);
+	INIT_DELAYED_WORK(&sched_detect_work, task_sched_detect_workfn);
+	init_irq_work(&task_sched_backtrace_irq_work,
+		      task_sched_backtrace_irq_workfn);
+	INIT_WORK(&task_sched_backtrace_work, task_sched_backtrace_workfn);
 	sched_kobj = kset_find_obj(module_kset, KBUILD_MODNAME);
 	if (!sched_kobj)
 		pr_warn("task_sched_info: module kobject unavailable; uevents disabled\n");
@@ -925,7 +1087,8 @@ static int __init task_sched_info_init(void)
 			 &task_sched_info_enable_fops) ||
 	    !proc_create("sched_info_threshold", 0666, sched_dir,
 			 &sched_info_threshold_fops) ||
-	    !proc_create("d_convert", 0666, sched_dir, &d_convert_fops)) {
+	    !proc_create("d_convert", 0666, sched_dir, &d_convert_fops) ||
+	    !proc_create("sched_stats", 0444, sched_dir, &sched_stats_fops)) {
 		remove_proc_subtree("task_info/task_sched_info", NULL);
 		if (task_info_dir_owned)
 			remove_proc_entry("task_info", NULL);
@@ -941,5 +1104,7 @@ static int __init task_sched_info_init(void)
 module_init(task_sched_info_init);
 
 module_param_named(sched_info_ctrl, sched_info_ctrl, bool, 0644);
+MODULE_PARM_DESC(sched_info_ctrl,
+		 "Enable rate-limited task scheduler telemetry uevents");
 MODULE_DESCRIPTION("Oplus task scheduler telemetry");
 MODULE_LICENSE("GPL v2");
