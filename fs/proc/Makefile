@@ -39,3 +39,4 @@ obj-y	+= oplus_healthinfo/
 proc-$(CONFIG_OPLUS_CTP) += task_cpustats.o
 obj-$(CONFIG_OPLUS_SCHED) += task_sched_info.o
 obj-$(CONFIG_OPLUS_PROACTIVE_COMPACT) += oplus_proactive_compact.o
+obj-$(CONFIG_OPLUS_STORAGE_LOG) += oplus_storage_log.o

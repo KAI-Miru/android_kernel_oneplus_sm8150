@@ -12,3 +12,13 @@ Description:
 
 		The interface changes only these scoring values and does not start
 		compaction.
+
+What:		/proc/storage/buf_log
+Date:		September 2026
+Contact:	Miru H.40 kernel maintainers
+Description:
+		Android 14 OnePlus 9R bounded storage diagnostic log.  Reads return
+		the current buffer.  Writes append a timestamped entry of at most
+		1024 bytes.  Writing "clear storage log" resets the buffer to its
+		header.  The buffer is limited to 1 MiB and does not modify storage
+		I/O behavior.

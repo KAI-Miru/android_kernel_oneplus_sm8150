@@ -116,6 +116,15 @@ config OPLUS_PROACTIVE_COMPACT
 	  decision and accepts only the donor's two local scoring tunables; it
 	  does not initiate compaction or add reclaim-path hooks.
 
+config OPLUS_STORAGE_LOG
+	bool "Oplus storage diagnostic log ABI"
+	depends on PROC_FS
+	default n
+	help
+	  Expose the Android 14 OnePlus 9R /proc/storage/buf_log interface and
+	  a bounded in-kernel diagnostic ring.  This is logging infrastructure
+	  only and does not alter block-I/O behavior.
+
 #ifdef OPLUS_FEATURE_HEALTHINFO
 source fs/proc/oplus_healthinfo/Kconfig
 #endif /* OPLUS_FEATURE_HEALTHINFO */

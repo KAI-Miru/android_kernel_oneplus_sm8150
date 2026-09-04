@@ -31,6 +31,8 @@ task_cpustats_c="fs/proc/task_cpustats.c"
 task_cpustats_h="${vendor_root}/oplus/kernel/oplus_performance/task_cpustats/task_cpustats.h"
 task_sched_info_c="fs/proc/task_sched_info.c"
 task_sched_info_h="include/linux/task_sched_info.h"
+proactive_compact_c="fs/proc/oplus_proactive_compact.c"
+storage_log_c="fs/proc/oplus_storage_log.c"
 
 check() {
   local label="$1"
@@ -206,6 +208,24 @@ check task-sched-info-dstate-hook \
   test "$(grep -Fc 'task_sched_info_D' kernel/sched/fair.c)" -eq 1
 check task-sched-info-direct-notify \
   grep -Fq 'sched_action_trig();' "${task_sched_info_c}"
+check task-sched-info-notify-irq-work \
+  grep -Fq 'irq_work_queue(&sched_notify_irq_work);' "${task_sched_info_c}"
+check task-sched-info-notify-rate-limit \
+  grep -Fq '#define TASK_SCHED_NOTIFY_MIN_MS' "${task_sched_info_c}"
+check task-sched-info-notify-delayed-work \
+  grep -Fq 'INIT_DELAYED_WORK(&sched_detect_work' "${task_sched_info_c}"
+check_absent task-sched-info-no-direct-notify-work \
+  grep -Fq 'schedule_work(&sched_detect_work);' "${task_sched_info_c}"
+check_absent task-sched-info-no-unbounded-uevent-loop \
+  grep -Fq 'while (atomic_xchg(&notify_pending' "${task_sched_info_c}"
+check task-sched-info-deferred-backtrace \
+  grep -Fq 'task_sched_queue_backtrace(p);' "${task_sched_info_c}"
+check task-sched-info-backtrace-work \
+  grep -Fq 'INIT_WORK(&task_sched_backtrace_work' "${task_sched_info_c}"
+check task-sched-info-threshold-floor \
+  grep -Fq 'TASK_SCHED_THRESHOLD_MIN_NS' "${task_sched_info_c}"
+check task-sched-info-diagnostic-counters \
+  grep -Fq 'proc_create("sched_stats", 0444' "${task_sched_info_c}"
 check task-sched-info-frequency-declaration \
   grep -Fq 'void update_freq_info(struct cpufreq_policy *policy);' "${task_sched_info_h}"
 check task-sched-info-limit-declaration \
@@ -253,6 +273,35 @@ for node in pids_set sched_buffer task_sched_info_enable sched_info_threshold d_
   check "task-sched-info-node-${node}" \
     grep -Fq "proc_create(\"${node}\", 0666" "${task_sched_info_c}"
 done
+
+# A14 9R ledger batch 1 contains only isolated, hardware-independent ABIs.
+check proactive-compact-source test -f "${proactive_compact_c}"
+check proactive-compact-kconfig \
+  grep -Fq 'config OPLUS_PROACTIVE_COMPACT' fs/proc/Kconfig
+check proactive-compact-config-enabled \
+  grep -Fxq 'CONFIG_OPLUS_PROACTIVE_COMPACT=y' "${config}"
+check proactive-compact-kbuild \
+  grep -Fq 'obj-$(CONFIG_OPLUS_PROACTIVE_COMPACT) += oplus_proactive_compact.o' fs/proc/Makefile
+check proactive-compact-node \
+  grep -Fq 'proc_create("fragmentation_index", 0666' "${proactive_compact_c}"
+check proactive-compact-no-trigger \
+  grep -Fq 'does not initiate compaction' fs/proc/Kconfig
+check_absent proactive-compact-no-compact-node \
+  grep -Fq 'compact_node' "${proactive_compact_c}"
+
+check storage-log-source test -f "${storage_log_c}"
+check storage-log-kconfig \
+  grep -Fq 'config OPLUS_STORAGE_LOG' fs/proc/Kconfig
+check storage-log-config-enabled \
+  grep -Fxq 'CONFIG_OPLUS_STORAGE_LOG=y' "${config}"
+check storage-log-kbuild \
+  grep -Fq 'obj-$(CONFIG_OPLUS_STORAGE_LOG) += oplus_storage_log.o' fs/proc/Makefile
+check storage-log-node \
+  grep -Fq 'proc_create("buf_log", 0666' "${storage_log_c}"
+check storage-log-bound \
+  grep -Fq '#define OPLUS_STORAGE_LOG_SIZE' "${storage_log_c}"
+check storage-log-export \
+  grep -Fq 'EXPORT_SYMBOL_GPL(pr_storage);' "${storage_log_c}"
 
 # Scheduler-assist wiring: per-task state, fork reset and linked build path.
 check sched-assist-feature-macro \
