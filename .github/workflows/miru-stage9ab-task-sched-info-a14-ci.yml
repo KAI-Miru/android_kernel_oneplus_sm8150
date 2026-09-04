@@ -533,8 +533,8 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-stage9c-containment-abi-batch1
-      SOURCE_SHA: 3402040d2d821869901f5e8df576dc6a078a8784
-      PARENT_SHA: 7e3eae0000b7761468c3b4a51894fee990773aff
+      SOURCE_SHA: c12ece7aadb297abbe4ad41f6f7923db7fb814dc
+      PARENT_SHA: 3402040d2d821869901f5e8df576dc6a078a8784
       MODULES_REPAIR_BRANCH: miru-h40-stage9b-task-sched-info-a14
       MODULES_REPAIR_SHA: e892a9c730424c82bff50953b57674b53cdae35b
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9c-containment-abi-batch1-ci1+
