@@ -997,7 +997,7 @@ jobs:
           tasktrack_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_info/tasktrack.o' -print -quit)"
           tasktrack_strings="${RUNNER_TEMP}/stage9j-tasktrack.strings"
           test -s "${tasktrack_obj}"
-          strings "${tasktrack_obj}" > "${tasktrack_strings}"
+          strings -n 3 "${tasktrack_obj}" > "${tasktrack_strings}"
           grep -Fxq 'sched_latency' "${tasktrack_strings}"
           grep -Fxq 'sched_iowait' "${tasktrack_strings}"
           grep -Fq '%d,%llu,%llu.%lu' "${tasktrack_strings}"
