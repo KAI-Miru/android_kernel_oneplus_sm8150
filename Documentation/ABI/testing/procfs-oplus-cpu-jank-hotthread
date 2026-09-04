@@ -1,0 +1,20 @@
+What:		/proc/jank_info/cpu_jank_info/top_hotthread
+Date:		September 2026
+KernelVersion:	4.14.357-openela-miru-h40
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only ColorOS 14 CPU-jank hot-thread history.  The file emits
+		32 lines, newest 128 ms window first.  Each populated line contains
+		at most five records separated by two spaces.  A record uses the
+		donor field grammar:
+
+		uid$tgid$leader_comm$pid$comm$top_app_samples$other_samples
+
+		On Miru H.40 the producer samples the current task on each online
+		CPU from bounded delayed work.  Sampling is inactive by default and
+		is armed only while the existing CPU-jank monitor or active-grab
+		control is enabled.  The implementation uses 64 static history
+		windows and 32 candidates per window; it adds no scheduler hook,
+		per-task field, or dynamic allocation in the sampling path.
+Users:		ColorOS performance diagnostics compatible with the OnePlus 9R
+		Android 14 CPU-jank ABI.

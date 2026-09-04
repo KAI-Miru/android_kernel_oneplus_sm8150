@@ -28,6 +28,7 @@ cpu_jank_freq_c="${sched_info_dir}/osi_freq.c"
 cpu_jank_loadindicator_c="${sched_info_dir}/osi_loadindicator.c"
 cpu_jank_onlinecpu_c="${sched_info_dir}/osi_onlinecpu.c"
 cpu_jank_topology_c="${sched_info_dir}/osi_topology.c"
+cpu_jank_hotthread_c="${sched_info_dir}/osi_hotthread.c"
 cpu_jank_version_c="${sched_info_dir}/osi_version.c"
 frame_boost_dir="${vendor_root}/oplus/kernel/oplus_performance/frame_boost"
 frame_boost_c="${frame_boost_dir}/frame_boost.c"
@@ -434,6 +435,42 @@ for node in task_track task_track_enable; do
     grep -Fq "proc_create(\"${node}\", 0666" "${tasktrack_c}"
 done
 
+# Stage 9H exposes OP9R's top_hotthread grammar through a bounded H.40-native
+# delayed sampler.  It must remain inert until the existing CPU-jank monitor
+# controls enable it and must not add another scheduler-tick hook or allocate
+# candidate records from the sampling path.
+check cpu-jank-hotthread-source test -f "${cpu_jank_hotthread_c}"
+check cpu-jank-hotthread-object \
+  grep -Fq 'osi_hotthread.o' "${sched_info_dir}/Makefile"
+check cpu-jank-hotthread-init \
+  grep -Fq 'ret = osi_hotthread_proc_init(cpu_jank_dir);' "${sched_info_c}"
+check cpu-jank-hotthread-exit \
+  grep -Fq 'osi_hotthread_proc_deinit(cpu_jank_dir);' "${sched_info_c}"
+check cpu-jank-hotthread-node \
+  grep -Fq 'proc_create("top_hotthread", 0444' "${cpu_jank_hotthread_c}"
+check cpu-jank-hotthread-default-off \
+  grep -Fq 'static bool hotthread_enabled;' "${cpu_jank_hotthread_c}"
+check cpu-jank-hotthread-disabled-fastpath \
+  grep -Fq 'if (!READ_ONCE(hotthread_enabled))' "${cpu_jank_hotthread_c}"
+check cpu-jank-hotthread-monitor-gate \
+  grep -Fq 'osi_hotthread_set_enabled(monitor_enabled || active_enabled);' "${sched_info_c}"
+check cpu-jank-hotthread-static-history \
+  grep -Fq 'hotthread_windows[HOTTHREAD_WINDOW_COUNT]' "${cpu_jank_hotthread_c}"
+check cpu-jank-hotthread-candidate-bound \
+  grep -Fq '#define HOTTHREAD_CANDIDATE_COUNT' "${cpu_jank_hotthread_c}"
+check cpu-jank-hotthread-visible-window-bound \
+  grep -Fq '#define HOTTHREAD_VISIBLE_WINDOWS' "${cpu_jank_hotthread_c}"
+check cpu-jank-hotthread-workqueue-sampling \
+  grep -Fq 'INIT_DELAYED_WORK(&hotthread_sample_work' "${cpu_jank_hotthread_c}"
+check cpu-jank-hotthread-donor-grammar \
+  grep -Fq '"%u$%d$%s$%d$%s$%u$%u"' "${cpu_jank_hotthread_c}"
+check_absent cpu-jank-hotthread-no-dynamic-allocation \
+  grep -E 'kmem_cache_alloc|kzalloc|kmalloc|vmalloc' "${cpu_jank_hotthread_c}"
+check_absent cpu-jank-hotthread-no-scheduler-hook \
+  grep -E 'register_trace_sched|jank_hotthread_update_tick' "${cpu_jank_hotthread_c}"
+check cpu-jank-hotthread-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-cpu-jank-hotthread
+
 # CPU-jank reporting is a functional donor-derived telemetry batch.  It has
 # one bounded tick producer and cpufreq counters, but no stack walk, uevent,
 # workqueue, futex, Binder or donor busy-loop debug producer.
@@ -772,6 +809,7 @@ audio_sched_assist=task-boost-and-enqueue-hook
 cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
 cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup
+cpu_jank_hotthread=opt-in-bounded-workqueue-sampling
 gameopt_cpu_load=donor-time-in-state-idle-frequency
 gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting
 gameopt_render_waker=opt-in-bounded-wakeup-accounting
