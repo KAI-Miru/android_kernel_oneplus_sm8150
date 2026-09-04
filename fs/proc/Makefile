@@ -38,3 +38,4 @@ obj-y	+= oplus_healthinfo/
 #endif /* OPLUS_FEATURE_HEALTHINFO */
 proc-$(CONFIG_OPLUS_CTP) += task_cpustats.o
 obj-$(CONFIG_OPLUS_SCHED) += task_sched_info.o
+obj-$(CONFIG_OPLUS_PROACTIVE_COMPACT) += oplus_proactive_compact.o
