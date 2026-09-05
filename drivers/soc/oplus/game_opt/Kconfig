@@ -2,7 +2,7 @@
 
 config OPLUS_FEATURE_GAME_OPT
 	bool "Oplus game optimization telemetry and frequency controls"
-	depends on CPU_FREQ && CPU_IDLE && PROC_FS
+	depends on CPU_FREQ && CPU_IDLE && PROC_FS && SCHEDSTATS
 	default n
 	help
 	  Build the /proc/game_opt telemetry used by the ColorOS 14 GameOpt
@@ -10,4 +10,6 @@ config OPLUS_FEATURE_GAME_OPT
 	  render-waker accounting remain dormant until userspace selects their
 	  target processes.  CPU minimum and maximum frequency requests use the
 	  kernel's existing cpufreq policy-notifier path and impose no limit
-	  until userspace writes them.  Unrelated scheduler policy is excluded.
+	  until userspace writes them.  D-state reporting is restricted to selected
+	  threads, rate-limited, and deferred out of the scheduler path.  Unrelated
+	  scheduler policy is excluded.

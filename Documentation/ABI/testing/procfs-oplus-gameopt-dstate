@@ -1,0 +1,37 @@
+What:		/proc/game_opt/dstate/dump_enable
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read/write ColorOS 14 GameOpt D-state reporting gate.  Zero disables
+		reporting and a nonzero value enables it.  The donor-compatible boot
+		default is enabled, but no work occurs until at least one render or
+		explicitly interested thread is selected.
+Users:		vendor.oplus.hardware.gameopt-service
+
+What:		/proc/game_opt/dstate/duration
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read/write minimum non-I/O uninterruptible delay, in milliseconds,
+		for a selected thread to produce a diagnostic stack report.  The
+		OnePlus 9R default is 5 ms.  The donor-compatible range is hardened to
+		0 through 60000 ms; values outside that range are rejected.
+Users:		vendor.oplus.hardware.gameopt-service
+
+What:		/proc/game_opt/dstate/interested_tids
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read/write list of up to ten positive decimal thread IDs separated by
+		whitespace.  Writing zero clears the list.  The render threads selected
+		through `/proc/game_opt/render_thread_info` are tracked in addition to
+		this explicit list.
+
+		The 4.14 adaptation uses the existing sched_stat_blocked tracepoint,
+		enables scheduler statistics only after userspace selects a thread,
+		keeps only one referenced pending task, rate-limits reports to one per
+		250 ms, and defers get_wchan and stack walking through irq_work to a
+		workqueue.  Its scheduler callback never waits for either reporting
+		lock and performs no allocation, stack walk, diagnostic output, or
+		workqueue locking.
+Users:		vendor.oplus.hardware.gameopt-service

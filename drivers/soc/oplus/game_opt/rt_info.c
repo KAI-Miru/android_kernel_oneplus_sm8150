@@ -22,7 +22,6 @@
 
 #include "game_ctrl.h"
 
-#define MAX_RT_NUM 2
 #define MAX_WAKER_COUNT 256
 #define MAX_REPORT_TASKS 10
 #define MAX_TASK_INACTIVE_TIME NSEC_PER_SEC
@@ -300,6 +299,7 @@ static ssize_t rt_info_proc_write(struct file *file, const char __user *buf,
 {
 	struct task_struct *new_tasks[MAX_RT_NUM] = { NULL };
 	struct task_struct *old_tasks[MAX_RT_NUM] = { NULL };
+	pid_t dstate_tids[MAX_RT_NUM] = { 0 };
 	char page[128], *cursor, *token;
 	unsigned long flags;
 	unsigned int num = 0;
@@ -340,6 +340,7 @@ static ssize_t rt_info_proc_write(struct file *file, const char __user *buf,
 	}
 	reset_waker_pool_locked();
 	for (i = 0; i < num; i++) {
+		dstate_tids[i] = new_tasks[i]->pid;
 		render_threads[i].task = new_tasks[i];
 		render_threads[i].tid = new_tasks[i]->pid;
 		render_threads[i].tgid = new_tasks[i]->tgid;
@@ -350,6 +351,7 @@ static ssize_t rt_info_proc_write(struct file *file, const char __user *buf,
 		atomic_set(&need_stat_wake, 1);
 	raw_spin_unlock_irqrestore(&rt_info_lock, flags);
 	mutex_unlock(&rt_config_lock);
+	rt_set_dstate_interested_threads(dstate_tids, num);
 
 	for (i = 0; i < MAX_RT_NUM; i++) {
 		if (old_tasks[i])

@@ -54,6 +54,15 @@ static int __init game_ctrl_init(void)
 		return ret;
 	}
 
+	ret = dstate_dump_init();
+	if (ret) {
+		cpufreq_limits_exit();
+		cpu_load_exit();
+		remove_proc_subtree("game_opt", NULL);
+		game_opt_dir = NULL;
+		return ret;
+	}
+
 	return 0;
 }
 

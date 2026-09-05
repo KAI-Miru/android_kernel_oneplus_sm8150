@@ -23,6 +23,7 @@ sched_assist_slide_c="${sched_assist_dir}/sched_assist_slide.c"
 sched_info_c="${sched_info_dir}/oplus_sched_info.c"
 tasktrack_c="${sched_info_dir}/tasktrack.c"
 cpu_jank_base_c="${sched_info_dir}/osi_base.c"
+cpu_jank_enable_c="${sched_info_dir}/osi_enable.c"
 cpu_jank_cpuload_c="${sched_info_dir}/osi_cpuload.c"
 cpu_jank_freq_c="${sched_info_dir}/osi_freq.c"
 cpu_jank_loadindicator_c="${sched_info_dir}/osi_loadindicator.c"
@@ -47,6 +48,7 @@ game_opt_cpu_load_c="${game_opt_dir}/cpu_load.c"
 game_opt_cpufreq_limits_c="${game_opt_dir}/cpufreq_limits.c"
 game_opt_task_util_c="${game_opt_dir}/task_util.c"
 game_opt_rt_info_c="${game_opt_dir}/rt_info.c"
+game_opt_dstate_c="${game_opt_dir}/dstate_dump.c"
 game_opt_header="include/linux/oplus_game_opt.h"
 
 check() {
@@ -345,6 +347,12 @@ check sched-assist-audio-enqueue-hook \
   grep -Fq 'oplus_sched_assist_audio_enqueue_hook(p);' kernel/sched/fair.c
 check sched-assist-proc-init \
   grep -Fq 'device_initcall(oplus_sched_assist_proc_init);' "${sched_assist_c}"
+check sched-assist-debug-parameter \
+  grep -Fq 'module_param_named(debug, param_ux_debug, uint, 0644);' "${sched_assist_c}"
+check sched-assist-debug-default-off \
+  grep -Fq 'static unsigned int param_ux_debug;' "${sched_assist_c}"
+check sched-assist-debug-fastpath-gate \
+  grep -Fq 'if (likely(!param_ux_debug))' "${sched_assist_c}"
 check task-ux-state-proc-declaration \
   grep -Fq 'extern const struct file_operations proc_ux_state_operations;' fs/proc/base.c
 check task-ux-state-proc-entry \
@@ -387,6 +395,25 @@ check cpu-jank-mux-work \
   grep -Fq 'schedule_delayed_work(&grab_hotthread_work' "${sched_info_c}"
 check cpu-jank-mux-cancel \
   grep -Fq 'cancel_delayed_work_sync(&grab_hotthread_work)' "${sched_info_c}"
+check cpu-jank-passive-enable-source test -f "${cpu_jank_enable_c}"
+check cpu-jank-passive-enable-object \
+  grep -Fq 'osi_base.o osi_enable.o' "${sched_info_dir}/Makefile"
+check cpu-jank-passive-enable-init \
+  grep -Fq 'entry = jank_enable_proc_init(cpu_jank_dir);' "${sched_info_c}"
+check cpu-jank-passive-enable-node \
+  grep -Fq 'proc_create("enable", S_IRUGO | S_IWUGO' "${cpu_jank_enable_c}"
+check cpu-jank-passive-enable-default-off \
+  grep -Fq 'unsigned int cpu_jank_info_enable;' "${cpu_jank_enable_c}"
+check cpu-jank-passive-enable-hardened-input \
+  grep -Fq 'if (count >= sizeof(buffer))' "${cpu_jank_enable_c}"
+check cpu-jank-passive-osi-debug-init \
+  grep -Fq 'ret = osi_base_proc_init(cpu_jank_dir);' "${sched_info_c}"
+check cpu-jank-passive-osi-debug-node \
+  grep -Fq 'proc_create("osi_debug", S_IRUGO' "${cpu_jank_base_c}"
+check cpu-jank-passive-osi-debug-default-off \
+  grep -Fq 'int g_osi_debug;' "${cpu_jank_base_c}"
+check cpu-jank-passive-controls-document \
+  test -f Documentation/ABI/testing/procfs-oplus-cpu-jank-passive-controls
 
 for node in \
   clm_enable \
@@ -586,8 +613,8 @@ check cpu-jank-reporting-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-cpu-jank-reporting
 
 # GameOpt CPU load uses the donor's cpuidle and cpufreq transition feeds.
-# Stage 9K adds only the two donor frequency-policy controls; unrelated
-# scheduler policy and D-state capture remain excluded.
+# Stage 9L completes the donor GameOpt proc surface with selected-thread,
+# deferred D-state diagnostics; unrelated scheduler policy remains excluded.
 check gameopt-cpu-load-source test -f "${game_opt_cpu_load_c}"
 check gameopt-control-source test -f "${game_opt_ctrl_c}"
 check gameopt-public-header test -f "${game_opt_header}"
@@ -599,8 +626,10 @@ check gameopt-config-enabled \
   grep -Fxq 'CONFIG_OPLUS_FEATURE_GAME_OPT=y' "${config}"
 check gameopt-kbuild-link \
   grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += oplus/game_opt/' drivers/soc/Makefile
-check gameopt-bounded-objects \
-  grep -Fxq 'game_opt-y := game_ctrl.o cpu_load.o cpufreq_limits.o task_util.o rt_info.o' "${game_opt_dir}/Makefile"
+for object in game_ctrl.o cpu_load.o cpufreq_limits.o task_util.o rt_info.o dstate_dump.o; do
+  check "gameopt-object-${object%.o}" \
+    grep -Fq "${object}" "${game_opt_dir}/Makefile"
+done
 check gameopt-proc-parent \
   grep -Fq 'proc_mkdir("game_opt", NULL)' "${game_opt_ctrl_c}"
 check gameopt-cpu-load-node \
@@ -627,8 +656,6 @@ check gameopt-zero-before-init \
   grep -Fq '*util_pct = 0;' "${game_opt_cpu_load_c}"
 check_absent gameopt-cpu-load-no-write-handler \
   grep -Eq '\.(write|unlocked_ioctl)[[:space:]]*=' "${game_opt_cpu_load_c}"
-check_absent gameopt-no-dstate-object \
-  grep -Fq 'dstate_dump.o' "${game_opt_dir}/Makefile"
 check gameopt-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-gameopt-cpu-load
 
@@ -710,7 +737,9 @@ check_absent gameopt-task-runtime-no-stack-capture \
 check gameopt-task-runtime-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-gameopt-task-runtime
 
-# Stage 9G adds the donor render-thread waker ABI without its D-state coupling.
+# Stage 9G adds the donor render-thread waker ABI.  Stage 9L connects its
+# selected TIDs to the bounded D-state diagnostics without changing wakeup
+# accounting.
 # Accounting is off until userspace writes up to two target TIDs, the wakeup
 # hook never waits for the reporting lock, and a static pool caps state at 256
 # wakers across both targets.
@@ -728,7 +757,7 @@ check gameopt-render-waker-grammar \
 check gameopt-render-waker-default-off \
   grep -Fq 'need_stat_wake = ATOMIC_INIT(0)' "${game_opt_rt_info_c}"
 check gameopt-render-waker-two-target-cap \
-  grep -Fq '#define MAX_RT_NUM 2' "${game_opt_rt_info_c}"
+  grep -Fq '#define MAX_RT_NUM 2' "${game_opt_dir}/game_ctrl.h"
 check gameopt-render-waker-pool-cap \
   grep -Fq '#define MAX_WAKER_COUNT 256' "${game_opt_rt_info_c}"
 check gameopt-render-waker-static-pool \
@@ -751,10 +780,49 @@ check gameopt-render-waker-only-write \
   test "$(grep -Ec '\.write[[:space:]]*=' "${game_opt_rt_info_c}")" -eq 1
 check_absent gameopt-render-waker-no-ioctl \
   grep -Eq '\.unlocked_ioctl[[:space:]]*=' "${game_opt_rt_info_c}"
-check_absent gameopt-render-waker-no-dstate-coupling \
+check gameopt-render-waker-dstate-coupling \
   grep -Fq 'rt_set_dstate_interested_threads' "${game_opt_rt_info_c}"
 check gameopt-render-waker-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-gameopt-render-waker
+
+# Stage 9L completes the three-node 9R D-state ABI.  The 4.14 adaptation uses
+# the native sched_stat_blocked tracepoint, accepts only selected threads, and
+# moves task inspection and stack reporting out of the scheduler callback.
+check gameopt-dstate-source test -f "${game_opt_dstate_c}"
+check gameopt-dstate-init \
+  grep -Fq 'ret = dstate_dump_init();' "${game_opt_ctrl_c}"
+for node in dump_enable duration interested_tids; do
+  check "gameopt-dstate-node-${node}" \
+    grep -Fq "proc_create_data(\"${node}\", 0664" "${game_opt_dstate_c}"
+done
+check gameopt-dstate-donor-default-enabled \
+  grep -Fq 'dstate_dump_enable = ATOMIC_INIT(1)' "${game_opt_dstate_c}"
+check gameopt-dstate-donor-duration \
+  grep -Fq '#define DSTATE_DURATION_DEFAULT_MS 5' "${game_opt_dstate_c}"
+check gameopt-dstate-no-target-fastpath \
+  grep -Fq '!atomic_read(&dstate_targets_enabled)' "${game_opt_dstate_c}"
+check gameopt-dstate-selected-thread-filter \
+  grep -Fq 'if (!dstate_tid_interested(task->pid))' "${game_opt_dstate_c}"
+check gameopt-dstate-scheduler-trylocks \
+  test "$(grep -Fc 'raw_spin_trylock_irqsave' "${game_opt_dstate_c}")" -eq 2
+check gameopt-dstate-non-iowait-filter \
+  grep -Fq 'task->in_iowait' "${game_opt_dstate_c}"
+check gameopt-dstate-native-tracepoint \
+  grep -Fq 'register_trace_sched_stat_blocked' "${game_opt_dstate_c}"
+check gameopt-dstate-selection-enables-schedstats \
+  grep -Fq 'force_schedstat_enabled();' "${game_opt_dstate_c}"
+check gameopt-dstate-deferred-stack \
+  grep -Fq 'save_stack_trace_tsk(event.task, &trace);' "${game_opt_dstate_c}"
+check gameopt-dstate-irq-work \
+  grep -Fq 'irq_work_queue(&dstate_report_irq_work);' "${game_opt_dstate_c}"
+check gameopt-dstate-rate-limit \
+  grep -Fq '#define DSTATE_REPORT_INTERVAL_NS' "${game_opt_dstate_c}"
+check gameopt-dstate-single-pending-slot \
+  grep -Fq 'static struct gameopt_dstate_event dstate_pending_event;' "${game_opt_dstate_c}"
+check_absent gameopt-dstate-no-trace-printk \
+  grep -Fq 'trace_printk' "${game_opt_dstate_c}"
+check gameopt-dstate-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-gameopt-dstate
 
 # Frame Boost is a scheduler control plane, not a collection of no-op proc
 # files.  Validate the task state, core hooks, WALT handoff, syscall ABI, and
@@ -916,10 +984,13 @@ cpu_jank_tasktrack_latency=on-demand-bounded-sched-events
 cpu_jank_tasktrack_callstack=on-demand-bounded-dsleep-stacktrace
 cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup
 cpu_jank_hotthread=opt-in-bounded-workqueue-sampling
+cpu_jank_passive_controls=donor-enable-osi-debug-default-off
 gameopt_cpu_load=donor-time-in-state-idle-frequency
 gameopt_cpufreq_limits=donor-cpu-khz-policy-controls
 gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting
 gameopt_render_waker=opt-in-bounded-wakeup-accounting
+gameopt_dstate=selected-rate-limited-deferred-stack-reporting
+sched_assist_debug=donor-module-parameter-default-off
 task_cpustats=real-tick-accounting
 task_sched_info=full-scheduler-frequency-isolation-telemetry
 frame_boost_control_plane=task-group-walt-ioctl-sysctl

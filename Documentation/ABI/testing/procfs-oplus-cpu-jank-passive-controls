@@ -1,0 +1,27 @@
+What:		/proc/jank_info/cpu_jank_info/enable
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read/write Android 14 OnePlus CPU-jank feature gate.  The node stores
+		the unsigned value written by userspace and defaults to zero.  Stage 9L
+		does not attach this compatibility state to an additional scheduler
+		hot path; the already ported telemetry retains its own explicit gates.
+Users:		vendor.oplus.hardware.performance-service
+
+What:		/proc/jank_info/cpu_jank_info/osi_debug
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read/write Android 14 OnePlus CPU-jank debug level.  The node preserves
+		the donor's 0444 registration mode and defaults to zero, leaving OSI
+		debug output disabled unless privileged userspace explicitly changes it.
+Users:		vendor.oplus.hardware.performance-service
+
+What:		/sys/module/sched_assist_common/parameters/debug
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read/write sched-assist trace-marker gate, registered as an unsigned
+		module parameter with mode 0644.  The zero default prevents trace-marker
+		formatting and writes on the normal sched-assist path.
+Users:		Android performance diagnostics
