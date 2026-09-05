@@ -1,0 +1,29 @@
+What:		/proc/game_opt/cpu_min_freq
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read/write ColorOS 14 GameOpt minimum CPU-frequency request derived
+		from the OnePlus 9R Android 14 interface.  A write contains one or
+		more whitespace-separated CPU:kHz pairs, for example:
+
+		0:960000 4:1440000 7:1785600
+
+		A request applies to the entire cpufreq policy shared by the named
+		CPU.  Multiple pairs for one policy use the lowest-numbered named
+		CPU, matching the donor's policy traversal.  The complete write is
+		validated before any request changes.  Duplicate CPUs, malformed
+		pairs, absent CPUs, empty writes, and writes of 256 bytes or more are
+		rejected.  Reading reports the stored request for each present CPU.
+		The boot default is 0, which imposes no minimum limit.
+Users:		vendor.oplus.hardware.gameopt-service
+
+What:		/proc/game_opt/cpu_max_freq
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read/write ColorOS 14 GameOpt maximum CPU-frequency request.  Input,
+		policy sharing, validation, and output use the same rules as
+		cpu_min_freq.  The boot default is UINT_MAX, which imposes no maximum
+		limit.  Both controls use the kernel's existing CPUFREQ_ADJUST policy
+		notifier and add no scheduler hot-path hook.
+Users:		vendor.oplus.hardware.gameopt-service

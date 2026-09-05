@@ -44,6 +44,7 @@ storage_log_c="fs/proc/oplus_storage_log.c"
 game_opt_dir="drivers/soc/oplus/game_opt"
 game_opt_ctrl_c="${game_opt_dir}/game_ctrl.c"
 game_opt_cpu_load_c="${game_opt_dir}/cpu_load.c"
+game_opt_cpufreq_limits_c="${game_opt_dir}/cpufreq_limits.c"
 game_opt_task_util_c="${game_opt_dir}/task_util.c"
 game_opt_rt_info_c="${game_opt_dir}/rt_info.c"
 game_opt_header="include/linux/oplus_game_opt.h"
@@ -584,9 +585,9 @@ check cpu-jank-reporting-node-version \
 check cpu-jank-reporting-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-cpu-jank-reporting
 
-# Stage 9E is the first isolated GameOpt batch: the donor's read-only CPU-load
-# sampler, backed by cpuidle transitions and a cpufreq transition notifier.
-# Writable frequency controls and scheduler policy are deliberately excluded.
+# GameOpt CPU load uses the donor's cpuidle and cpufreq transition feeds.
+# Stage 9K adds only the two donor frequency-policy controls; unrelated
+# scheduler policy and D-state capture remain excluded.
 check gameopt-cpu-load-source test -f "${game_opt_cpu_load_c}"
 check gameopt-control-source test -f "${game_opt_ctrl_c}"
 check gameopt-public-header test -f "${game_opt_header}"
@@ -598,8 +599,8 @@ check gameopt-config-enabled \
   grep -Fxq 'CONFIG_OPLUS_FEATURE_GAME_OPT=y' "${config}"
 check gameopt-kbuild-link \
   grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += oplus/game_opt/' drivers/soc/Makefile
-check gameopt-trimmed-objects \
-  grep -Fxq 'game_opt-y := game_ctrl.o cpu_load.o task_util.o rt_info.o' "${game_opt_dir}/Makefile"
+check gameopt-bounded-objects \
+  grep -Fxq 'game_opt-y := game_ctrl.o cpu_load.o cpufreq_limits.o task_util.o rt_info.o' "${game_opt_dir}/Makefile"
 check gameopt-proc-parent \
   grep -Fq 'proc_mkdir("game_opt", NULL)' "${game_opt_ctrl_c}"
 check gameopt-cpu-load-node \
@@ -626,10 +627,49 @@ check gameopt-zero-before-init \
   grep -Fq '*util_pct = 0;' "${game_opt_cpu_load_c}"
 check_absent gameopt-cpu-load-no-write-handler \
   grep -Eq '\.(write|unlocked_ioctl)[[:space:]]*=' "${game_opt_cpu_load_c}"
-check_absent gameopt-no-control-objects \
-  grep -Eq 'cpufreq_limits\.o|dstate_dump\.o' "${game_opt_dir}/Makefile"
+check_absent gameopt-no-dstate-object \
+  grep -Fq 'dstate_dump.o' "${game_opt_dir}/Makefile"
 check gameopt-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-gameopt-cpu-load
+
+# Stage 9K restores the exact 9R CPU:kHz proc ABI using the native 4.14
+# CPUFREQ_ADJUST notifier.  Defaults are neutral, parsing is transactional,
+# and no scheduler hot-path producer is introduced.
+check gameopt-cpufreq-limits-source test -f "${game_opt_cpufreq_limits_c}"
+check gameopt-cpufreq-limits-init \
+  grep -Fq 'ret = cpufreq_limits_init();' "${game_opt_ctrl_c}"
+check gameopt-cpufreq-limits-unwind \
+  grep -Fq 'cpufreq_limits_exit();' "${game_opt_ctrl_c}"
+check gameopt-cpufreq-min-node \
+  grep -Fq 'proc_create_data("cpu_min_freq", 0664' "${game_opt_cpufreq_limits_c}"
+check gameopt-cpufreq-max-node \
+  grep -Fq 'proc_create_data("cpu_max_freq", 0664' "${game_opt_cpufreq_limits_c}"
+check gameopt-cpufreq-pair-parser \
+  grep -Fq "separator = strnchr(token, token_len, ':');" "${game_opt_cpufreq_limits_c}"
+check gameopt-cpufreq-transactional-parse \
+  grep -Fq 'if (!ret)' "${game_opt_cpufreq_limits_c}"
+check gameopt-cpufreq-request-serialization \
+  grep -Fq 'DEFINE_MUTEX(game_cpu_freq_lock)' "${game_opt_cpufreq_limits_c}"
+check gameopt-cpufreq-neutral-min \
+  grep -Fq 'per_cpu(game_cpu_freq_status, cpu).min = 0;' "${game_opt_cpufreq_limits_c}"
+check gameopt-cpufreq-neutral-max \
+  grep -Fq 'per_cpu(game_cpu_freq_status, cpu).max = UINT_MAX;' "${game_opt_cpufreq_limits_c}"
+check gameopt-cpufreq-policy-notifier \
+  grep -Fq 'CPUFREQ_POLICY_NOTIFIER' "${game_opt_cpufreq_limits_c}"
+check gameopt-cpufreq-policy-adjust \
+  grep -Fq 'event != CPUFREQ_ADJUST' "${game_opt_cpufreq_limits_c}"
+check gameopt-cpufreq-policy-clamp \
+  grep -Fq 'cpufreq_verify_within_limits(policy, min, max);' "${game_opt_cpufreq_limits_c}"
+check gameopt-cpufreq-policy-lifetime \
+  grep -Fq 'cpufreq_cpu_put(policy);' "${game_opt_cpufreq_limits_c}"
+check gameopt-cpufreq-register-unwind \
+  grep -Fq 'remove_proc_entry("cpu_min_freq", game_opt_dir);' "${game_opt_cpufreq_limits_c}"
+check_absent gameopt-cpufreq-no-workqueue \
+  grep -E 'schedule_work|queue_work|delayed_work' "${game_opt_cpufreq_limits_c}"
+check_absent gameopt-cpufreq-no-uevent \
+  grep -Fq 'kobject_uevent' "${game_opt_cpufreq_limits_c}"
+check gameopt-cpufreq-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-gameopt-cpufreq-limits
 
 # Stage 9F adds the donor-compatible process selector and heavy-thread runtime
 # report.  Its CFS/RT producers are dormant until a valid game PID is written,
@@ -877,6 +917,7 @@ cpu_jank_tasktrack_callstack=on-demand-bounded-dsleep-stacktrace
 cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup
 cpu_jank_hotthread=opt-in-bounded-workqueue-sampling
 gameopt_cpu_load=donor-time-in-state-idle-frequency
+gameopt_cpufreq_limits=donor-cpu-khz-policy-controls
 gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting
 gameopt_render_waker=opt-in-bounded-wakeup-accounting
 task_cpustats=real-tick-accounting

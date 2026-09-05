@@ -1,12 +1,13 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
 config OPLUS_FEATURE_GAME_OPT
-	bool "Oplus game optimization telemetry"
+	bool "Oplus game optimization telemetry and frequency controls"
 	depends on CPU_FREQ && CPU_IDLE && PROC_FS
 	default n
 	help
 	  Build the /proc/game_opt telemetry used by the ColorOS 14 GameOpt
 	  service.  CPU load is sampled continuously; per-task runtime and
 	  render-waker accounting remain dormant until userspace selects their
-	  target processes.  Frequency controls and unrelated scheduler policy
-	  nodes are excluded.
+	  target processes.  CPU minimum and maximum frequency requests use the
+	  kernel's existing cpufreq policy-notifier path and impose no limit
+	  until userspace writes them.  Unrelated scheduler policy is excluded.
