@@ -1,0 +1,26 @@
+What:		/proc/oplus_locking/thread_info_ctrl
+Description:
+		Controls donor locking thread-information reporting.  The Android 14
+		OnePlus 9R implementation defaults this diagnostic control to zero.
+
+What:		/proc/oplus_locking/lock_stats/{mutex,rwsem_read,rwsem_write,futex_art}
+Description:
+		Per-lock-class wait statistics published by the OnePlus locking
+		monitor selected in the 9R Kona production configuration.
+
+What:		/proc/oplus_locking/{kern_lock_stats,kern_lock_stats_rclear,fatal_lock_stats,lock_thres_ctrl}
+Description:
+		Aggregate lock statistics, read-and-clear statistics, fatal lock
+		statistics, and threshold control from the donor locking monitor.
+
+What:		/sys/module/oplus_locking_strategy/parameters/*
+Description:
+		Donor controls and counters for mutex, rwsem, ART futex, and
+		optimistic-spin locking policy.  The production 9R configuration
+		exposes 13 parameters.  locking_enable defaults to mutex, rwsem,
+		futex, and OSQ enabled.
+
+Notes:
+		/proc/oplus_locking/top_lock_stats is intentionally absent because
+		CONFIG_OPLUS_INTERNAL_VERSION is not selected by the 9R Kona
+		production configuration.

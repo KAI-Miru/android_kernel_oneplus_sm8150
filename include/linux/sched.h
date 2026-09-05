@@ -765,6 +765,16 @@ union reclaim_limit {
 };
 #endif
 
+#if IS_ENABLED(CONFIG_OPLUS_LOCKING_STRATEGY)
+struct locking_info {
+	u64 waittime_stamp;
+	u64 opt_spin_start_time;
+	struct task_struct *holder;
+	bool ux_contrib;
+	bool is_block_ux;
+};
+#endif
+
 struct task_struct {
 #ifdef CONFIG_THREAD_INFO_IN_TASK
 	/*
@@ -1415,6 +1425,10 @@ struct task_struct {
 	u64 enqueue_time;
 	u64 inherit_ux_start;
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
+
+#if IS_ENABLED(CONFIG_OPLUS_LOCKING_STRATEGY)
+	struct locking_info lkinfo;
+#endif
 
 #ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
 	/* ColorOS Frame Boost per-task frame-group state. */

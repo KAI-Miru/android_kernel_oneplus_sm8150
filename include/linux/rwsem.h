@@ -58,6 +58,9 @@ struct rw_semaphore {
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 	struct task_struct *ux_dep_task;
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
+#ifdef CONFIG_OPLUS_LOCKING_STRATEGY
+	u64 android_oem_data1[2];
+#endif
 };
 
 /*

@@ -40,6 +40,10 @@
 #include <soc/oplus/system/oplus_signal.h>
 #endif
 
+#ifdef CONFIG_OPLUS_LOCKING_STRATEGY
+#include <linux/sched_assist/sync/mutex.h>
+#endif
+
 void
 __mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
 {
@@ -52,6 +56,9 @@ __mutex_init(struct mutex *lock, const char *name, struct lock_class_key *key)
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 	lock->ux_dep_task = NULL;
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
+#ifdef CONFIG_OPLUS_LOCKING_STRATEGY
+	memset(lock->android_oem_data1, 0, sizeof(lock->android_oem_data1));
+#endif
 
 	debug_mutex_init(lock, name, key);
 }
@@ -433,9 +440,20 @@ bool mutex_spin_on_owner(struct mutex *lock, struct task_struct *owner,
 			 struct ww_acquire_ctx *ww_ctx, struct mutex_waiter *waiter)
 {
 	bool ret = true;
+#ifdef CONFIG_OPLUS_LOCKING_OSQ
+	int cnt = 0;
+	bool time_out = false;
+#endif
 
 	rcu_read_lock();
 	while (__mutex_owner(lock) == owner) {
+#ifdef CONFIG_OPLUS_LOCKING_OSQ
+		locking_vh_mutex_opt_spin_start(lock, &time_out, &cnt);
+		if (time_out) {
+			ret = false;
+			break;
+		}
+#endif
 		/*
 		 * Ensure we emit the owner->on_cpu, dereference _after_
 		 * checking lock->owner still matches owner. If that fails,
@@ -486,6 +504,9 @@ static inline int mutex_can_spin_on_owner(struct mutex *lock)
 	if (owner)
 		retval = owner->on_cpu && !vcpu_is_preempted(task_cpu(owner));
 	rcu_read_unlock();
+#ifdef CONFIG_OPLUS_LOCKING_OSQ
+	locking_vh_mutex_can_spin_on_owner(lock, &retval);
+#endif
 
 	/*
 	 * If lock->owner is not set, the mutex has been released. Return true
@@ -578,6 +599,10 @@ mutex_optimistic_spin(struct mutex *lock, struct ww_acquire_ctx *ww_ctx,
 	if (!waiter)
 		osq_unlock(&lock->osq);
 
+#ifdef CONFIG_OPLUS_LOCKING_OSQ
+	locking_vh_mutex_opt_spin_finish(lock, true);
+#endif
+
 	return true;
 
 
@@ -586,6 +611,9 @@ fail_unlock:
 		osq_unlock(&lock->osq);
 
 fail:
+#ifdef CONFIG_OPLUS_LOCKING_OSQ
+	locking_vh_mutex_opt_spin_finish(lock, false);
+#endif
 	/*
 	 * If we fell out of the spin path because of need_resched(),
 	 * reschedule now, before we try-lock the mutex. This avoids getting
@@ -762,6 +790,9 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	bool first = false;
 	struct ww_mutex *ww;
 	int ret;
+#ifdef CONFIG_OPLUS_LOCKING_STRATEGY
+	bool already_on_list = false;
+#endif
 
 	might_sleep();
 
@@ -824,7 +855,16 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 		waiter.ww_ctx = ww_ctx;
 	}
 
+#ifdef CONFIG_OPLUS_LOCKING_STRATEGY
+	already_on_list = true;
+	locking_vh_alter_mutex_list_add(lock, &waiter,
+			&lock->wait_list, &already_on_list);
+#endif
+
 	waiter.task = current;
+#ifdef CONFIG_OPLUS_LOCKING_STRATEGY
+	locking_vh_mutex_wait_start(lock);
+#endif
 
 	if (__mutex_waiter_is_first(lock, &waiter))
 		__mutex_set_flag(lock, MUTEX_FLAG_WAITERS);
@@ -908,6 +948,9 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 	spin_lock(&lock->wait_lock);
 acquired:
 	__set_current_state(TASK_RUNNING);
+#ifdef CONFIG_OPLUS_LOCKING_STRATEGY
+	locking_vh_mutex_wait_finish(lock);
+#endif
 
 	mutex_remove_waiter(lock, &waiter, current);
 	if (likely(list_empty(&lock->wait_list)))
@@ -928,6 +971,9 @@ skip_wait:
 
 err:
 	__set_current_state(TASK_RUNNING);
+#ifdef CONFIG_OPLUS_LOCKING_STRATEGY
+	locking_vh_mutex_wait_finish(lock);
+#endif
 	mutex_remove_waiter(lock, &waiter, current);
 err_early_backoff:
 	spin_unlock(&lock->wait_lock);

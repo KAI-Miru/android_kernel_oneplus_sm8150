@@ -54,6 +54,14 @@ healthinfo_main_c="${healthinfo_dir}/main/oplus_healthinfo.c"
 athena_memory_c="${healthinfo_dir}/mm/allocator_usage.c"
 athena_memory_kconfig="${healthinfo_dir}/mm/Kconfig"
 athena_memory_makefile="${healthinfo_dir}/mm/Makefile"
+locking_dir="${sched_assist_dir}/sync"
+locking_main_c="${locking_dir}/locking_main.c"
+locking_main_h="${locking_dir}/locking_main.h"
+locking_sysfs_c="${locking_dir}/sysfs.c"
+locking_mutex_c="${locking_dir}/mutex.c"
+locking_rwsem_c="${locking_dir}/rwsem.c"
+locking_futex_c="${locking_dir}/futex.c"
+locking_stat_c="${locking_dir}/kern_lock_stat.c"
 game_opt_dir="drivers/soc/oplus/game_opt"
 game_opt_ctrl_c="${game_opt_dir}/game_ctrl.c"
 game_opt_cpu_load_c="${game_opt_dir}/cpu_load.c"
@@ -1099,6 +1107,75 @@ check_absent athena-memory-no-stack-tracking \
 check athena-memory-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-athena-memory
 
+# Wave 12 imports the complete locking strategy selected by the Android 14
+# OnePlus 9R Kona configuration.  Its mutex/rwsem strategy and OSQ timeout
+# hooks are active.  The donor's newer futex hook call sites remain inactive
+# in its published main kernel, so retain only that donor behavior and ABI.
+for option in OPLUS_LOCKING_STRATEGY OPLUS_LOCKING_OSQ OPLUS_LOCKING_MONITOR; do
+  check "locking-config-${option}" grep -Fxq "CONFIG_${option}=y" "${config}"
+done
+check locking-kconfig-strategy \
+  grep -Fq 'config OPLUS_LOCKING_STRATEGY' "${sched_assist_dir}/Kconfig"
+check locking-kbuild-composite \
+  grep -Fq 'obj-y += oplus_locking_strategy.o' "${sched_assist_dir}/Makefile"
+for source in "${locking_main_c}" "${locking_main_h}" "${locking_sysfs_c}" \
+  "${locking_mutex_c}" "${locking_rwsem_c}" "${locking_futex_c}" "${locking_stat_c}"; do
+  check "locking-source-$(basename "${source}")" test -f "${source}"
+done
+check locking-donor-default-mutex \
+  grep -Fq 'g_opt_enable |= LK_MUTEX_ENABLE;' "${locking_main_c}"
+check locking-donor-default-rwsem \
+  grep -Fq 'g_opt_enable |= LK_RWSEM_ENABLE;' "${locking_main_c}"
+check locking-donor-default-futex \
+  grep -Fq 'g_opt_enable |= LK_FUTEX_ENABLE;' "${locking_main_c}"
+check locking-donor-default-osq \
+  grep -Fq 'g_opt_enable |= LK_OSQ_ENABLE;' "${locking_main_c}"
+check locking-task-state grep -Fq 'struct locking_info lkinfo;' include/linux/sched.h
+check locking-fork-init grep -Fq 'init_task_lkinfo(p);' kernel/fork.c
+check locking-mutex-storage grep -Fq 'u64 android_oem_data1[2];' include/linux/mutex.h
+check locking-rwsem-storage grep -Fq 'u64 android_oem_data1[2];' include/linux/rwsem.h
+for hook in locking_vh_mutex_opt_spin_start locking_vh_mutex_opt_spin_finish \
+  locking_vh_mutex_can_spin_on_owner locking_vh_mutex_wait_start \
+  locking_vh_mutex_wait_finish; do
+  check "locking-main-${hook}" grep -Fq "${hook}" kernel/locking/mutex.c
+done
+for hook in locking_vh_rwsem_read_wait_start locking_vh_rwsem_read_wait_finish \
+  locking_vh_rwsem_write_wait_start locking_vh_rwsem_write_wait_finish \
+  locking_vh_rwsem_opt_spin_start locking_vh_rwsem_opt_spin_finish \
+  locking_vh_rwsem_can_spin_on_owner; do
+  check "locking-main-${hook}" grep -Fq "${hook}" kernel/locking/rwsem-xadd.c
+done
+check locking-proc-parent grep -Fq 'proc_mkdir(OPLUS_LOCKING_PROC_DIR, NULL)' "${locking_sysfs_c}"
+check locking-thread-control grep -Fq 'proc_create("thread_info_ctrl"' "${locking_sysfs_c}"
+for node in mutex rwsem_read rwsem_write futex_art; do
+  check "locking-stat-node-${node}" grep -Fq "\"${node}\"" "${locking_stat_c}"
+done
+for node in kern_lock_stats kern_lock_stats_rclear fatal_lock_stats lock_thres_ctrl; do
+  check "locking-proc-node-${node}" grep -Fq "proc_create(\"${node}\"" "${locking_stat_c}"
+done
+check locking-internal-top-node-guard \
+  grep -Fq '#ifdef CONFIG_OPLUS_INTERNAL_VERSION' "${locking_stat_c}"
+check_absent locking-internal-config-disabled \
+  grep -Fxq 'CONFIG_OPLUS_INTERNAL_VERSION=y' "${config}"
+for parameter in locking_enable locking_debug; do
+  check "locking-param-${parameter}" grep -Fq "module_param_named(${parameter}" "${locking_main_c}"
+done
+for parameter in mutex_opt_spin_time_threshold mutex_ux_opt_spin_time_threshold \
+  mutex_opt_spin_total_cnt mutex_opt_spin_timeout_exit_cnt; do
+  check "locking-param-${parameter}" grep -Fq "module_param(${parameter}" "${locking_mutex_c}"
+done
+for parameter in rwsem_opt_spin_time_threshold rwsem_ux_opt_spin_time_threshold \
+  rwsem_opt_spin_total_cnt rwsem_opt_spin_timeout_exit_cnt; do
+  check "locking-param-${parameter}" grep -Fq "module_param(${parameter}" "${locking_rwsem_c}"
+done
+for parameter in futex_ux_set_cnt futex_ux_unset_cnt futex_set_blocked_ux_cnt; do
+  check "locking-param-${parameter}" grep -Fq "module_param(${parameter}" "${locking_futex_c}"
+done
+check_absent locking-donor-futex-hooks-not-activated \
+  grep -Fq 'locking_vh_' kernel/futex.c
+check locking-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-locking-strategy
+
 cat <<EOF
 result=PASS
 proc_iomem=core-4.14
@@ -1125,4 +1202,5 @@ eas_opt=active-4.14-placement-capacity-schedutil-iowait
 proactive_compact_parameters=bounded-runtime-tunables
 sched_assist_boost_kill=donor-background-exit-acceleration
 athena_memory_abi=read-triggered-allocator-totals-native-reclaim-controls
+locking_strategy=active-donor-mutex-rwsem-osq-monitor-futex-control-abi
 EOF

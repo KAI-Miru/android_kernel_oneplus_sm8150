@@ -109,6 +109,9 @@
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 #include <linux/sched_assist/sched_assist_fork.h>
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
+#if IS_ENABLED(CONFIG_OPLUS_LOCKING_STRATEGY)
+#include <linux/sched_assist/sync/futex.h>
+#endif
 #ifdef OPLUS_FEATURE_HEALTHINFO
 #ifdef CONFIG_OPLUS_JANK_INFO
 #include <linux/oplus_healthinfo/oplus_jank_monitor.h>
@@ -1913,6 +1916,9 @@ static __latent_entropy struct task_struct *copy_process(
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 	init_task_ux_info(p);
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
+#if IS_ENABLED(CONFIG_OPLUS_LOCKING_STRATEGY)
+	init_task_lkinfo(p);
+#endif
 #if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
 	p->wake_tid = 0;
 	p->running_start_time = 0;
