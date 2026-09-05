@@ -1293,6 +1293,8 @@ check uxio-first-inflight-dec-hooks \
   test "$(grep -Fc 'ohm_ioqueue_dec_inflight(q, rq);' block/elevator.c)" -eq 2
 check uxio-first-queue-throttle grep -Fq 'void queue_throtl_add_request' "${uxio_first_c}"
 check uxio-first-smart-peek grep -Fq 'struct request * smart_peek_request' "${uxio_first_c}"
+check uxio-first-pm-adapter grep -Fq 'bool blk_pm_allow_request(struct request *rq)' block/blk-core.c
+check uxio-first-pm-native-policy grep -Fq 'return blk_pm_peek_request(rq->q, rq) != NULL;' block/blk-core.c
 check uxio-first-safe-fallback grep -Fq 'if (!list_empty(&q->queue_head))' block/blk.h
 check uxio-first-bg-depth-definition grep -Fq '#define BLK_MAX_BG_DEPTH' "${uxio_first_h}"
 check uxio-first-bg-depth-field grep -Fq 'int bg_max_depth;' include/linux/blkdev.h

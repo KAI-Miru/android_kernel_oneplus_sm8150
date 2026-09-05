@@ -2689,6 +2689,13 @@ static inline struct request *blk_pm_peek_request(struct request_queue *q,
 }
 #endif
 
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_UXIO_FIRST)
+bool blk_pm_allow_request(struct request *rq)
+{
+	return blk_pm_peek_request(rq->q, rq) != NULL;
+}
+#endif
+
 void blk_account_io_start(struct request *rq, bool new_io)
 {
 	struct hd_struct *part;
