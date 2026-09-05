@@ -1306,9 +1306,9 @@ jobs:
 
           test -s "${out_dir}/Module.symvers"
           test "$(git -C "${vendor_source}" rev-parse HEAD)" = "${MODULES_REPAIR_SHA}"
-          test "$(git -C "${vendor_source}" rev-parse HEAD^)" = "${MODULES_PARENT_SHA}"
           git -C "${vendor_source}" fetch --no-tags --depth=16 origin "${MODULES_REPAIR_BRANCH}"
           test "$(git -C "${vendor_source}" rev-parse FETCH_HEAD)" = "${MODULES_REPAIR_SHA}"
+          test "$(git -C "${vendor_source}" rev-parse HEAD^)" = "${MODULES_PARENT_SHA}"
           test -f "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_assist/sched_assist_common.c"
           test -f "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/oplus_sched_info.c"
           test -f "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/tasktrack.c"
