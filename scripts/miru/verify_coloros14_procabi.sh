@@ -51,6 +51,10 @@ proactive_compact_c="fs/proc/oplus_proactive_compact.c"
 storage_log_c="fs/proc/oplus_storage_log.c"
 healthinfo_dir="${vendor_root}/oplus/kernel/oplus_performance/oplus_healthinfo"
 healthinfo_main_c="${healthinfo_dir}/main/oplus_healthinfo.c"
+healthinfo_main_h="${healthinfo_dir}/main/oplus_healthinfo.h"
+blk_monitor_c="${healthinfo_dir}/main/blk_monitor.c"
+healthinfo_main_kconfig="${healthinfo_dir}/main/Kconfig"
+healthinfo_main_makefile="${healthinfo_dir}/main/Makefile"
 athena_memory_c="${healthinfo_dir}/mm/allocator_usage.c"
 athena_memory_kconfig="${healthinfo_dir}/mm/Kconfig"
 athena_memory_makefile="${healthinfo_dir}/mm/Makefile"
@@ -1304,6 +1308,35 @@ check uxio-first-inflight-ux-output grep -Fq '"ux:%d\n"' block/blk-sysfs.c
 check uxio-first-abi-document \
   test -f Documentation/ABI/testing/sysfs-block-queue-oplus-uxio-first
 
+# Wave 18 restores the donor-enabled OHM block request latency monitor. The
+# only adaptation is using the 4.14 request clock for all four time deltas.
+check blk-monitor-config grep -Fxq 'CONFIG_OPLUS_BLK_MONITOR=y' "${config}"
+check blk-monitor-source test -f "${blk_monitor_c}"
+check blk-monitor-kconfig grep -Fq 'config OPLUS_BLK_MONITOR' "${healthinfo_main_kconfig}"
+check blk-monitor-kbuild \
+  grep -Fq 'obj-$(CONFIG_OPLUS_BLK_MONITOR) +=  blk_monitor.o' "${healthinfo_main_makefile}"
+check blk-monitor-type grep -Fq 'struct blk_wait_para {' "${healthinfo_main_h}"
+check blk-monitor-control-bit grep -Fq 'OHM_CTRL_BLKMON' "${healthinfo_main_c}"
+check blk-monitor-event-name grep -Fq '"blk_monitor"' "${healthinfo_main_c}"
+for node in blk_q2c_wait blk_q2i_wait blk_i2d_wait blk_d2c_wait; do
+  check "blk-monitor-node-${node}" grep -Fq "proc_create(\"${node}\"" "${healthinfo_main_c}"
+done
+for tracepoint in block_rq_insert block_rq_issue block_rq_complete; do
+  check "blk-monitor-trace-${tracepoint}" \
+    grep -Fq "register_trace_${tracepoint}" "${blk_monitor_c}"
+done
+for parameter in q2c_wait_high_ms q2c_wait_low_ms q2i_wait_high_ms \
+  q2i_wait_low_ms i2d_wait_high_ms i2d_wait_low_ms d2c_wait_high_ms \
+  d2c_wait_low_ms; do
+  check "blk-monitor-param-${parameter}" \
+    grep -Fq "module_param_named(${parameter}" "${blk_monitor_c}"
+done
+check blk-monitor-clock-adapter grep -Fq 'u64 now = sched_clock();' "${blk_monitor_c}"
+check blk-monitor-default-active \
+  grep -Fq 'OHM_CTRL_IONMON | OHM_CTRL_SCHEDTOTAL | OHM_CTRL_BLKMON' "${healthinfo_main_c}"
+check blk-monitor-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-healthinfo-blk-monitor
+
 # Wave 12 imports the complete locking strategy selected by the Android 14
 # OnePlus 9R Kona configuration.  Its mutex/rwsem strategy and OSQ timeout
 # hooks are active.  The donor's newer futex hook call sites remain inactive
@@ -1404,5 +1437,6 @@ oswap2_hybridswap=donor-core-swapd-memcg-extent-io
 midas_ufs_telemetry=donor-transmission-status-live-accounting
 ddr_residency=donor-aop-table-firmware-gated
 uxio_first=donor-ux-fg-bg-priority-and-wbt-control
+blk_monitor=donor-q2i-i2d-q2c-d2c-latency-telemetry
 locking_strategy=active-donor-mutex-rwsem-osq-monitor-futex-control-abi
 EOF

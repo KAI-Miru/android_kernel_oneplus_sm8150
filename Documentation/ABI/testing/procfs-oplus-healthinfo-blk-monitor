@@ -1,0 +1,19 @@
+What:		/proc/oplus_healthinfo/blk_q2c_wait
+What:		/proc/oplus_healthinfo/blk_q2i_wait
+What:		/proc/oplus_healthinfo/blk_i2d_wait
+What:		/proc/oplus_healthinfo/blk_d2c_wait
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+	Read-only OnePlus Health Monitor request-latency counters for queue to
+	completion, queue to insertion, insertion to dispatch, and dispatch to
+	completion. Each node also reports the donor's eight most recent long
+	wait records. Monitoring is enabled by the OHM control mask, matching
+	the Android 14 OnePlus 9R production configuration.
+
+What:		/sys/module/blk_monitor/parameters/{q2c,q2i,i2d,d2c}_wait_{high,low}_ms
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+	Root-writable high and low latency thresholds for each block request
+	interval. Donor defaults are 500 ms and 200 ms respectively.
