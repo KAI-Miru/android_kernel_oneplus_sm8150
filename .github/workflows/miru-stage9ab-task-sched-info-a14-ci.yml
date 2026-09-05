@@ -545,8 +545,8 @@ jobs:
       SOURCE_SHA: 74b5c14bf3cf97d0460e8db68233beb6f9be5c77
       PARENT_SHA: 298216c298d907f2b60b80066a89e52d4b54813e
       MODULES_REPAIR_BRANCH: miru-h40-wave12-locking-strategy-abi
-      MODULES_REPAIR_SHA: 44a3e3dd82edf3aafce9b1546561fee94bd691b4
-      MODULES_PARENT_SHA: 4a28f428ac091b79d485719462b3a9500216c9c4
+      MODULES_REPAIR_SHA: aaa36b94b5b3e8b22090a41ddcb236e3e762c1c1
+      MODULES_PARENT_SHA: 44a3e3dd82edf3aafce9b1546561fee94bd691b4
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave12-locking-strategy-abi-ci1+
       PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave12-locking-strategy-abi-ci1
 
