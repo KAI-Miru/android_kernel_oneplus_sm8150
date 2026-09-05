@@ -540,8 +540,8 @@ jobs:
       MODULES_REPAIR_BRANCH: miru-h40-stage9l-gameopt-complete-passive-controls
       MODULES_REPAIR_SHA: 3d5854a018a6726a55cb90cba94bd8d69cb9be36
       MODULES_PARENT_SHA: 01cc0ba0e82796397269a9c165641d9bce089f95
-      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9l-gameopt-complete-passive-controls-ci1+
-      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage9l-gameopt-complete-passive-controls-ci1
+      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9l-gameopt-ci1+
+      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage9l-gameopt-ci1
 
     steps:
       - name: Checkout Stage 9L GameOpt-complete passive-controls source
@@ -915,16 +915,16 @@ jobs:
               'printf \'%s\\n\' "${EXPECTED_RELEASE}" > "${ARTIFACT_DIR}/KERNEL-RELEASE.txt"',
               'printf \'%s\\n\' "${SOURCE_SHA}" > "${ARTIFACT_DIR}/SOURCE-SHA.txt"',
               'printf \'%s\\n\' "${MODULES_REPAIR_SHA}" > "${ARTIFACT_DIR}/VENDOR-SHA.txt"',
-              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/STAGE9K-GAMEOPT-CPUFREQ-LIMITS-IMAGE-SHA256.txt"',
+              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/STAGE9L-GAMEOPT-COMPLETE-IMAGE-SHA256.txt"',
               'echo "Stage 9L GameOpt-complete passive-controls kernel build: PASS"',
           ])
 
           replacements = {
               'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=3d5854a018a6726a55cb90cba94bd8d69cb9be36',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Stage 9L GameOpt-complete passive-controls stable build ==',
-              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage9l-gameopt-complete-passive-controls-ci1',
-              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage9l-gameopt-complete-passive-controls-ci1"',
-              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-stage9l-gameopt-complete-passive-controls-ci1+' || true)\"",
+              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage9l-gameopt-ci1',
+              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage9l-gameopt-ci1"',
+              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-stage9l-gameopt-ci1+' || true)\"",
               'echo "Clean kernel build and output validation: PASS"': final,
           }
           for old, new in replacements.items():
@@ -937,7 +937,7 @@ jobs:
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
           grep -Fq 'VENDOR_SHA=3d5854a018a6726a55cb90cba94bd8d69cb9be36' build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage9l-gameopt-complete-passive-controls-ci1' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage9l-gameopt-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
       - name: Build Stage 9L GameOpt-complete passive-controls kernel with stable builder
         shell: bash
