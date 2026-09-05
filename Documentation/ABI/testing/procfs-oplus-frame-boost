@@ -1,0 +1,44 @@
+What:		/proc/oplus_frame_boost/ctrl
+What:		/proc/oplus_frame_boost/sys_ctrl
+What:		/proc/oplus_frame_boost/stune_boost
+What:		/proc/oplus_frame_boost/info
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		OnePlus Frame Boost 3.0 (OFB) control, system-control,
+		tuning, and frame-group reporting interfaces.  The ioctl ABI uses
+		the donor 9R OFB command layouts and manages UI, render,
+		SurfaceFlinger, RenderEngine, and game frame groups.
+
+What:		/proc/sys/kernel/frame_boost_enabled
+What:		/proc/sys/kernel/frame_boost_debug
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Exact OnePlus 9R Android 14 Frame Boost sysctl ABI.  Frame Boost is
+		enabled by default, matching the donor.  The debug switch defaults
+		to zero.
+
+What:		/proc/sys/fbg/frame_boost_safe_mode
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		H.40 emergency rollback extension.  It defaults to zero, so it does
+		not alter donor behavior.  Writing one suppresses Frame Boost policy
+		while leaving its control nodes available for recovery.
+
+What:		/proc/oplus_cpu/ua_ctrl
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		OnePlus UA control ioctl.  It accepts the Android 14 9R UA status
+		command and reports the previous and current Frame Boost utilization
+		scales through the donor ua_info_data layout.
+
+What:		/proc/oplus_touch_boost/touch_info
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only current touchpanel BTN_TOUCH state supplied by the 9R UA
+		control package.  The value is one while pressed and zero after
+		release.

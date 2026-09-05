@@ -36,6 +36,9 @@ frame_boost_c="${frame_boost_dir}/frame_boost.c"
 frame_group_c="${frame_boost_dir}/frame_group.c"
 frame_ioctl_c="${frame_boost_dir}/frame_ioctl.c"
 frame_sysctl_c="${frame_boost_dir}/frame_sysctl.c"
+ua_ioctl_common_c="${frame_boost_dir}/ua_ioctl_common.c"
+ua_ioctl_common_h="${frame_boost_dir}/ua_ioctl_common.h"
+touch_ioctl_c="${frame_boost_dir}/touch_ioctl.c"
 task_cpustats_c="fs/proc/task_cpustats.c"
 task_cpustats_h="${vendor_root}/oplus/kernel/oplus_performance/task_cpustats/task_cpustats.h"
 task_sched_info_c="fs/proc/task_sched_info.c"
@@ -81,6 +84,9 @@ check frame-boost-source test -f "${frame_boost_c}"
 check frame-boost-group-source test -f "${frame_group_c}"
 check frame-boost-ioctl-source test -f "${frame_ioctl_c}"
 check frame-boost-sysctl-source test -f "${frame_sysctl_c}"
+check frame-boost-ua-source test -f "${ua_ioctl_common_c}"
+check frame-boost-ua-header test -f "${ua_ioctl_common_h}"
+check frame-boost-touch-source test -f "${touch_ioctl_c}"
 
 # Native 4.14 resource procfs: this must remain core infrastructure, not an
 # Oplus compatibility replacement.
@@ -884,7 +890,8 @@ check frame-boost-binder-wait \
 check frame-boost-binder-sync \
   grep -Fq 'fbg_sync_txn_recvd_hook(NULL, thread->task, t_from->task);' drivers/android/binder.c
 
-for object in frame_info.o cluster_boost.o frame_boost.o frame_debug.o frame_group.o frame_ioctl.o frame_sysctl.o; do
+for object in frame_info.o cluster_boost.o frame_boost.o frame_debug.o \
+  frame_group.o frame_ioctl.o frame_sysctl.o ua_ioctl_common.o touch_ioctl.o; do
   check "frame-boost-object-${object}" \
     grep -Fq "obj-y += ${object}" "${frame_boost_dir}/Makefile"
 done
@@ -893,6 +900,8 @@ check frame-boost-init-sysctl \
   grep -Fq 'fbg_sysctl_init();' "${frame_boost_c}"
 check frame-boost-init-ioctl \
   grep -Fq 'frame_ioctl_init();' "${frame_boost_c}"
+check frame-boost-init-ua \
+  grep -Fq 'ret = ua_ioctl_init();' "${frame_boost_c}"
 check frame-boost-ioctl-abi-header \
   grep -Fq '#include "frame_ioctl.h"' "${frame_ioctl_c}"
 check frame-boost-ioctl-uaccess-header \
@@ -903,6 +912,8 @@ check frame-boost-proc-ctrl \
   grep -Fq 'proc_create("ctrl", S_IRWXUGO' "${frame_ioctl_c}"
 check frame-boost-proc-sysctrl \
   grep -Fq 'proc_create("sys_ctrl", (S_IRWXU|S_IRWXG)' "${frame_ioctl_c}"
+check frame-boost-proc-stune \
+  grep -Fq 'proc_create("stune_boost", (S_IRUGO|S_IWUSR|S_IWGRP)' "${frame_ioctl_c}"
 check frame-boost-proc-info \
   grep -Fq 'proc_create("info", S_IRUGO' "${frame_ioctl_c}"
 check frame-boost-cluster-ioctl-decode \
@@ -919,6 +930,42 @@ check frame-boost-sysctl-enabled \
   grep -Fq '.procname	= "frame_boost_enabled"' "${frame_sysctl_c}"
 check frame-boost-sysctl-debug \
   grep -Fq '.procname	= "frame_boost_debug"' "${frame_sysctl_c}"
+check frame-boost-donor-default-enabled \
+  grep -Fq 'sysctl_frame_boost_enable = 1;' "${frame_sysctl_c}"
+check frame-boost-safe-mode-default-clear \
+  grep -Fq 'sysctl_frame_boost_safe_mode = 0;' "${frame_sysctl_c}"
+check frame-boost-kernel-sysctl-enabled \
+  grep -Fq '.procname	= "frame_boost_enabled"' kernel/sysctl.c
+check frame-boost-kernel-sysctl-enabled-storage \
+  grep -Fq '.data		= &sysctl_frame_boost_enable' kernel/sysctl.c
+check frame-boost-kernel-sysctl-debug \
+  grep -Fq '.procname	= "frame_boost_debug"' kernel/sysctl.c
+check frame-boost-kernel-sysctl-debug-storage \
+  grep -Fq '.data		= &sysctl_frame_boost_debug' kernel/sysctl.c
+check frame-boost-kernel-sysctl-slide \
+  grep -Fq '.procname	= "slide_boost_enabled"' kernel/sysctl.c
+check frame-boost-kernel-sysctl-input \
+  grep -Fq '.procname	= "input_boost_enabled"' kernel/sysctl.c
+check frame-boost-ua-parent \
+  grep -Fq '#define UA_PROC_NODE "oplus_cpu"' "${ua_ioctl_common_c}"
+check frame-boost-ua-control-node \
+  grep -Fq 'proc_create("ua_ctrl", UA_CTRL_MODE' "${ua_ioctl_common_c}"
+check frame-boost-ua-control-mode \
+  grep -Fq '#define UA_CTRL_MODE 0777' "${ua_ioctl_common_c}"
+check frame-boost-ua-donor-magic \
+  grep -Fq "#define CPU_CTRL_MAGIC 'o'" "${ua_ioctl_common_h}"
+check frame-boost-ua-prev-util \
+  grep -Fq 'fbg_get_prev_util(&info.frame_prev_util_scale);' "${ua_ioctl_common_c}"
+check frame-boost-ua-current-util \
+  grep -Fq 'fbg_get_curr_util(&info.frame_curr_util_scale);' "${ua_ioctl_common_c}"
+check frame-boost-touch-parent \
+  grep -Fq '#define TOUCHBOOST_PROC_NODE "oplus_touch_boost"' "${touch_ioctl_c}"
+check frame-boost-touch-info \
+  grep -Fq 'proc_create("touch_info", 0444' "${touch_ioctl_c}"
+check frame-boost-touch-handler \
+  grep -Fq 'input_register_handler(&touchboost_input_handler);' "${touch_ioctl_c}"
+check frame-boost-parity-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-frame-boost
 check frame-boost-shared-boost-header \
   grep -Fq '#include <linux/sched.h>' "${frame_sysctl_c}"
 check frame-boost-shared-input-owner \

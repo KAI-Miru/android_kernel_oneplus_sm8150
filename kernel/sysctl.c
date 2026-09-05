@@ -1611,6 +1611,22 @@ static struct ctl_table kern_table[] = {
 	},
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+	{
+		.procname	= "frame_boost_enabled",
+		.data		= &sysctl_frame_boost_enable,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0666,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "frame_boost_debug",
+		.data		= &sysctl_frame_boost_debug,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0666,
+		.proc_handler	= proc_dointvec,
+	},
+#endif /* CONFIG_OPLUS_FEATURE_FRAME_BOOST */
 	{
 		.procname	= "slide_boost_enabled",
 		.data		= &sysctl_slide_boost_enabled,

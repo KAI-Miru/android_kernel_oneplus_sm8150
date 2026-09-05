@@ -134,6 +134,11 @@ extern int sysctl_sched_assist_input_boost_ctrl_handler(struct ctl_table *table,
 	void __user *buffer, size_t *lenp, loff_t *ppos);
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
 
+#ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
+extern unsigned int sysctl_frame_boost_enable;
+extern unsigned int sysctl_frame_boost_debug;
+#endif
+
 #ifdef CONFIG_SCHED_WALT
 extern int sched_little_cluster_coloc_fmin_khz_handler(struct ctl_table *table,
 					int write, void __user *buffer,
