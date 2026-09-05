@@ -535,11 +535,11 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-stage9l-gameopt-complete-passive-controls
-      SOURCE_SHA: f242570c498b2a4a60adf2e4d752e1305b6031ae
-      PARENT_SHA: 91bfe7eb3d07e01eca4e123136324aa516194931
+      SOURCE_SHA: f8c0c8825bc38e0a6c9bfc0deed8f10439a9197f
+      PARENT_SHA: f242570c498b2a4a60adf2e4d752e1305b6031ae
       MODULES_REPAIR_BRANCH: miru-h40-stage9l-gameopt-complete-passive-controls
-      MODULES_REPAIR_SHA: 3d5854a018a6726a55cb90cba94bd8d69cb9be36
-      MODULES_PARENT_SHA: 01cc0ba0e82796397269a9c165641d9bce089f95
+      MODULES_REPAIR_SHA: 288cdf66ac65041fd709ae5f1581cc1c208d03fb
+      MODULES_PARENT_SHA: 3d5854a018a6726a55cb90cba94bd8d69cb9be36
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9l-gameopt-ci1+
       PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage9l-gameopt-ci1
 
@@ -920,7 +920,7 @@ jobs:
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=3d5854a018a6726a55cb90cba94bd8d69cb9be36',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=288cdf66ac65041fd709ae5f1581cc1c208d03fb',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Stage 9L GameOpt-complete passive-controls stable build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage9l-gameopt-ci1',
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage9l-gameopt-ci1"',
@@ -936,7 +936,7 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=3d5854a018a6726a55cb90cba94bd8d69cb9be36' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=288cdf66ac65041fd709ae5f1581cc1c208d03fb' build-stage9b-task-sched-info-a14-stable.sh
           grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage9l-gameopt-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
       - name: Build Stage 9L GameOpt-complete passive-controls kernel with stable builder
