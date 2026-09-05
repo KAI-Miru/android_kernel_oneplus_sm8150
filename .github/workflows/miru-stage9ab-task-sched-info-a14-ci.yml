@@ -1121,7 +1121,7 @@ jobs:
           hybridswap_main_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/block/zram/hybridswap/hybridswap_main.o' -print -quit)"
           hybridswap_swapd_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/block/zram/hybridswap/hybridswap_swapd.o' -print -quit)"
           hybridswap_core_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/block/zram/hybridswap/hybridswap_core.o' -print -quit)"
-          ufshcd_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/scsi/ufs/ufshcd-core.o' -print -quit)"
+          ufshcd_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/scsi/oufs/ufshcd.o' -print -quit)"
           ddr_stats_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/soc/qcom/ddr_stats.o' -print -quit)"
           test -s "${proactive_compact_obj}"
           test -s "${athena_memory_obj}"
