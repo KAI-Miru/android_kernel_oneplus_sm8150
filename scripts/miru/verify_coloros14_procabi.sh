@@ -49,6 +49,11 @@ task_sched_info_c="fs/proc/task_sched_info.c"
 task_sched_info_h="include/linux/task_sched_info.h"
 proactive_compact_c="fs/proc/oplus_proactive_compact.c"
 storage_log_c="fs/proc/oplus_storage_log.c"
+healthinfo_dir="${vendor_root}/oplus/kernel/oplus_performance/oplus_healthinfo"
+healthinfo_main_c="${healthinfo_dir}/main/oplus_healthinfo.c"
+athena_memory_c="${healthinfo_dir}/mm/allocator_usage.c"
+athena_memory_kconfig="${healthinfo_dir}/mm/Kconfig"
+athena_memory_makefile="${healthinfo_dir}/mm/Makefile"
 game_opt_dir="drivers/soc/oplus/game_opt"
 game_opt_ctrl_c="${game_opt_dir}/game_ctrl.c"
 game_opt_cpu_load_c="${game_opt_dir}/cpu_load.c"
@@ -1056,6 +1061,44 @@ check frame-boost-h40-group-idle-adapter \
 check frame-boost-h40-group-idle-api \
   grep -Fq 'return idle_cpu(cpu);' "${frame_group_c}"
 
+# Athena and Performance AIDL need real allocator totals and writable reclaim
+# state.  Keep the production debug trackers disabled: these nodes sample the
+# existing allocators only when userspace reads them.
+check athena-memory-source test -f "${athena_memory_c}"
+check athena-memory-main-source test -f "${healthinfo_main_c}"
+check athena-memory-kconfig-source test -f "${athena_memory_kconfig}"
+check athena-memory-kbuild-source test -f "${athena_memory_makefile}"
+check athena-memory-config-enabled \
+  grep -Fxq 'CONFIG_OPLUS_ATHENA_MEMORY_ABI=y' "${config}"
+check athena-memory-kconfig \
+  grep -Fq 'config OPLUS_ATHENA_MEMORY_ABI' "${athena_memory_kconfig}"
+check athena-memory-kbuild \
+  grep -Fq 'obj-$(CONFIG_OPLUS_ATHENA_MEMORY_ABI) += allocator_usage.o' "${athena_memory_makefile}"
+check athena-memory-healthinfo-init \
+  grep -Fq 'create_athena_memory_abi(oplus_healthinfo);' "${healthinfo_main_c}"
+check athena-memory-kmalloc-node \
+  grep -Fq 'proc_create("kmalloc_used", 0444' "${athena_memory_c}"
+check athena-memory-vmalloc-node \
+  grep -Fq 'proc_create("vmalloc_used", 0444' "${athena_memory_c}"
+check athena-memory-swappiness-node \
+  grep -Fq 'proc_create("swappiness_para", 0666' "${athena_memory_c}"
+check athena-memory-live-kmalloc-accounting \
+  grep -Fq 'get_slabinfo(cache, &info);' "${athena_memory_c}"
+check athena-memory-memcg-accounting \
+  grep -Fq 'for_each_memcg_cache(child, cache)' "${athena_memory_c}"
+check athena-memory-live-vmalloc-accounting \
+  grep -Fq 'vmalloc_nr_pages() << 2' "${athena_memory_c}"
+check athena-memory-native-kswapd-binding \
+  grep -Fq '"swapd_swappiness=", &vm_swappiness' "${athena_memory_c}"
+check athena-memory-native-direct-binding \
+  grep -Fq '&direct_vm_swappiness' "${athena_memory_c}"
+check_absent athena-memory-no-debug-cache-replacement \
+  grep -Fq 'kmalloc_debug_caches' "${athena_memory_c}"
+check_absent athena-memory-no-stack-tracking \
+  grep -Fq 'stack_trace' "${athena_memory_c}"
+check athena-memory-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-athena-memory
+
 cat <<EOF
 result=PASS
 proc_iomem=core-4.14
@@ -1081,4 +1124,5 @@ frame_boost_control_plane=task-group-walt-ioctl-sysctl
 eas_opt=active-4.14-placement-capacity-schedutil-iowait
 proactive_compact_parameters=bounded-runtime-tunables
 sched_assist_boost_kill=donor-background-exit-acceleration
+athena_memory_abi=read-triggered-allocator-totals-native-reclaim-controls
 EOF

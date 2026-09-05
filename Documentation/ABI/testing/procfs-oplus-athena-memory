@@ -1,0 +1,23 @@
+What:		/proc/oplus_healthinfo/kmalloc_used
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only OnePlus allocator summary consumed by Athena and the
+		Performance AIDL service.  Each line contains a kmalloc object size
+		and the live normal/reclaimable slab allocation in KiB.
+
+What:		/proc/oplus_healthinfo/vmalloc_used
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only total number of KiB currently tracked by vmalloc.
+
+What:		/proc/oplus_healthinfo/swappiness_para
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		OnePlus reclaim-policy tuple used by Athena and Performance AIDL.
+		Reads report vm_swappiness, direct_swappiness, and
+		swapd_swappiness.  Writes accept one matching key with a value from
+		0 through 200.  Until the separate HybridSwap subsystem is ported,
+		swapd_swappiness controls H.40's native kswapd policy.
