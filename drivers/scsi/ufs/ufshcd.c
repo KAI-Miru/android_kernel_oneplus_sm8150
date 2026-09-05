@@ -6658,11 +6658,6 @@ static irqreturn_t ufshcd_uic_cmd_compl(struct ufs_hba *hba, u32 intr_status)
 	return retval;
 }
 
-/**
- * __ufshcd_transfer_req_compl - handle SCSI and query command completion
- * @hba: per adapter instance
- * @completed_reqs: requests to complete
- */
 #ifdef OPLUS_FEATURE_MIDAS
 static void ufshcd_lrb_scsicmd_time_statistics(struct ufs_hba *hba,
 		struct ufshcd_lrb *lrbp)
@@ -6715,6 +6710,11 @@ static void ufshcd_lrb_devcmd_time_statistics(struct ufs_hba *hba,
 }
 #endif
 
+/**
+ * __ufshcd_transfer_req_compl - handle SCSI and query command completion
+ * @hba: per adapter instance
+ * @completed_reqs: requests to complete
+ */
 static void __ufshcd_transfer_req_compl(struct ufs_hba *hba,
 					unsigned long completed_reqs)
 {

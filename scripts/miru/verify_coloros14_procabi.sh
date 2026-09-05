@@ -77,6 +77,8 @@ hybridswap_core_c="${hybridswap_dir}/hybridswap_core.c"
 zram_c="drivers/block/zram/zram_drv.c"
 ufs_c="drivers/scsi/ufs/ufshcd.c"
 ufs_h="drivers/scsi/ufs/ufshcd.h"
+runtime_ufs_c="${vendor_root}/oplus/kernel_4.14/ufs/ufshcd.c"
+runtime_ufs_h="${vendor_root}/oplus/kernel_4.14/ufs/ufshcd.h"
 ddr_stats_c="drivers/soc/qcom/ddr_stats.c"
 
 check() {
@@ -1211,16 +1213,26 @@ check hybridswap-abi-document \
 check midas-feature-macro grep -Fq -- '-DOPLUS_FEATURE_MIDAS' Makefile
 check midas-ufs-source test -f "${ufs_c}"
 check midas-ufs-header test -f "${ufs_h}"
+check midas-runtime-ufs-source test -f "${runtime_ufs_c}"
+check midas-runtime-ufs-header test -f "${runtime_ufs_h}"
 check midas-ufs-node-name grep -Fq '"ufs_transmission_status"' "${ufs_c}"
+check midas-runtime-ufs-node-name \
+  grep -Fq '"ufs_transmission_status"' "${runtime_ufs_c}"
 check midas-ufs-node-mode grep -Fq 'attr->attr.mode = 0644;' "${ufs_c}"
 check midas-ufs-enabled-default \
   grep -Fq 'ufs_transmission_status.transmission_status_enable = 1;' "${ufs_c}"
 check midas-ufs-send-accounting grep -Fq 'scsi_send_count++;' "${ufs_c}"
+check midas-runtime-ufs-send-accounting \
+  grep -Fq 'scsi_send_count++;' "${runtime_ufs_c}"
 check midas-ufs-completion-accounting \
   grep -Fq 'ufshcd_lrb_scsicmd_time_statistics(hba, lrbp);' "${ufs_c}"
+check midas-runtime-ufs-completion-accounting \
+  grep -Fq 'ufshcd_lrb_scsicmd_time_statistics(hba, lrbp);' "${runtime_ufs_c}"
 check midas-ufs-device-accounting \
   grep -Fq 'ufshcd_lrb_devcmd_time_statistics(hba, lrbp);' "${ufs_c}"
 check midas-ufs-state grep -Fq 'struct ufs_transmission_status {' "${ufs_h}"
+check midas-runtime-ufs-state \
+  grep -Fq 'struct ufs_transmission_status {' "${runtime_ufs_h}"
 check midas-ufs-abi-document \
   test -f Documentation/ABI/testing/sysfs-devices-ufs-transmission-status
 
