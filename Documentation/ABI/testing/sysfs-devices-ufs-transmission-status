@@ -1,0 +1,9 @@
+What:		/sys/devices/platform/soc/1d84000.ufshc/ufs_transmission_status
+Date:		September 2026
+Contact:	OnePlus kernel team
+Description:
+		Read/write UFS transmission telemetry used by the OnePlus Midas
+		performance stack. Reading reports enable state, sector totals,
+		active time per low/high UFS gear, and SCSI/device-command counts.
+		Writing zero disables collection and clears all counters; writing
+		a non-zero value enables collection.

@@ -768,6 +768,13 @@ config QTI_RPM_STATS_LOG
 	  the low power modes that RPM enters. The drivers outputs the message
 	  via a debugfs node.
 
+config QTI_DDR_STATS_LOG
+	bool "Qualcomm Technologies DDR Stats Driver"
+	depends on QTI_RPMH_API
+	help
+	  Read DDR low-power and frequency-residency statistics exported by
+	  the AOP firmware and expose them through /sys/power/ddr/residency.
+
 config MSM_CDSP_LOADER
 	tristate "CDSP loader support"
 	help

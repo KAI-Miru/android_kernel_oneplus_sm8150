@@ -453,6 +453,9 @@ KBUILD_CPPFLAGS += -DOPLUS_FEATURE_SCHED_ASSIST
 
 # Stage 8: expose the ColorOS 14 task CPU accounting control plane.
 KBUILD_CPPFLAGS += -DOPLUS_FEATURE_TASK_CPUSTATS
+
+# Wave 16: expose the donor-enabled UFS transmission telemetry used by Midas.
+KBUILD_CPPFLAGS += -DOPLUS_FEATURE_MIDAS
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS_MODULE  := -DMODULE

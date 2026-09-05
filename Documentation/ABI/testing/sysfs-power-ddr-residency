@@ -1,0 +1,7 @@
+What:		/sys/power/ddr/residency
+Date:		September 2026
+Contact:	Qualcomm Technologies, Inc.
+Description:
+		Read-only DDR low-power-mode and frequency-residency statistics
+		exported by the AOP firmware. The node is registered only when the
+		firmware publishes a valid shared-memory pointer for the table.

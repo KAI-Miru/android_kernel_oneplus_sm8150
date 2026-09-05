@@ -75,6 +75,9 @@ hybridswap_main_c="${hybridswap_dir}/hybridswap_main.c"
 hybridswap_swapd_c="${hybridswap_dir}/hybridswap_swapd.c"
 hybridswap_core_c="${hybridswap_dir}/hybridswap_core.c"
 zram_c="drivers/block/zram/zram_drv.c"
+ufs_c="drivers/scsi/ufs/ufshcd.c"
+ufs_h="drivers/scsi/ufs/ufshcd.h"
+ddr_stats_c="drivers/soc/qcom/ddr_stats.c"
 
 check() {
   local label="$1"
@@ -1202,6 +1205,40 @@ check hybridswap-swapd-swappiness \
 check hybridswap-abi-document \
   test -f Documentation/ABI/testing/sysfs-block-zram-hybridswap
 
+# Wave 16 carries the remaining donor-enabled Midas hardware telemetry.  UFS
+# accounting is native to the H.40 host driver; DDR residency remains gated by
+# the AOP firmware's shared-memory pointer and therefore fails closed.
+check midas-feature-macro grep -Fq -- '-DOPLUS_FEATURE_MIDAS' Makefile
+check midas-ufs-source test -f "${ufs_c}"
+check midas-ufs-header test -f "${ufs_h}"
+check midas-ufs-node-name grep -Fq '"ufs_transmission_status"' "${ufs_c}"
+check midas-ufs-node-mode grep -Fq 'attr->attr.mode = 0644;' "${ufs_c}"
+check midas-ufs-enabled-default \
+  grep -Fq 'ufs_transmission_status.transmission_status_enable = 1;' "${ufs_c}"
+check midas-ufs-send-accounting grep -Fq 'scsi_send_count++;' "${ufs_c}"
+check midas-ufs-completion-accounting \
+  grep -Fq 'ufshcd_lrb_scsicmd_time_statistics(hba, lrbp);' "${ufs_c}"
+check midas-ufs-device-accounting \
+  grep -Fq 'ufshcd_lrb_devcmd_time_statistics(hba, lrbp);' "${ufs_c}"
+check midas-ufs-state grep -Fq 'struct ufs_transmission_status {' "${ufs_h}"
+check midas-ufs-abi-document \
+  test -f Documentation/ABI/testing/sysfs-devices-ufs-transmission-status
+
+check ddr-stats-source test -f "${ddr_stats_c}"
+check ddr-stats-config grep -Fxq 'CONFIG_QTI_DDR_STATS_LOG=y' "${config}"
+check ddr-stats-kconfig grep -Fq 'config QTI_DDR_STATS_LOG' drivers/soc/qcom/Kconfig
+check ddr-stats-kbuild \
+  grep -Fq 'obj-$(CONFIG_QTI_DDR_STATS_LOG) += ddr_stats.o' drivers/soc/qcom/Makefile
+check ddr-stats-node-name grep -Fq 'attr->ka.attr.name = "residency";' "${ddr_stats_c}"
+check ddr-stats-firmware-guard \
+  grep -Fq 'DDR stats are not exported by this AOP firmware' "${ddr_stats_c}"
+for project in 18821 18857 18865 19801 19863; do
+  check "ddr-stats-dts-${project}" \
+    grep -Fq 'qcom,ddr-stats@c3f0000' "arch/arm64/boot/dts/${project}/sm8150-pm.dtsi"
+done
+check ddr-stats-abi-document \
+  test -f Documentation/ABI/testing/sysfs-power-ddr-residency
+
 # Wave 12 imports the complete locking strategy selected by the Android 14
 # OnePlus 9R Kona configuration.  Its mutex/rwsem strategy and OSQ timeout
 # hooks are active.  The donor's newer futex hook call sites remain inactive
@@ -1299,5 +1336,7 @@ proactive_compact_parameters=bounded-runtime-tunables
 sched_assist_boost_kill=donor-background-exit-acceleration
 athena_memory_abi=read-triggered-allocator-totals-native-reclaim-controls
 oswap2_hybridswap=donor-core-swapd-memcg-extent-io
+midas_ufs_telemetry=donor-transmission-status-live-accounting
+ddr_residency=donor-aop-table-firmware-gated
 locking_strategy=active-donor-mutex-rwsem-osq-monitor-futex-control-abi
 EOF
