@@ -17,9 +17,9 @@
 #include "blk-mq-debugfs.h"
 #include "blk-wbt.h"
 
-#if defined(OPLUS_FEATURE_FG_IO_OPT) && defined(CONFIG_OPLUS_FG_IO_OPT)
-#include "oplus_foreground_io_opt/oplus_foreground_io_opt.h"
-#endif /*OPLUS_FEATURE_FG_IO_OPT*/
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_UXIO_FIRST)
+#include "oplus_foreground_io_opt/oplus_uxio_first_opt.h"
+#endif
 struct queue_sysfs_entry {
 	struct attribute attr;
 	ssize_t (*show)(struct request_queue *, char *);
@@ -399,9 +399,19 @@ static ssize_t queue_poll_delay_store(struct request_queue *q, const char *page,
 	return count;
 }
 
-#ifdef OPLUS_FEATURE_HEALTHINFO
-// Add for ioqueue
-#ifdef CONFIG_OPLUS_HEALTHINFO
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_UXIO_FIRST)
+static ssize_t queue_show_ohm_inflight(struct request_queue *q, char *page)
+{
+	ssize_t ret;
+
+	ret = sprintf(page, "async:%d\n", q->in_flight[0]);
+	ret += sprintf(page + ret, "sync:%d\n", q->in_flight[1]);
+	ret += sprintf(page + ret, "ux:%d\n", q->in_flight[2]);
+	ret += sprintf(page + ret, "fg:%d\n", q->in_flight[3]);
+	ret += sprintf(page + ret, "bg:%d\n", q->in_flight[4]);
+	return ret;
+}
+#elif defined(OPLUS_FEATURE_HEALTHINFO) && defined(CONFIG_OPLUS_HEALTHINFO)
 static ssize_t queue_show_ohm_inflight(struct request_queue *q, char *page)
 {
 	ssize_t ret;
@@ -413,7 +423,41 @@ static ssize_t queue_show_ohm_inflight(struct request_queue *q, char *page)
 	return ret;
 }
 #endif
-#endif /* OPLUS_FEATURE_HEALTHINFO */
+
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_UXIO_FIRST)
+static ssize_t queue_bg_max_depth_show(struct request_queue *q, char *page)
+{
+	if (!q->queue_tags)
+		return -EINVAL;
+
+	return sprintf(page, "%d\n", q->queue_tags->bg_max_depth);
+}
+
+static ssize_t queue_bg_max_depth_store(struct request_queue *q,
+					const char *page, size_t count)
+{
+	unsigned long val;
+	int ret;
+
+	if (!q->queue_tags)
+		return -EINVAL;
+
+	ret = queue_var_store(&val, page, count);
+	if (ret < 0)
+		return ret;
+	if (val > q->queue_tags->max_depth)
+		return -EINVAL;
+
+	q->queue_tags->bg_max_depth = val;
+	return count;
+}
+
+static struct queue_sysfs_entry queue_bg_max_depth_entry = {
+	.attr = {.name = "bg_max_depth", .mode = S_IRUGO | S_IWUSR },
+	.show = queue_bg_max_depth_show,
+	.store = queue_bg_max_depth_store,
+};
+#endif
 
 static ssize_t queue_poll_show(struct request_queue *q, char *page)
 {
@@ -657,14 +701,13 @@ static struct queue_sysfs_entry queue_rq_affinity_entry = {
 	.store = queue_rq_affinity_store,
 };
 
-#ifdef OPLUS_FEATURE_HEALTHINFO
-#ifdef CONFIG_OPLUS_HEALTHINFO
+#if (defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_UXIO_FIRST)) || \
+	(defined(OPLUS_FEATURE_HEALTHINFO) && defined(CONFIG_OPLUS_HEALTHINFO))
 static struct queue_sysfs_entry queue_ohm_inflight_entry = {
 	.attr = {.name = "ohm_inflight", .mode = S_IRUGO },
 	.show = queue_show_ohm_inflight,
 };
 #endif
-#endif /* OPLUS_FEATURE_HEALTHINFO */
 
 static struct queue_sysfs_entry queue_iostats_entry = {
 	.attr = {.name = "iostats", .mode = S_IRUGO | S_IWUSR },
@@ -715,26 +758,9 @@ static struct queue_sysfs_entry throtl_sample_time_entry = {
 };
 #endif
 
-#if defined(OPLUS_FEATURE_FG_IO_OPT) && defined(CONFIG_OPLUS_FG_IO_OPT)
-static struct queue_sysfs_entry queue_fgio_entry = {
-	.attr = {.name = "fg_io_cnt_max", .mode = S_IRUGO | S_IWUSR },
-	.show = queue_fg_count_max_show,
-	.store = queue_fg_count_max_store,
-};
-static struct queue_sysfs_entry queue_bothio_entry = {
-	.attr = {.name = "both_io_cnt_max", .mode = S_IRUGO | S_IWUSR },
-	.show = queue_both_count_max_show,
-	.store = queue_both_count_max_store,
-};
-#endif /*OPLUS_FEATURE_FG_IO_OPT*/
-
 static struct attribute *default_attrs[] = {
 	&queue_requests_entry.attr,
 	&queue_ra_entry.attr,
-#if defined(OPLUS_FEATURE_FG_IO_OPT) && defined(CONFIG_OPLUS_FG_IO_OPT)
-	&queue_fgio_entry.attr,
-	&queue_bothio_entry.attr,
-#endif /*OPLUS_FEATURE_FG_IO_OPT*/
 	&queue_max_hw_sectors_entry.attr,
 	&queue_max_sectors_entry.attr,
 	&queue_max_segments_entry.attr,
@@ -759,12 +785,13 @@ static struct attribute *default_attrs[] = {
 	&queue_nomerges_entry.attr,
 	&queue_rq_affinity_entry.attr,
 	&queue_iostats_entry.attr,
-#ifdef OPLUS_FEATURE_HEALTHINFO
-// Add for ioqueue
-#ifdef CONFIG_OPLUS_HEALTHINFO
+#if (defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_UXIO_FIRST)) || \
+	(defined(OPLUS_FEATURE_HEALTHINFO) && defined(CONFIG_OPLUS_HEALTHINFO))
 	&queue_ohm_inflight_entry.attr,
-#endif 
-#endif /* OPLUS_FEATURE_HEALTHINFO */
+#endif
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_UXIO_FIRST)
+	&queue_bg_max_depth_entry.attr,
+#endif
 	&queue_random_entry.attr,
 	&queue_poll_entry.attr,
 	&queue_wc_entry.attr,

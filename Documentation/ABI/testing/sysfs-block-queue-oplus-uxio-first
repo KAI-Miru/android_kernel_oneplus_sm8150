@@ -1,0 +1,32 @@
+What:		/proc/sys/kernel/uxio_first_opt
+Date:		September 2026
+Contact:	OnePlus/Oplus kernel maintainers
+Description:
+		Global switch for the Oplus UX I/O first request-selection policy.
+		The donor default is 1.  Writing 0 leaves requests on the normal
+		block dispatch list without applying UX/foreground/background
+		priority selection.
+
+What:		/proc/sys/kernel/wbt_enable
+Date:		September 2026
+Contact:	OnePlus/Oplus kernel maintainers
+Description:
+		Global switch for block writeback throttling.  The donor default is
+		1.  Writing 0 bypasses WBT while preserving its configured latency
+		and queue state.
+
+What:		/sys/block/<disk>/queue/bg_max_depth
+Date:		September 2026
+Contact:	OnePlus/Oplus kernel maintainers
+Description:
+		Maximum number of background requests the UX I/O first policy may
+		have in flight for a legacy single-queue device.  The default is 24.
+		Writes must not exceed the device tag-set maximum depth.
+
+What:		/sys/block/<disk>/queue/ohm_inflight
+Date:		September 2026
+Contact:	OnePlus/Oplus kernel maintainers
+Description:
+		Read-only per-queue request counters.  With UX I/O first enabled the
+		output is five newline-separated key/value records in this order:
+		async, sync, ux, fg, and bg.

@@ -29,6 +29,10 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/wbt.h>
 
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_UXIO_FIRST)
+extern unsigned int sysctl_wbt_enable;
+#endif
+
 enum {
 	/*
 	 * Default setting, we'll scale up (to 75% of QD max) or down (min 1)
@@ -55,7 +59,11 @@ enum {
 
 static inline bool rwb_enabled(struct rq_wb *rwb)
 {
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_UXIO_FIRST)
+	return sysctl_wbt_enable && rwb && rwb->wb_normal != 0;
+#else
 	return rwb && rwb->wb_normal != 0;
+#endif
 }
 
 /*

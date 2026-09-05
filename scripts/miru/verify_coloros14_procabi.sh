@@ -80,6 +80,10 @@ ufs_h="drivers/scsi/ufs/ufshcd.h"
 runtime_ufs_c="${vendor_root}/oplus/kernel_4.14/ufs/ufshcd.c"
 runtime_ufs_h="${vendor_root}/oplus/kernel_4.14/ufs/ufshcd.h"
 ddr_stats_c="drivers/soc/qcom/ddr_stats.c"
+uxio_first_dir="${vendor_root}/oplus/kernel/oplus_performance/oplus_uxio_first"
+uxio_first_c="${uxio_first_dir}/oplus_uxio_first_opt.c"
+uxio_first_h="${uxio_first_dir}/oplus_uxio_first_opt.h"
+uxio_high_prio_c="${uxio_first_dir}/oplus_high_prio_task.c"
 
 check() {
   local label="$1"
@@ -1251,6 +1255,53 @@ done
 check ddr-stats-abi-document \
   test -f Documentation/ABI/testing/sysfs-power-ddr-residency
 
+# Wave 17 replaces the dormant foreground-only queue shim with the donor's
+# active UX/foreground/background dispatch policy and its complete controls.
+check uxio-first-source test -f "${uxio_first_c}"
+check uxio-first-header test -f "${uxio_first_h}"
+check uxio-first-high-prio-source test -f "${uxio_high_prio_c}"
+check uxio-first-config \
+  grep -Fxq 'CONFIG_OPLUS_FEATURE_UXIO_FIRST=y' "${config}"
+check uxio-first-healthinfo-config \
+  grep -Fxq 'CONFIG_OPLUS_HEALTHINFO=y' "${config}"
+check uxio-first-wbt-config grep -Fxq 'CONFIG_BLK_WBT=y' "${config}"
+check uxio-first-wbt-sq-config grep -Fxq 'CONFIG_BLK_WBT_SQ=y' "${config}"
+check uxio-first-block-symlink test -L block/oplus_foreground_io_opt
+check uxio-first-block-symlink-target \
+  test "$(readlink block/oplus_foreground_io_opt)" = '../../../vendor/oplus/kernel/oplus_performance/oplus_uxio_first'
+check uxio-first-kconfig \
+  grep -Fq 'source block/oplus_foreground_io_opt/Kconfig' block/Kconfig
+check uxio-first-kbuild \
+  grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_UXIO_FIRST)' block/Makefile
+check uxio-first-sysctl-node grep -Fq '"uxio_first_opt"' kernel/sysctl.c
+check uxio-first-sysctl-default grep -Fq 'unsigned int sysctl_uxio_io_opt = 1;' kernel/sysctl.c
+check uxio-first-wbt-node grep -Fq '"wbt_enable"' kernel/sysctl.c
+check uxio-first-wbt-default grep -Fq 'unsigned int sysctl_wbt_enable = 1;' kernel/sysctl.c
+check uxio-first-wbt-gate grep -Fq 'return sysctl_wbt_enable && rwb' block/blk-wbt.c
+check uxio-first-request-list grep -Fq 'struct list_head ux_fg_bg_list;' include/linux/blkdev.h
+for list in ux_head fg_head bg_head; do
+  check "uxio-first-queue-${list}" grep -Fq "${list};" include/linux/blkdev.h
+done
+for bucket in BLK_RW_UX BLK_RW_FG BLK_RW_BG; do
+  check "uxio-first-bucket-${bucket}" grep -Fq "${bucket}" include/linux/backing-dev-defs.h
+done
+check uxio-first-inflight-width grep -Fq 'in_flight[5];' include/linux/blkdev.h
+check uxio-first-inflight-add-declaration grep -Fq 'extern void ohm_ioqueue_add_inflight' include/linux/blkdev.h
+check uxio-first-inflight-dec-declaration grep -Fq 'extern void ohm_ioqueue_dec_inflight' include/linux/blkdev.h
+check uxio-first-inflight-add-hook grep -Fq 'ohm_ioqueue_add_inflight(q, rq);' block/blk-core.c
+check uxio-first-inflight-dec-hooks \
+  test "$(grep -Fc 'ohm_ioqueue_dec_inflight(q, rq);' block/elevator.c)" -eq 2
+check uxio-first-queue-throttle grep -Fq 'void queue_throtl_add_request' "${uxio_first_c}"
+check uxio-first-smart-peek grep -Fq 'struct request * smart_peek_request' "${uxio_first_c}"
+check uxio-first-safe-fallback grep -Fq 'if (!list_empty(&q->queue_head))' block/blk.h
+check uxio-first-bg-depth-definition grep -Fq '#define BLK_MAX_BG_DEPTH' "${uxio_first_h}"
+check uxio-first-bg-depth-field grep -Fq 'int bg_max_depth;' include/linux/blkdev.h
+check uxio-first-bg-depth-node grep -Fq '.name = "bg_max_depth"' block/blk-sysfs.c
+check uxio-first-inflight-node grep -Fq '.name = "ohm_inflight"' block/blk-sysfs.c
+check uxio-first-inflight-ux-output grep -Fq '"ux:%d\\n"' block/blk-sysfs.c
+check uxio-first-abi-document \
+  test -f Documentation/ABI/testing/sysfs-block-queue-oplus-uxio-first
+
 # Wave 12 imports the complete locking strategy selected by the Android 14
 # OnePlus 9R Kona configuration.  Its mutex/rwsem strategy and OSQ timeout
 # hooks are active.  The donor's newer futex hook call sites remain inactive
@@ -1350,5 +1401,6 @@ athena_memory_abi=read-triggered-allocator-totals-native-reclaim-controls
 oswap2_hybridswap=donor-core-swapd-memcg-extent-io
 midas_ufs_telemetry=donor-transmission-status-live-accounting
 ddr_residency=donor-aop-table-firmware-gated
+uxio_first=donor-ux-fg-bg-priority-and-wbt-control
 locking_strategy=active-donor-mutex-rwsem-osq-monitor-futex-control-abi
 EOF

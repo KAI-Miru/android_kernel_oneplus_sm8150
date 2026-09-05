@@ -156,9 +156,10 @@ extern int direct_vm_swappiness;
 static int two_hundred = 200;
 #endif /*OPLUS_FEATURE_ZRAM_OPT*/
 
-#if defined(OPLUS_FEATURE_FG_IO_OPT) && defined(CONFIG_OPLUS_FG_IO_OPT)
-unsigned int sysctl_fg_io_opt = 1;
-#endif /*OPLUS_FEATURE_FG_IO_OPT*/
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_UXIO_FIRST)
+unsigned int sysctl_uxio_io_opt = 1;
+unsigned int sysctl_wbt_enable = 1;
+#endif
 
 #ifdef OPLUS_FEATURE_EDTASK_IMPROVE
 int sysctl_ed_task_enabled = 1;
@@ -563,15 +564,22 @@ static struct ctl_table kern_table[] = {
 		.mode		= 0644,
 		.proc_handler	= sched_updown_migrate_handler,
 	},
-#if defined(OPLUS_FEATURE_FG_IO_OPT) && defined(CONFIG_OPLUS_FG_IO_OPT)
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_UXIO_FIRST)
 	{
-		.procname	= "fg_io_opt",
-		.data		= &sysctl_fg_io_opt,
+		.procname	= "uxio_first_opt",
+		.data		= &sysctl_uxio_io_opt,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-#endif /*OPLUS_FEATURE_FG_IO_OPT*/
+	{
+		.procname	= "wbt_enable",
+		.data		= &sysctl_wbt_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+#endif
 #ifdef OPLUS_FEATURE_EDTASK_IMPROVE
 	{
 		.procname   = "ed_task_enabled",

@@ -5,9 +5,6 @@
 #include <linux/idr.h>
 #include <linux/blk-mq.h>
 #include "blk-mq.h"
-#if defined(OPLUS_FEATURE_FG_IO_OPT) && defined(CONFIG_OPLUS_FG_IO_OPT)
-#include <linux/oplus_healthinfo/oplus_fg.h>
-#endif
 
 /* Amount of time in which a process may batch requests */
 #define BLK_BATCH_TIME	(HZ/50UL)
@@ -21,8 +18,8 @@
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *blk_debugfs_root;
 #endif
-#if defined(OPLUS_FEATURE_FG_IO_OPT) && defined(CONFIG_OPLUS_FG_IO_OPT)
-extern unsigned int sysctl_fg_io_opt;
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_UXIO_FIRST)
+extern unsigned int sysctl_uxio_io_opt;
 extern struct request * smart_peek_request(struct request_queue *q);
 #endif
 struct blk_flush_queue {
@@ -163,25 +160,17 @@ static inline struct request *__elv_next_request(struct request_queue *q)
 	WARN_ON_ONCE(q->mq_ops);
 
 	while (1) {
-#if defined(OPLUS_FEATURE_FG_IO_OPT) && defined(CONFIG_OPLUS_FG_IO_OPT)
-		if (likely(sysctl_fg_io_opt)
-#ifdef CONFIG_PM
-		    &&(q->rpm_status == RPM_ACTIVE)
-#endif
-		) {
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && defined(CONFIG_OPLUS_FEATURE_UXIO_FIRST)
+		if (likely(sysctl_uxio_io_opt)) {
 			rq = smart_peek_request(q);
-			if(rq)
+			if (rq)
 				return rq;
 		}
-		else {
-#endif /*OPLUS_FEATURE_FG_IO_OPT*/
+#endif
 		if (!list_empty(&q->queue_head)) {
 			rq = list_entry_rq(q->queue_head.next);
 			return rq;
 		}
-#if defined(OPLUS_FEATURE_FG_IO_OPT) && defined(CONFIG_OPLUS_FG_IO_OPT)
-		}
-#endif /*OPLUS_FEATURE_FG_IO_OPT*/
 		/*
 		 * Flush request is running and flush request isn't queueable
 		 * in the drive, we can hold the queue till flush request is
