@@ -1,10 +1,10 @@
-name: Miru H.40 Wave 14 OFB native WALT cadence build
+name: Miru H.40 Wave 15 OSwap 2.0 HybridSwap build
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - miru-h40-wave14-ofb-native-walt-cadence-ci-trigger
+      - miru-h40-wave15-oswap2-hybridswap-ci-trigger
     paths:
       - '.github/workflows/miru-stage9ab-task-sched-info-a14-ci.yml'
 
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-wave14-ofb-native-walt-cadence
+  group: miru-h40-wave15-oswap2-hybridswap
   cancel-in-progress: true
 
 env:
@@ -537,21 +537,21 @@ jobs:
             build-diagnostics/**
             external-module-diagnostics/**
 
-  build-wave14:
+  build-wave15:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
-      SOURCE_BRANCH: miru-h40-wave14-ofb-native-walt-cadence
-      SOURCE_SHA: aa39b2ee65daeb60adc37470868e3f523591f7eb
-      PARENT_SHA: 670e4e3e53627ddbb42eca53bfb4816d3b7293df
-      MODULES_REPAIR_BRANCH: miru-h40-wave14-ofb-native-walt-cadence
-      MODULES_REPAIR_SHA: 2e7bf68503a2388d6f081000ee84c24e656503fa
-      MODULES_PARENT_SHA: 1599494a5a1a4d29c87f7b79a6130b9d51191160
-      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave14-ofb-native-walt-cadence-ci1+
-      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave14-ofb-native-walt-cadence-ci1
+      SOURCE_BRANCH: miru-h40-wave15-oswap2-hybridswap
+      SOURCE_SHA: 6d7441b6b2c44d07edf65adbd6e1de9f93b77af5
+      PARENT_SHA: aa39b2ee65daeb60adc37470868e3f523591f7eb
+      MODULES_REPAIR_BRANCH: miru-h40-wave15-oswap2-hybridswap
+      MODULES_REPAIR_SHA: 0ab0a9b3d4f888d973e165e3d2a9ed35efb3163f
+      MODULES_PARENT_SHA: 2e7bf68503a2388d6f081000ee84c24e656503fa
+      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave15-oswap2-hybridswap-ci1+
+      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave15-oswap2-hybridswap-ci1
 
     steps:
-      - name: Checkout Wave 14 OFB native WALT cadence source
+      - name: Checkout Wave 15 OSwap 2.0 HybridSwap source
         uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_SHA }}
@@ -566,7 +566,7 @@ jobs:
             local label="$1"
             shift
             if ! "$@"; then
-              echo "::error title=Wave 14 boundary check failed::${label}"
+              echo "::error title=Wave 15 boundary check failed::${label}"
               exit 1
             fi
             echo "boundary check passed: ${label}"
@@ -762,6 +762,19 @@ jobs:
           check locking-rwsem-hook grep -Fq 'locking_vh_rwsem_write_wait_start(sem);' source/kernel/locking/rwsem-xadd.c
           check locking-audit grep -Fq 'locking_strategy=active-donor-mutex-rwsem-osq-monitor-futex-control-abi' source/scripts/miru/verify_coloros14_procabi.sh
           check locking-document test -f source/Documentation/ABI/testing/procfs-oplus-locking-strategy
+          check hybridswap-config grep -Fxq 'CONFIG_HYBRIDSWAP=y' source/h40-repro/config/GM1911_11_H.40.config
+          check hybridswap-swapd-config grep -Fxq 'CONFIG_HYBRIDSWAP_SWAPD=y' source/h40-repro/config/GM1911_11_H.40.config
+          check hybridswap-core-config grep -Fxq 'CONFIG_HYBRIDSWAP_CORE=y' source/h40-repro/config/GM1911_11_H.40.config
+          check hybridswap-nandswap-disabled grep -Fxq '# CONFIG_NANDSWAP is not set' source/h40-repro/config/GM1911_11_H.40.config
+          check hybridswap-main-source test -f source/drivers/block/zram/hybridswap/hybridswap_main.c
+          check hybridswap-swapd-source test -f source/drivers/block/zram/hybridswap/hybridswap_swapd.c
+          check hybridswap-core-source test -f source/drivers/block/zram/hybridswap/hybridswap_core.c
+          check hybridswap-zram-hook grep -Fq 'hybridswap_fault_out(zram, index);' source/drivers/block/zram/zram_drv.c
+          check hybridswap-memcg-hook grep -Fq 'hybridswap_mem_cgroup_online(css, memcg);' source/mm/memcontrol.c
+          check hybridswap-allocator-hook grep -Fq 'rmqueue_hook(NULL' source/mm/page_alloc.c
+          check hybridswap-reclaim-hook grep -Fq 'hybridswap_tune_scan_type((char *)&scan_balance);' source/mm/vmscan.c
+          check hybridswap-audit grep -Fq 'oswap2_hybridswap=donor-core-swapd-memcg-extent-io' source/scripts/miru/verify_coloros14_procabi.sh
+          check hybridswap-document test -f source/Documentation/ABI/testing/sysfs-block-zram-hybridswap
 
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
           check production-ref test "${live_production}" = "${PRODUCTION_SHA}"
@@ -783,7 +796,7 @@ jobs:
             echo "production_write=NONE"
           } | tee BUILD-BOUNDARIES.txt
 
-      - name: Prepare Wave 14 OFB native WALT cadence H.40 config
+      - name: Prepare Wave 15 OSwap 2.0 HybridSwap H.40 config
         shell: bash
         working-directory: source
         run: |
@@ -791,7 +804,7 @@ jobs:
           cp h40-repro/config/GM1911_11_H.40.config "${RUNNER_TEMP}/stage9b-task-sched-info-a14.config"
           bash scripts/miru/configure_mem_stage4.sh "${RUNNER_TEMP}/stage9b-task-sched-info-a14.config"
 
-      - name: Generate stable Wave 14 4.14.357 build driver
+      - name: Generate stable Wave 15 4.14.357 build driver
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -804,7 +817,7 @@ jobs:
 
           start = text.index('# Fetch only the distant commits required by the source-level sanity checks.')
           end = text.index("# GitHub's Ubuntu image contains most dependencies already")
-          gate = '''# Exact Wave 14 OFB native WALT cadence source sanity gate.
+          gate = '''# Exact Wave 15 OSwap 2.0 HybridSwap source sanity gate.
           source_head="$(git rev-parse HEAD)"
           test "${source_head}" = "${SOURCE_SHA}"
           test -z "$(git ls-files -u)"
@@ -971,6 +984,19 @@ jobs:
           grep -Fq 'locking_vh_rwsem_write_wait_start(sem);' kernel/locking/rwsem-xadd.c
           grep -Fq 'locking_strategy=active-donor-mutex-rwsem-osq-monitor-futex-control-abi' scripts/miru/verify_coloros14_procabi.sh
           test -f Documentation/ABI/testing/procfs-oplus-locking-strategy
+          grep -Fxq 'CONFIG_HYBRIDSWAP=y' h40-repro/config/GM1911_11_H.40.config
+          grep -Fxq 'CONFIG_HYBRIDSWAP_SWAPD=y' h40-repro/config/GM1911_11_H.40.config
+          grep -Fxq 'CONFIG_HYBRIDSWAP_CORE=y' h40-repro/config/GM1911_11_H.40.config
+          grep -Fxq '# CONFIG_NANDSWAP is not set' h40-repro/config/GM1911_11_H.40.config
+          test -f drivers/block/zram/hybridswap/hybridswap_main.c
+          test -f drivers/block/zram/hybridswap/hybridswap_swapd.c
+          test -f drivers/block/zram/hybridswap/hybridswap_core.c
+          grep -Fq 'hybridswap_fault_out(zram, index);' drivers/block/zram/zram_drv.c
+          grep -Fq 'hybridswap_mem_cgroup_online(css, memcg);' mm/memcontrol.c
+          grep -Fq 'rmqueue_hook(NULL' mm/page_alloc.c
+          grep -Fq 'hybridswap_tune_scan_type((char *)&scan_balance);' mm/vmscan.c
+          grep -Fq 'oswap2_hybridswap=donor-core-swapd-memcg-extent-io' scripts/miru/verify_coloros14_procabi.sh
+          test -f Documentation/ABI/testing/sysfs-block-zram-hybridswap
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
           test "${live_production}" = "${PRODUCTION_SHA}"
           {
@@ -992,16 +1018,16 @@ jobs:
               'printf \'%s\\n\' "${EXPECTED_RELEASE}" > "${ARTIFACT_DIR}/KERNEL-RELEASE.txt"',
               'printf \'%s\\n\' "${SOURCE_SHA}" > "${ARTIFACT_DIR}/SOURCE-SHA.txt"',
               'printf \'%s\\n\' "${MODULES_REPAIR_SHA}" > "${ARTIFACT_DIR}/VENDOR-SHA.txt"',
-              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/WAVE14-OFB-NATIVE-WALT-CADENCE-IMAGE-SHA256.txt"',
-              'echo "Wave 14 OFB native WALT cadence kernel build: PASS"',
+              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/WAVE15-OSWAP2-HYBRIDSWAP-IMAGE-SHA256.txt"',
+              'echo "Wave 15 OSwap 2.0 HybridSwap kernel build: PASS"',
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=2e7bf68503a2388d6f081000ee84c24e656503fa',
-              '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Wave 14 OFB native WALT cadence stable build ==',
-              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-wave14-ofb-native-walt-cadence-ci1',
-              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-wave14-ofb-native-walt-cadence-ci1"',
-              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-wave14-ofb-native-walt-cadence-ci1+' || true)\"",
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=0ab0a9b3d4f888d973e165e3d2a9ed35efb3163f',
+              '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Wave 15 OSwap 2.0 HybridSwap stable build ==',
+              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-wave15-oswap2-hybridswap-ci1',
+              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-wave15-oswap2-hybridswap-ci1"',
+              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-wave15-oswap2-hybridswap-ci1+' || true)\"",
               'echo "Clean kernel build and output validation: PASS"': final,
           }
           for old, new in replacements.items():
@@ -1013,10 +1039,10 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=2e7bf68503a2388d6f081000ee84c24e656503fa' build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave14-ofb-native-walt-cadence-ci1' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=0ab0a9b3d4f888d973e165e3d2a9ed35efb3163f' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave15-oswap2-hybridswap-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
-      - name: Build Wave 14 OFB native WALT cadence kernel with stable builder
+      - name: Build Wave 15 OSwap 2.0 HybridSwap kernel with stable builder
         shell: bash
         working-directory: source
         env:
@@ -1024,7 +1050,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           bash ../build-stage9b-task-sched-info-a14-stable.sh
-          trap 'rc=$?; trap - ERR; echo "::error title=Wave 14 binary audit failed::line ${LINENO}: ${BASH_COMMAND} (exit ${rc})"; exit "${rc}"' ERR
+          trap 'rc=$?; trap - ERR; echo "::error title=Wave 15 binary audit failed::line ${LINENO}: ${BASH_COMMAND} (exit ${rc})"; exit "${rc}"' ERR
           # Quiet grep closes its input once it finds a match.  Do not treat a
           # producer's resulting SIGPIPE as an audit failure; grep's status is
           # the authoritative result for the legacy producer | grep checks.
@@ -1040,6 +1066,10 @@ jobs:
           grep -Fxq '# CONFIG_KMALLOC_DEBUG is not set' "${cfg}"
           grep -Fxq '# CONFIG_VMALLOC_DEBUG is not set' "${cfg}"
           grep -Fxq 'CONFIG_OPLUS_ATHENA_MEMORY_ABI=y' "${cfg}"
+          grep -Fxq 'CONFIG_HYBRIDSWAP=y' "${cfg}"
+          grep -Fxq 'CONFIG_HYBRIDSWAP_SWAPD=y' "${cfg}"
+          grep -Fxq 'CONFIG_HYBRIDSWAP_CORE=y' "${cfg}"
+          grep -Fxq '# CONFIG_NANDSWAP is not set' "${cfg}"
           grep -Fxq 'CONFIG_OPLUS_LOCKING_STRATEGY=y' "${cfg}"
           grep -Fxq 'CONFIG_OPLUS_LOCKING_OSQ=y' "${cfg}"
           grep -Fxq 'CONFIG_OPLUS_LOCKING_MONITOR=y' "${cfg}"
@@ -1065,9 +1095,15 @@ jobs:
           proactive_compact_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/fs/proc/oplus_bsp_proactive_compact.o' -print -quit)"
           athena_memory_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/oplus_healthinfo/allocator_usage.o' -print -quit)"
           locking_strategy_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_assist/oplus_locking_strategy.o' -print -quit)"
+          hybridswap_main_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/block/zram/hybridswap/hybridswap_main.o' -print -quit)"
+          hybridswap_swapd_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/block/zram/hybridswap/hybridswap_swapd.o' -print -quit)"
+          hybridswap_core_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/block/zram/hybridswap/hybridswap_core.o' -print -quit)"
           test -s "${proactive_compact_obj}"
           test -s "${athena_memory_obj}"
           test -s "${locking_strategy_obj}"
+          test -s "${hybridswap_main_obj}"
+          test -s "${hybridswap_swapd_obj}"
+          test -s "${hybridswap_core_obj}"
           sched_assist_check_strings="${RUNNER_TEMP}/wave11-sched-assist-common.strings"
           proactive_compact_symbols="${RUNNER_TEMP}/wave11-proactive-compact.symbols"
           cpu_jank_version_strings="${RUNNER_TEMP}/wave11-cpu-jank-version.strings"
@@ -1143,6 +1179,31 @@ jobs:
             echo debug_trackers=disabled
             echo athena_memory_abi=read-triggered-allocator-totals-native-reclaim-controls
           } | tee "${artifact_dir}/ATHENA-MEMORY-ABI-BINARY-AUDIT.txt"
+          hybridswap_main_strings="${RUNNER_TEMP}/wave15-hybridswap-main.strings"
+          hybridswap_swapd_strings="${RUNNER_TEMP}/wave15-hybridswap-swapd.strings"
+          strings "${hybridswap_main_obj}" > "${hybridswap_main_strings}"
+          strings "${hybridswap_swapd_obj}" > "${hybridswap_swapd_strings}"
+          for literal in force_shrink_anon total_info_per_app swap_stat app_score app_uid ub_ufs2zram_ratio force_swapin force_swapout stored_wm_ratio; do
+            grep -Fq "${literal}" "${hybridswap_main_strings}"
+          done
+          for literal in active_app_info_list zram_wm_ratio compress_ratio swapd_pressure swapd_pid avail_buffers swapd_max_reclaim_size swapd_memcgs_param swapd_single_memcg_param cpuload_threshold swapd_bind; do
+            grep -Fq "${literal}" "${hybridswap_swapd_strings}"
+          done
+          for literal in hybridswap_vmstat hybridswap_loglevel hybridswap_enable hybridswap_swapd_pause hybridswap_core_enable hybridswap_loop_device hybridswap_report hybridswap_meminfo; do
+            grep -Fq "${literal}" "${strings_file}"
+          done
+          for symbol in hybridswap_pre_init hybridswap_track hybridswap_untrack hybridswap_fault_out hybridswap_delete hybridswap_tune_scan_type free_swap_is_low rmqueue_hook alloc_pages_slowpath_hook; do
+            grep -Eq "[[:space:]][Tt][[:space:]]${symbol}$" "${out_dir}/System.map"
+          done
+          {
+            echo result=PASS
+            echo zram_sysfs_nodes=12
+            echo memcg_controls=32
+            echo legacy_nandswap=disabled
+            echo backing_store=loop-device-extent-io
+            echo reclaim_daemon=per-node-hybridswapd
+            echo oswap2_hybridswap=donor-core-swapd-memcg-extent-io
+          } | tee "${artifact_dir}/OSWAP2-HYBRIDSWAP-BINARY-AUDIT.txt"
           # Validate the shipped image, not the intermediate relocatable object:
           # final linking may merge identical/suffix strings across members.
           locking_strings="${strings_file}"
@@ -1653,7 +1714,7 @@ jobs:
               ('4.14.190-miru-h40-lts190-ci1+', release, 1),
               ('miru-v3-modules-dropin-4.14.190', package_tag, 4),
               ('Miru 4.14.190 rebuilt external module ABI report',
-               'Miru Wave 14 Android 14 OFB native WALT cadence external module report', 1),
+               'Miru Wave 15 Android 14 OSwap 2.0 HybridSwap external module report', 1),
           )
           for old, new, expected_count in replacements:
               actual = text.count(old)
@@ -1725,11 +1786,14 @@ jobs:
           grep -Fxq 'proactive_compact_parameters=bounded-runtime-tunables' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'sched_assist_boost_kill=donor-background-exit-acceleration' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'athena_memory_abi=read-triggered-allocator-totals-native-reclaim-controls' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
+          grep -Fxq 'oswap2_hybridswap=donor-core-swapd-memcg-extent-io' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'locking_strategy=active-donor-mutex-rwsem-osq-monitor-futex-control-abi' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           test -s "${artifact_dir}/LOCKING-STRATEGY-BINARY-AUDIT.txt"
           grep -Fxq 'locking_strategy=active-donor-mutex-rwsem-osq-monitor-futex-control-abi' "${artifact_dir}/LOCKING-STRATEGY-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/ATHENA-MEMORY-ABI-BINARY-AUDIT.txt"
           grep -Fxq 'athena_memory_abi=read-triggered-allocator-totals-native-reclaim-controls' "${artifact_dir}/ATHENA-MEMORY-ABI-BINARY-AUDIT.txt"
+          test -s "${artifact_dir}/OSWAP2-HYBRIDSWAP-BINARY-AUDIT.txt"
+          grep -Fxq 'oswap2_hybridswap=donor-core-swapd-memcg-extent-io' "${artifact_dir}/OSWAP2-HYBRIDSWAP-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/CPU-JANK-REPORTING-BINARY-AUDIT.txt"
           grep -Fxq 'cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup' "${artifact_dir}/CPU-JANK-REPORTING-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/CPU-JANK-HOTTHREAD-BINARY-AUDIT.txt"
@@ -1795,16 +1859,17 @@ jobs:
             echo proactive_compact_parameters=bounded-runtime-tunables
             echo sched_assist_boost_kill=donor-background-exit-acceleration
             echo athena_memory_abi=read-triggered-allocator-totals-native-reclaim-controls
+            echo oswap2_hybridswap=donor-core-swapd-memcg-extent-io
             echo locking_strategy=active-donor-mutex-rwsem-osq-monitor-futex-control-abi
             echo production_after=${live_production}
             echo production_write=NONE
           } | tee "${artifact_dir}/FINAL-CANDIDATE-SUMMARY.txt"
 
-      - name: Upload Wave 14 OFB native WALT cadence kernel and modules
+      - name: Upload Wave 15 OSwap 2.0 HybridSwap kernel and modules
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: miru-h40-wave14-ofb-native-walt-cadence-kernel-and-modules
+          name: miru-h40-wave15-oswap2-hybridswap-kernel-and-modules
           if-no-files-found: error
           retention-days: 30
           path: |
