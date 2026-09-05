@@ -17,6 +17,10 @@
 #include "../tuning/frame_group.h"
 #endif /* CONFIG_OPLUS_FEATURE_FRAME_BOOST */
 
+#ifdef CONFIG_OPLUS_CPU_AUDIO_PERF
+#include <linux/sched_assist/sched_assist_audio.h>
+#endif
+
 int sched_rr_timeslice = RR_TIMESLICE;
 int sysctl_sched_rr_timeslice = (MSEC_PER_SEC * RR_TIMESLICE) / HZ;
 
@@ -1888,6 +1892,9 @@ static int find_lowest_rq(struct task_struct *task)
 	struct cpumask *lowest_mask = this_cpu_cpumask_var_ptr(local_cpu_mask);
 	int this_cpu = smp_processor_id();
 	int cpu = -1;
+#ifdef CONFIG_OPLUS_CPU_AUDIO_PERF
+	unsigned int drop_cpu;
+#endif
 
 	/* Make sure the mask is initialized first */
 	if (unlikely(!lowest_mask))
@@ -1898,6 +1905,15 @@ static int find_lowest_rq(struct task_struct *task)
 
 	if (!cpupri_find(&task_rq(task)->rd->cpupri, task, lowest_mask))
 		return -1; /* No targets found */
+
+#ifdef CONFIG_OPLUS_CPU_AUDIO_PERF
+	/* Match the 9R donor: skip CPUs currently in a deep idle state. */
+	for_each_cpu(drop_cpu, lowest_mask) {
+		if (oplus_sched_assist_audio_perf_check_exit_latency(task,
+								 drop_cpu))
+			cpumask_clear_cpu(drop_cpu, lowest_mask);
+	}
+#endif
 
 	if (energy_aware())
 		cpu = rt_energy_aware_wake_cpu(task);

@@ -1,0 +1,12 @@
+What:		/proc/oplus_scheduler/audio/enable
+What:		/proc/oplus_scheduler/audio/debug
+What:		/proc/oplus_scheduler/audio/status
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+	OnePlus sched_assist audio control plane. The enable node gates audio
+	classification, debug reports marked audio tasks when requested, and
+	status activates runtime AudioBoost policy. With status active, marked
+	threads receive the donor light-UX treatment and bounded timer slack.
+	Marked real-time threads also avoid candidate CPUs whose active idle
+	state has an exit latency above the donor threshold of 60 microseconds.

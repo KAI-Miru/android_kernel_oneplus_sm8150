@@ -20,6 +20,8 @@ sched_assist_dir="${vendor_root}/oplus/kernel/oplus_performance/sched_assist"
 sched_info_dir="${vendor_root}/oplus/kernel/oplus_performance/sched_info"
 sched_assist_c="${sched_assist_dir}/sched_assist_common.c"
 sched_assist_slide_c="${sched_assist_dir}/sched_assist_slide.c"
+sched_assist_audio_c="${sched_assist_dir}/sched_assist_audio.c"
+sched_assist_audio_h="${sched_assist_dir}/sched_assist_audio.h"
 eas_opt_dir="${sched_assist_dir}/eas_opt"
 eas_opt_c="${eas_opt_dir}/eas_opt.c"
 eas_cap_c="${eas_opt_dir}/oplus_cap.c"
@@ -443,6 +445,27 @@ for node in enable debug status; do
   check "sched-assist-audio-node-${node}" \
     grep -Fq "proc_create(\"${node}\", 0666" "${sched_assist_dir}/sched_assist_audio.c"
 done
+
+# Wave 19 completes the donor-enabled CPU audio placement path behind the
+# existing audio/status control. The default remains donor-correctly off until
+# userspace activates the audio scene.
+check audio-im-config grep -Fxq 'CONFIG_OPLUS_UX_IM_FLAG=y' "${config}"
+check audio-rt-config grep -Fxq 'CONFIG_OPLUS_CPU_AUDIO_PERF=y' "${config}"
+check audio-rt-kconfig grep -Fq 'config OPLUS_CPU_AUDIO_PERF' "${sched_assist_dir}/Kconfig"
+check audio-rt-header \
+  grep -Fq 'oplus_sched_assist_audio_perf_check_exit_latency' "${sched_assist_audio_h}"
+check audio-rt-backend \
+  grep -Fq 'idle->exit_latency > AUDIO_TASK_IDLE_EXIT_LATENCY' "${sched_assist_audio_c}"
+check audio-rt-status-gate \
+  grep -Fq 'if (!audio_perf_status_on() || !task_is_audio(task))' "${sched_assist_audio_c}"
+check audio-rt-include \
+  grep -Fq '#include <linux/sched_assist/sched_assist_audio.h>' kernel/sched/rt.c
+check audio-rt-placement-hook \
+  grep -Fq 'oplus_sched_assist_audio_perf_check_exit_latency(task,' kernel/sched/rt.c
+check audio-rt-donor-threshold \
+  grep -Fq '#define AUDIO_TASK_IDLE_EXIT_LATENCY 60' "${sched_assist_audio_c}"
+check audio-rt-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-sched-assist-audio
 
 # CPU-jank control plane: preserve the reference hierarchy and mux command
 # semantics while making unsupported SM8250 telemetry explicit in code.
@@ -1412,6 +1435,7 @@ proc_iomem=core-4.14
 sched_assist_im_flag=task-backed
 task_ux_state=per-thread-registered
 audio_sched_assist=task-boost-and-enqueue-hook
+audio_rt_placement=donor-status-gated-deep-idle-avoidance
 cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
 cpu_jank_tasktrack_latency=on-demand-bounded-sched-events
