@@ -547,15 +547,42 @@ check cpu-jank-tasktrack-event-clock \
   grep -Fq 'ktime_get_real_ts64(&event->timestamp);' "${tasktrack_c}"
 check cpu-jank-tasktrack-event-grammar \
   grep -Fq '"%d,%llu,%llu.%lu\n"' "${tasktrack_c}"
-check_absent cpu-jank-tasktrack-no-ux-throttle-node \
-  grep -Fq 'proc_create("ux_throttle"' "${tasktrack_c}"
+# Wave 13 restores the donor ux_throttle ABI using a bounded H.40-native
+# runtime producer.  It retains the donor budgets and output grammar, but is
+# inert unless task_track is explicitly armed for one of its four PID slots.
+check cpu-jank-tasktrack-ux-throttle-node \
+  grep -Fq 'proc_create("ux_throttle", 0444' "${tasktrack_c}"
+check cpu-jank-tasktrack-ux-throttle-bound \
+  grep -Fq '#define TASKTRACK_UX_THROTTLE_COUNT' "${tasktrack_c}"
+check cpu-jank-tasktrack-ux-throttle-base-budget \
+  grep -Fq '#define TASKTRACK_UX_EXEC_SLICE_NS' "${tasktrack_c}"
+check cpu-jank-tasktrack-ux-throttle-ring \
+  grep -Fq 'tasktrack_ux_throttle_events[TASKTRACK_UX_THROTTLE_COUNT]' "${tasktrack_c}"
+check cpu-jank-tasktrack-ux-throttle-static-snapshot \
+  grep -Fq 'tasktrack_ux_throttle_snapshot[TASKTRACK_UX_THROTTLE_COUNT]' "${tasktrack_c}"
+check cpu-jank-tasktrack-ux-throttle-producer \
+  grep -Fq 'void jankinfo_ux_throttle_tick(struct task_struct *task)' "${tasktrack_c}"
+check cpu-jank-tasktrack-ux-throttle-runtime \
+  grep -Fq 'task->se.sum_exec_runtime' "${tasktrack_c}"
+check cpu-jank-tasktrack-ux-throttle-budget \
+  grep -Fq 'tasktrack_ux_exec_limit_ns(task)' "${tasktrack_c}"
+check cpu-jank-tasktrack-ux-throttle-frequency \
+  grep -Fq 'policy = cpufreq_cpu_get(cpu);' "${tasktrack_c}"
+check cpu-jank-tasktrack-ux-throttle-unarmed-gate \
+  grep -Fq '!READ_ONCE(tasktrack_active)' "${tasktrack_c}"
+check cpu-jank-tasktrack-ux-throttle-selected-pid \
+  grep -Fq '!tasktrack_pid_maybe_tracked(task->pid)' "${tasktrack_c}"
+check cpu-jank-tasktrack-ux-throttle-native-hook \
+  grep -Fq 'jankinfo_ux_throttle_tick(curr);' kernel/sched/core.c
+check cpu-jank-tasktrack-ux-throttle-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-cpu-jank-ux-throttle
 check_absent cpu-jank-tasktrack-no-binder-futex-hooks \
   grep -E 'binder_wait|futex_sleep' "${tasktrack_c}"
 check cpu-jank-tasktrack-latency-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-cpu-jank-tasktrack-latency
 
 # Stage 9J ports the directly consumed callstack feed without importing the
-# donor's Binder/Futex attribution or scheduler-tick extensions.  It captures
+# donor's Binder/Futex attribution.  It captures
 # four native 4.14 stack frames only for a selected PID leaving a non-I/O
 # uninterruptible stall of at least 50 ms, into a fixed 64-record ring.
 check cpu-jank-tasktrack-callstack-node \
@@ -1186,6 +1213,7 @@ cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
 cpu_jank_tasktrack_latency=on-demand-bounded-sched-events
 cpu_jank_tasktrack_callstack=on-demand-bounded-dsleep-stacktrace
+cpu_jank_ux_throttle=opt-in-bounded-ux-runtime-frequency-telemetry
 cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup
 cpu_jank_hotthread=opt-in-bounded-workqueue-sampling
 cpu_jank_passive_controls=donor-enable-osi-debug-default-off

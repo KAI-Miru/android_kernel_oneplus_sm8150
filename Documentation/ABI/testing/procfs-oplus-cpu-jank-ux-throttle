@@ -1,0 +1,22 @@
+What:		/proc/jank_info/cpu_jank_info/ux_throttle
+Date:		September 2026
+KernelVersion:	4.14.357-openela-miru-h40
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only ColorOS 14 UX execution-budget telemetry.  The file emits
+		64 records followed by a blank line.  Records use the OnePlus 9R
+		field grammar:
+
+		pid,comm,realtime_seconds.realtime_nanoseconds,cpu,current_khz,max_khz
+
+		The 4 ms base budget and the donor's light, heavy, animator,
+		list-pick, launch-scene, and system-server lock-owner multipliers are
+		preserved.  Runtime is sampled from the native 4.14 scheduler tick,
+		but only for the at-most-four PIDs selected through task_track while
+		task_track_enable is nonzero.  Records and accounting use fixed-size
+		storage; the normal unarmed path performs only two lock-free checks.
+
+		This telemetry port does not replace H.40's established UX task-pick
+		policy with the newer SM8250 scheduler implementation.
+Users:		ColorOS performance diagnostics compatible with the OnePlus 9R
+		Android 14 CPU-jank ABI.

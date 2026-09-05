@@ -16,6 +16,7 @@ struct cpufreq_policy;
 void jankinfo_update_time_info(struct rq *rq, struct task_struct *p, u64 time);
 void jankinfo_update_freq_reach_limit_count(struct cpufreq_policy *policy,
 		u32 old_target_freq, u32 new_target_freq, u32 flags);
+void jankinfo_ux_throttle_tick(struct task_struct *task);
 #else
 static inline void jankinfo_update_time_info(struct rq *rq,
 		struct task_struct *p, u64 time)
@@ -25,6 +26,10 @@ static inline void jankinfo_update_time_info(struct rq *rq,
 static inline void jankinfo_update_freq_reach_limit_count(
 		struct cpufreq_policy *policy, u32 old_target_freq,
 		u32 new_target_freq, u32 flags)
+{
+}
+
+static inline void jankinfo_ux_throttle_tick(struct task_struct *task)
 {
 }
 #endif

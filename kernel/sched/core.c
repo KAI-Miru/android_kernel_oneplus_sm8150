@@ -56,6 +56,8 @@
 #include <linux/task_sched_info.h>
 #endif
 
+#include <linux/oplus_jankinfo.h>
+
 #ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
 #include "../tuning/frame_group.h"
 #endif /* CONFIG_OPLUS_FEATURE_FRAME_BOOST */
@@ -3331,6 +3333,9 @@ void scheduler_tick(void)
 
 	if (curr->sched_class == &fair_sched_class)
 		check_for_migration(rq, curr);
+
+	/* OP9R ux_throttle producer, bounded by task_track's opt-in PID set. */
+	jankinfo_ux_throttle_tick(curr);
 }
 
 #ifdef CONFIG_NO_HZ_FULL
