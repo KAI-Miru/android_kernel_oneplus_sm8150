@@ -545,8 +545,8 @@ jobs:
       SOURCE_SHA: f8305b0ab5fd79b430fc546bdcc67cfde3eafc33
       PARENT_SHA: abf264124626cc4609a1642d116cdb3804f8f314
       MODULES_REPAIR_BRANCH: miru-h40-stage10-eas-memory-abi
-      MODULES_REPAIR_SHA: cac2824c63f7a639d923786e8119c6f1d5d687d9
-      MODULES_PARENT_SHA: c16d305ea65e69e68818a561a0c8d690d47e0df8
+      MODULES_REPAIR_SHA: 14207e27c00d6c07c9574e250bece5a0903f487b
+      MODULES_PARENT_SHA: cac2824c63f7a639d923786e8119c6f1d5d687d9
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave10-eas-memory-abi-ci1+
       PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave10-eas-memory-abi-ci1
 
@@ -967,7 +967,7 @@ jobs:
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=cac2824c63f7a639d923786e8119c6f1d5d687d9',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=14207e27c00d6c07c9574e250bece5a0903f487b',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Wave 10 EAS and memory ABI stable build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-wave10-eas-memory-abi-ci1',
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-wave10-eas-memory-abi-ci1"',
@@ -983,7 +983,7 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=cac2824c63f7a639d923786e8119c6f1d5d687d9' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=14207e27c00d6c07c9574e250bece5a0903f487b' build-stage9b-task-sched-info-a14-stable.sh
           grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave10-eas-memory-abi-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
       - name: Build Wave 10 EAS and memory ABI kernel with stable builder
