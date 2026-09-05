@@ -1000,6 +1000,11 @@ jobs:
         run: |
           set -Eeuo pipefail
           bash ../build-stage9b-task-sched-info-a14-stable.sh
+          trap 'rc=$?; trap - ERR; echo "::error title=Wave 11 binary audit failed::line ${LINENO}: ${BASH_COMMAND} (exit ${rc})"; exit "${rc}"' ERR
+          # Quiet grep closes its input once it finds a match.  Do not treat a
+          # producer's resulting SIGPIPE as an audit failure; grep's status is
+          # the authoritative result for the legacy producer | grep checks.
+          set +o pipefail
 
           cfg="${RUNNER_TEMP}/android-root/out/h40-kernel/.config"
           grep -Fxq 'CONFIG_HAVE_USERSPACE_LOW_MEMORY_KILLER=y' "${cfg}"
