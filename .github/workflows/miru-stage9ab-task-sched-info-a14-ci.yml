@@ -545,8 +545,8 @@ jobs:
       SOURCE_SHA: 84505bc557f9d657dd3db071740b769378e011af
       PARENT_SHA: 365c44fc7c3768bd881869dac1fccf9ee0d52126
       MODULES_REPAIR_BRANCH: miru-h40-wave17-uxio-first
-      MODULES_REPAIR_SHA: 82694a050d6ee18b9597940adc0a9d9a1b63890c
-      MODULES_PARENT_SHA: 69e28d98ffecb48f420d9153453b19904b3e7155
+      MODULES_REPAIR_SHA: 8b75484c7ba30cbb6a9f0d9bc2031b1da9f4990c
+      MODULES_PARENT_SHA: 82694a050d6ee18b9597940adc0a9d9a1b63890c
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave17-uxio-first-ci1+
       PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave17-uxio-first-ci1
 
@@ -1053,7 +1053,7 @@ jobs:
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=82694a050d6ee18b9597940adc0a9d9a1b63890c',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=8b75484c7ba30cbb6a9f0d9bc2031b1da9f4990c',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Wave 17 UXIO-first block scheduling stable build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-wave17-uxio-first-ci1',
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-wave17-uxio-first-ci1"',
@@ -1069,7 +1069,7 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=82694a050d6ee18b9597940adc0a9d9a1b63890c' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=8b75484c7ba30cbb6a9f0d9bc2031b1da9f4990c' build-stage9b-task-sched-info-a14-stable.sh
           grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave17-uxio-first-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
       - name: Build Wave 17 UXIO-first block scheduling kernel with stable builder
