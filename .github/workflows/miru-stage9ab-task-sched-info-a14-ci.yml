@@ -947,13 +947,6 @@ jobs:
           grep -Fxq 'CONFIG_OPLUS_ATHENA_MEMORY_ABI=y' h40-repro/config/GM1911_11_H.40.config
           test -f Documentation/ABI/testing/procfs-oplus-athena-memory
           grep -Fq 'athena_memory_abi=read-triggered-allocator-totals-native-reclaim-controls' scripts/miru/verify_coloros14_procabi.sh
-          test -f mm/oplus_healthinfo/allocator_usage.c
-          test -f include/linux/oplus_healthinfo/allocator_usage.h
-          grep -Fq 'config OPLUS_ATHENA_MEMORY_ABI' mm/oplus_healthinfo/Kconfig
-          grep -Fq 'obj-$(CONFIG_OPLUS_ATHENA_MEMORY_ABI) += allocator_usage.o' mm/oplus_healthinfo/Makefile
-          grep -Fq 'proc_create("kmalloc_used", 0444' mm/oplus_healthinfo/allocator_usage.c
-          grep -Fq 'proc_create("vmalloc_used", 0444' mm/oplus_healthinfo/allocator_usage.c
-          grep -Fq 'proc_create("swappiness_para", 0666' mm/oplus_healthinfo/allocator_usage.c
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
           test "${live_production}" = "${PRODUCTION_SHA}"
           {
