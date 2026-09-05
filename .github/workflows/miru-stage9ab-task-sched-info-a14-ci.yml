@@ -1,10 +1,10 @@
-name: Miru H.40 Stage 9N OFB stune ABI build
+name: Miru H.40 Wave 10 EAS and memory ABI build
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - miru-h40-stage9n-ofb-stune-abi-ci-trigger
+      - miru-h40-wave10-eas-memory-abi-ci-trigger
     paths:
       - '.github/workflows/miru-stage9ab-task-sched-info-a14-ci.yml'
 
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-stage9n-ofb-stune-abi
+  group: miru-h40-wave10-eas-memory-abi
   cancel-in-progress: true
 
 env:
@@ -275,8 +275,15 @@ jobs:
           grep -Fxq 'CONFIG_OPLUS_CTP=y' "${cfg}"
           grep -Fxq 'CONFIG_OPLUS_SCHED=y' "${cfg}"
           grep -Fxq 'CONFIG_OPLUS_PROACTIVE_COMPACT=y' "${cfg}"
+          grep -Fxq 'CONFIG_OPLUS_FEATURE_EAS_OPT=y' "${cfg}"
+          grep -Fxq 'CONFIG_OPLUS_FEATURE_VT_CAP=y' "${cfg}"
+          grep -Fxq 'CONFIG_OPLUS_CPUFREQ_IOWAIT_PROTECT=y' "${cfg}"
           grep -Fxq 'CONFIG_OPLUS_STORAGE_LOG=y' "${cfg}"
           find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_assist/sched_assist_common.o' -print -quit | grep -q .
+          for object in eas_opt oplus_cap oplus_iowait; do
+            object_path="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path "*/sched_assist/eas_opt/${object}.o" -print -quit)"
+            test -s "${object_path}"
+          done
           find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_info/oplus_schedinfo.o' -print -quit | grep -q .
           find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_info/tasktrack.o' -print -quit | grep -q .
           find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/tuning/frame_group.o' -print -quit | grep -q .
@@ -530,21 +537,21 @@ jobs:
             build-diagnostics/**
             external-module-diagnostics/**
 
-  build-stage9n:
+  build-wave10:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
-      SOURCE_BRANCH: miru-h40-stage9m-frame-boost-parity
-      SOURCE_SHA: abf264124626cc4609a1642d116cdb3804f8f314
-      PARENT_SHA: f8c0c8825bc38e0a6c9bfc0deed8f10439a9197f
-      MODULES_REPAIR_BRANCH: miru-h40-stage9n-ofb-stune-abi
-      MODULES_REPAIR_SHA: ae038eb7e4b02d454b00954201507cda31b0c478
-      MODULES_PARENT_SHA: 52bb2b9aa4fd8180070dc950cc1b83ced2de5682
-      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9n-ofb-stune-abi-ci1+
-      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage9n-ofb-stune-abi-ci1
+      SOURCE_BRANCH: miru-h40-stage10-eas-memory-abi
+      SOURCE_SHA: f8305b0ab5fd79b430fc546bdcc67cfde3eafc33
+      PARENT_SHA: abf264124626cc4609a1642d116cdb3804f8f314
+      MODULES_REPAIR_BRANCH: miru-h40-stage10-eas-memory-abi
+      MODULES_REPAIR_SHA: 9bc84f900c7b79daac57b7df33ecc48e68710387
+      MODULES_PARENT_SHA: ae038eb7e4b02d454b00954201507cda31b0c478
+      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave10-eas-memory-abi-ci1+
+      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave10-eas-memory-abi-ci1
 
     steps:
-      - name: Checkout Stage 9N OFB stune ABI source
+      - name: Checkout Wave 10 EAS and memory ABI source
         uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_SHA }}
@@ -559,7 +566,7 @@ jobs:
             local label="$1"
             shift
             if ! "$@"; then
-              echo "::error title=Stage 9N boundary check failed::${label}"
+              echo "::error title=Wave 10 boundary check failed::${label}"
               exit 1
             fi
             echo "boundary check passed: ${label}"
@@ -623,6 +630,14 @@ jobs:
           check frame-boost-ua-audit grep -Fq 'frame-boost-ua-control-node' source/scripts/miru/verify_coloros14_procabi.sh
           check frame-boost-touch-audit grep -Fq 'frame-boost-touch-info' source/scripts/miru/verify_coloros14_procabi.sh
           check frame-boost-parity-document test -f source/Documentation/ABI/testing/procfs-oplus-frame-boost
+          check eas-kconfig-source grep -Fq 'source "kernel/sched_assist/Kconfig"' source/init/Kconfig
+          check eas-master-config grep -Fxq 'CONFIG_OPLUS_FEATURE_EAS_OPT=y' source/h40-repro/config/GM1911_11_H.40.config
+          check eas-cap-config grep -Fxq 'CONFIG_OPLUS_FEATURE_VT_CAP=y' source/h40-repro/config/GM1911_11_H.40.config
+          check eas-iowait-config grep -Fxq 'CONFIG_OPLUS_CPUFREQ_IOWAIT_PROTECT=y' source/h40-repro/config/GM1911_11_H.40.config
+          check eas-placement-hook grep -Fq 'oplus_eas_task_skip_cpu(p, i)' source/kernel/sched/fair.c
+          check eas-capacity-hook grep -Fq 'oplus_eas_adjust_capacity(cpu, capacity);' source/kernel/sched/fair.c
+          check eas-iowait-hook grep -Fq 'sysctl_iowait_apply_ticks' source/kernel/sched/cpufreq_schedutil.c
+          check boost-kill-hook grep -Fq 'oplus_boost_kill_signal(sig, current, p);' source/kernel/signal.c
           check gameopt-config grep -Fxq 'CONFIG_OPLUS_FEATURE_GAME_OPT=y' source/h40-repro/config/GM1911_11_H.40.config
           check gameopt-kconfig grep -Fq 'source "drivers/soc/oplus/game_opt/Kconfig"' source/drivers/soc/Kconfig
           check gameopt-kbuild grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += oplus/game_opt/' source/drivers/soc/Makefile
@@ -722,7 +737,9 @@ jobs:
           check task-sched-info-stats-node grep -Fq 'proc_create("sched_stats", 0444' source/fs/proc/task_sched_info.c
           check proactive-compact-config grep -Fxq 'CONFIG_OPLUS_PROACTIVE_COMPACT=y' source/h40-repro/config/GM1911_11_H.40.config
           check proactive-compact-source test -f source/fs/proc/oplus_proactive_compact.c
-          check proactive-compact-kbuild grep -Fq 'obj-$(CONFIG_OPLUS_PROACTIVE_COMPACT) += oplus_proactive_compact.o' source/fs/proc/Makefile
+          check proactive-compact-kbuild grep -Fq 'obj-$(CONFIG_OPLUS_PROACTIVE_COMPACT) += oplus_bsp_proactive_compact.o' source/fs/proc/Makefile
+          check proactive-compact-hpage-param grep -Fq 'module_param_cb(compaction_hpage_order,' source/fs/proc/oplus_proactive_compact.c
+          check proactive-compact-proactiveness-param grep -Fq 'module_param_cb(compaction_proactiveness,' source/fs/proc/oplus_proactive_compact.c
           check proactive-compact-node grep -Fq 'proc_create("fragmentation_index", 0666' source/fs/proc/oplus_proactive_compact.c
           check proactive-compact-no-trigger test "$(grep -Fc 'compact_node' source/fs/proc/oplus_proactive_compact.c)" -eq 0
           check storage-log-config grep -Fxq 'CONFIG_OPLUS_STORAGE_LOG=y' source/h40-repro/config/GM1911_11_H.40.config
@@ -751,7 +768,7 @@ jobs:
             echo "production_write=NONE"
           } | tee BUILD-BOUNDARIES.txt
 
-      - name: Prepare Stage 9N OFB stune ABI H.40 config
+      - name: Prepare Wave 10 EAS and memory ABI H.40 config
         shell: bash
         working-directory: source
         run: |
@@ -759,7 +776,7 @@ jobs:
           cp h40-repro/config/GM1911_11_H.40.config "${RUNNER_TEMP}/stage9b-task-sched-info-a14.config"
           bash scripts/miru/configure_mem_stage4.sh "${RUNNER_TEMP}/stage9b-task-sched-info-a14.config"
 
-      - name: Generate stable Stage 9N 4.14.357 build driver
+      - name: Generate stable Wave 10 4.14.357 build driver
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -772,7 +789,7 @@ jobs:
 
           start = text.index('# Fetch only the distant commits required by the source-level sanity checks.')
           end = text.index("# GitHub's Ubuntu image contains most dependencies already")
-          gate = '''# Exact Stage 9N OFB stune ABI source sanity gate.
+          gate = '''# Exact Wave 10 EAS and memory ABI source sanity gate.
           source_head="$(git rev-parse HEAD)"
           test "${source_head}" = "${SOURCE_SHA}"
           test -z "$(git ls-files -u)"
@@ -889,7 +906,17 @@ jobs:
           grep -Fq 'TASK_SCHED_THRESHOLD_MIN_NS' fs/proc/task_sched_info.c
           grep -Fq 'proc_create("sched_stats", 0444' fs/proc/task_sched_info.c
           grep -Fxq 'CONFIG_OPLUS_PROACTIVE_COMPACT=y' h40-repro/config/GM1911_11_H.40.config
-          grep -Fq 'obj-$(CONFIG_OPLUS_PROACTIVE_COMPACT) += oplus_proactive_compact.o' fs/proc/Makefile
+          grep -Fq 'obj-$(CONFIG_OPLUS_PROACTIVE_COMPACT) += oplus_bsp_proactive_compact.o' fs/proc/Makefile
+          grep -Fq 'module_param_cb(compaction_hpage_order,' fs/proc/oplus_proactive_compact.c
+          grep -Fq 'module_param_cb(compaction_proactiveness,' fs/proc/oplus_proactive_compact.c
+          grep -Fq 'source "kernel/sched_assist/Kconfig"' init/Kconfig
+          grep -Fxq 'CONFIG_OPLUS_FEATURE_EAS_OPT=y' h40-repro/config/GM1911_11_H.40.config
+          grep -Fxq 'CONFIG_OPLUS_FEATURE_VT_CAP=y' h40-repro/config/GM1911_11_H.40.config
+          grep -Fxq 'CONFIG_OPLUS_CPUFREQ_IOWAIT_PROTECT=y' h40-repro/config/GM1911_11_H.40.config
+          grep -Fq 'oplus_eas_task_skip_cpu(p, i)' kernel/sched/fair.c
+          grep -Fq 'oplus_eas_adjust_capacity(cpu, capacity);' kernel/sched/fair.c
+          grep -Fq 'sysctl_iowait_apply_ticks' kernel/sched/cpufreq_schedutil.c
+          grep -Fq 'oplus_boost_kill_signal(sig, current, p);' kernel/signal.c
           test -f fs/proc/oplus_proactive_compact.c
           ! grep -Fq 'compact_node' fs/proc/oplus_proactive_compact.c
           grep -Fxq 'CONFIG_OPLUS_STORAGE_LOG=y' h40-repro/config/GM1911_11_H.40.config
@@ -935,16 +962,16 @@ jobs:
               'printf \'%s\\n\' "${EXPECTED_RELEASE}" > "${ARTIFACT_DIR}/KERNEL-RELEASE.txt"',
               'printf \'%s\\n\' "${SOURCE_SHA}" > "${ARTIFACT_DIR}/SOURCE-SHA.txt"',
               'printf \'%s\\n\' "${MODULES_REPAIR_SHA}" > "${ARTIFACT_DIR}/VENDOR-SHA.txt"',
-              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/STAGE9N-OFB-STUNE-ABI-IMAGE-SHA256.txt"',
-              'echo "Stage 9N OFB stune ABI kernel build: PASS"',
+              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/WAVE10-EAS-MEMORY-ABI-IMAGE-SHA256.txt"',
+              'echo "Wave 10 EAS and memory ABI kernel build: PASS"',
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=ae038eb7e4b02d454b00954201507cda31b0c478',
-              '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Stage 9N OFB stune ABI stable build ==',
-              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage9n-ofb-stune-abi-ci1',
-              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage9n-ofb-stune-abi-ci1"',
-              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-stage9n-ofb-stune-abi-ci1+' || true)\"",
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=9bc84f900c7b79daac57b7df33ecc48e68710387',
+              '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Wave 10 EAS and memory ABI stable build ==',
+              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-wave10-eas-memory-abi-ci1',
+              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-wave10-eas-memory-abi-ci1"',
+              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-wave10-eas-memory-abi-ci1+' || true)\"",
               'echo "Clean kernel build and output validation: PASS"': final,
           }
           for old, new in replacements.items():
@@ -956,10 +983,10 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=ae038eb7e4b02d454b00954201507cda31b0c478' build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage9n-ofb-stune-abi-ci1' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=9bc84f900c7b79daac57b7df33ecc48e68710387' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave10-eas-memory-abi-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
-      - name: Build Stage 9N OFB stune ABI kernel with stable builder
+      - name: Build Wave 10 EAS and memory ABI kernel with stable builder
         shell: bash
         working-directory: source
         env:
@@ -996,6 +1023,12 @@ jobs:
           cpu_jank_base_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_info/osi_base.o' -print -quit)"
           cpu_jank_enable_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_info/osi_enable.o' -print -quit)"
           sched_assist_common_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_assist/sched_assist_common.o' -print -quit)"
+          proactive_compact_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/fs/proc/oplus_bsp_proactive_compact.o' -print -quit)"
+          test -s "${proactive_compact_obj}"
+          strings "${sched_assist_common_obj}" | grep -Fxq 'boost_kill'
+          for literal in compaction_hpage_order compaction_proactiveness; do
+            strings "${proactive_compact_obj}" | grep -Fq "${literal}"
+          done
           strings "${cpu_jank_version_obj}" | grep -Fxq 'v4.1@20230306'
           readelf -sW "${cpu_jank_cpuload_obj}" | grep -Fq 'jankinfo_update_time_info'
           gameopt_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/soc/oplus/game_opt/game_opt.o' -print -quit)"
@@ -1037,6 +1070,12 @@ jobs:
           grep -Eq '[[:space:]][Tt][[:space:]]account_task_time$' "${out_dir}/System.map"
           grep -Eq '[[:space:]][BbDd][[:space:]]sysctl_task_cpustats_enable$' "${out_dir}/System.map"
           strings "${out_dir}/vmlinux" > "${strings_file}"
+          for literal in eas_opt eas_opt_enable group_adjust group_adjust_enable oplus_cap_multiple util_thresh_percent iowait_config iowait_apply_ticks iowait_reset_ticks oplus_iowait_boost_enabled oplus_iowait_skip_min_enabled; do
+            grep -Fq "${literal}" "${strings_file}"
+          done
+          for symbol in oplus_eas_task_skip_cpu oplus_eas_place_entity oplus_eas_adjust_capacity oplus_eas_adjust_util oplus_boost_kill_signal; do
+            grep -Eq "[[:space:]][Tt][[:space:]]${symbol}$" "${out_dir}/System.map"
+          done
           frame_boost_ua_strings="${RUNNER_TEMP}/stage9m-frame-boost-ua.strings"
           frame_boost_touch_strings="${RUNNER_TEMP}/stage9m-frame-boost-touch.strings"
           strings "${frame_boost_ua_obj}" > "${frame_boost_ua_strings}"
@@ -1497,7 +1536,7 @@ jobs:
               ('4.14.190-miru-h40-lts190-ci1+', release, 1),
               ('miru-v3-modules-dropin-4.14.190', package_tag, 4),
               ('Miru 4.14.190 rebuilt external module ABI report',
-               'Miru Stage 9N Android 14 OFB stune ABI external module report', 1),
+               'Miru Wave 10 Android 14 EAS and memory ABI external module report', 1),
           )
           for old, new, expected_count in replacements:
               actual = text.count(old)
@@ -1564,6 +1603,9 @@ jobs:
           grep -Fxq 'gameopt_render_waker=opt-in-bounded-wakeup-accounting' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'gameopt_dstate=selected-rate-limited-deferred-stack-reporting' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'frame_boost_control_plane=task-group-walt-ioctl-sysctl' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
+          grep -Fxq 'eas_opt=active-4.14-placement-capacity-schedutil-iowait' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
+          grep -Fxq 'proactive_compact_parameters=bounded-runtime-tunables' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
+          grep -Fxq 'sched_assist_boost_kill=donor-background-exit-acceleration' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           test -s "${artifact_dir}/CPU-JANK-REPORTING-BINARY-AUDIT.txt"
           grep -Fxq 'cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup' "${artifact_dir}/CPU-JANK-REPORTING-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/CPU-JANK-HOTTHREAD-BINARY-AUDIT.txt"
@@ -1620,15 +1662,18 @@ jobs:
             echo frame_boost_parity=donor-paths-ua-touch-active-default
             echo frame_boost_stune_abi=donor-68-byte-sf-gpu-nongpu-controls
             echo frame_boost_default=active
+            echo eas_opt=active-4.14-placement-capacity-schedutil-iowait
+            echo proactive_compact_parameters=bounded-runtime-tunables
+            echo sched_assist_boost_kill=donor-background-exit-acceleration
             echo production_after=${live_production}
             echo production_write=NONE
           } | tee "${artifact_dir}/FINAL-CANDIDATE-SUMMARY.txt"
 
-      - name: Upload Stage 9N OFB stune ABI kernel and modules
+      - name: Upload Wave 10 EAS and memory ABI kernel and modules
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: miru-h40-stage9n-ofb-stune-abi-kernel-and-modules
+          name: miru-h40-wave10-eas-memory-abi-kernel-and-modules
           if-no-files-found: error
           retention-days: 30
           path: |
