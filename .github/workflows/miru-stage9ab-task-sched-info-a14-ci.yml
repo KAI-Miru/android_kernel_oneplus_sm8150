@@ -542,8 +542,8 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-wave17-uxio-first
-      SOURCE_SHA: 84505bc557f9d657dd3db071740b769378e011af
-      PARENT_SHA: 365c44fc7c3768bd881869dac1fccf9ee0d52126
+      SOURCE_SHA: 2cd7ef04b1e8a84f60dd66b99190c76f89eb95bd
+      PARENT_SHA: 84505bc557f9d657dd3db071740b769378e011af
       MODULES_REPAIR_BRANCH: miru-h40-wave17-uxio-first
       MODULES_REPAIR_SHA: 8b75484c7ba30cbb6a9f0d9bc2031b1da9f4990c
       MODULES_PARENT_SHA: 82694a050d6ee18b9597940adc0a9d9a1b63890c
