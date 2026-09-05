@@ -1073,8 +1073,8 @@ check_absent frame-boost-duplicate-cpu-util-helper \
   grep -Fq 'unsigned long cpu_util_without(int cpu, struct task_struct *p)' "${frame_group_c}"
 check frame-boost-native-cpu-util-helper-call \
   grep -Fq 'cpu_util_without(iter_cpu, p)' "${frame_group_c}"
-check frame-boost-h40-walt-handoff \
-  grep -Fq '#define FBG_CPUFREQ_UPDATE_FLAGS(flags) ((flags) | SCHED_CPUFREQ_WALT)' "${frame_group_c}"
+check frame-boost-h40-native-walt-cadence \
+  grep -Fq '#define FBG_CPUFREQ_UPDATE_FLAGS(flags) (flags)' "${frame_group_c}"
 check frame-boost-h40-topology \
   grep -Fq 'cpuid_topo->cluster_id' "${frame_group_c}"
 check frame-boost-h40-idle-adapter \
