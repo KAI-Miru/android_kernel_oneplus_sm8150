@@ -1,10 +1,10 @@
-name: Miru H.40 Stage 9J 9R tasktrack callstack build
+name: Miru H.40 Stage 9K 9R GameOpt CPU-frequency build
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - miru-h40-stage9j-tasktrack-callstack-ci-trigger
+      - miru-h40-stage9k-gameopt-cpufreq-limits-ci-trigger
     paths:
       - '.github/workflows/miru-stage9ab-task-sched-info-a14-ci.yml'
 
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-stage9j-tasktrack-callstack
+  group: miru-h40-stage9k-gameopt-cpufreq-limits
   cancel-in-progress: true
 
 env:
@@ -530,20 +530,20 @@ jobs:
             build-diagnostics/**
             external-module-diagnostics/**
 
-  build-stage9j:
+  build-stage9k:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
-      SOURCE_BRANCH: miru-h40-stage9j-tasktrack-callstack
-      SOURCE_SHA: 0611238109d4985eb82e7987b120c3cbc9be08e6
-      PARENT_SHA: 4a8760a4b748abd1eba8010a2957026b66c5b752
+      SOURCE_BRANCH: miru-h40-stage9k-gameopt-cpufreq-limits
+      SOURCE_SHA: 91bfe7eb3d07e01eca4e123136324aa516194931
+      PARENT_SHA: 0611238109d4985eb82e7987b120c3cbc9be08e6
       MODULES_REPAIR_BRANCH: miru-h40-stage9j-tasktrack-callstack
       MODULES_REPAIR_SHA: 01cc0ba0e82796397269a9c165641d9bce089f95
-      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9j-tasktrack-callstack-ci1+
-      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage9j-tasktrack-callstack-ci1
+      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9k-gameopt-cpufreq-limits-ci1+
+      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage9k-gameopt-cpufreq-limits-ci1
 
     steps:
-      - name: Checkout Stage 9J tasktrack callstack source
+      - name: Checkout Stage 9K GameOpt CPU-frequency source
         uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_SHA }}
@@ -558,7 +558,7 @@ jobs:
             local label="$1"
             shift
             if ! "$@"; then
-              echo "::error title=Stage 9J boundary check failed::${label}"
+              echo "::error title=Stage 9K boundary check failed::${label}"
               exit 1
             fi
             echo "boundary check passed: ${label}"
@@ -612,14 +612,22 @@ jobs:
           check gameopt-config grep -Fxq 'CONFIG_OPLUS_FEATURE_GAME_OPT=y' source/h40-repro/config/GM1911_11_H.40.config
           check gameopt-kconfig grep -Fq 'source "drivers/soc/oplus/game_opt/Kconfig"' source/drivers/soc/Kconfig
           check gameopt-kbuild grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += oplus/game_opt/' source/drivers/soc/Makefile
-          check gameopt-trimmed-objects grep -Fxq 'game_opt-y := game_ctrl.o cpu_load.o task_util.o rt_info.o' source/drivers/soc/oplus/game_opt/Makefile
+          check gameopt-bounded-objects grep -Fxq 'game_opt-y := game_ctrl.o cpu_load.o cpufreq_limits.o task_util.o rt_info.o' source/drivers/soc/oplus/game_opt/Makefile
           check gameopt-source test -f source/drivers/soc/oplus/game_opt/cpu_load.c
           check gameopt-public-header test -f source/include/linux/oplus_game_opt.h
           check gameopt-proc-parent grep -Fq 'proc_mkdir("game_opt", NULL)' source/drivers/soc/oplus/game_opt/game_ctrl.c
           check gameopt-cpu-load-node grep -Fq 'proc_create_data("cpu_load", 0444' source/drivers/soc/oplus/game_opt/cpu_load.c
           check gameopt-idle-hooks test "$(grep -Fc 'g_time_in_state_update_idle(dev->cpu,' source/drivers/cpuidle/cpuidle.c)" -eq 2
           check gameopt-cpufreq-notifier grep -Fq 'cpufreq_register_notifier(&cpufreq_transition_notifier,' source/drivers/soc/oplus/game_opt/cpu_load.c
-          check gameopt-no-frequency-dstate-controls test "$(grep -Ec 'cpufreq_limits\.o|dstate_dump\.o' source/drivers/soc/oplus/game_opt/Makefile)" -eq 0
+          check gameopt-cpufreq-source test -f source/drivers/soc/oplus/game_opt/cpufreq_limits.c
+          check gameopt-cpufreq-min-node grep -Fq 'proc_create_data("cpu_min_freq", 0664' source/drivers/soc/oplus/game_opt/cpufreq_limits.c
+          check gameopt-cpufreq-max-node grep -Fq 'proc_create_data("cpu_max_freq", 0664' source/drivers/soc/oplus/game_opt/cpufreq_limits.c
+          check gameopt-cpufreq-policy-notifier grep -Fq 'CPUFREQ_POLICY_NOTIFIER' source/drivers/soc/oplus/game_opt/cpufreq_limits.c
+          check gameopt-cpufreq-policy-clamp grep -Fq 'cpufreq_verify_within_limits(policy, min, max);' source/drivers/soc/oplus/game_opt/cpufreq_limits.c
+          check gameopt-cpufreq-neutral-min grep -Fq 'per_cpu(game_cpu_freq_status, cpu).min = 0;' source/drivers/soc/oplus/game_opt/cpufreq_limits.c
+          check gameopt-cpufreq-neutral-max grep -Fq 'per_cpu(game_cpu_freq_status, cpu).max = UINT_MAX;' source/drivers/soc/oplus/game_opt/cpufreq_limits.c
+          check gameopt-no-dstate-control test "$(grep -Fc 'dstate_dump.o' source/drivers/soc/oplus/game_opt/Makefile)" -eq 0
+          check gameopt-cpufreq-abi-document test -f source/Documentation/ABI/testing/procfs-oplus-gameopt-cpufreq-limits
           check gameopt-abi-document test -f source/Documentation/ABI/testing/procfs-oplus-gameopt-cpu-load
           check gameopt-audit grep -Fq 'gameopt_cpu_load=donor-time-in-state-idle-frequency' source/scripts/miru/verify_coloros14_procabi.sh
           check gameopt-task-runtime-source test -f source/drivers/soc/oplus/game_opt/task_util.c
@@ -717,7 +725,7 @@ jobs:
             echo "production_write=NONE"
           } | tee BUILD-BOUNDARIES.txt
 
-      - name: Prepare Stage 9J tasktrack callstack H.40 config
+      - name: Prepare Stage 9K GameOpt CPU-frequency H.40 config
         shell: bash
         working-directory: source
         run: |
@@ -725,7 +733,7 @@ jobs:
           cp h40-repro/config/GM1911_11_H.40.config "${RUNNER_TEMP}/stage9b-task-sched-info-a14.config"
           bash scripts/miru/configure_mem_stage4.sh "${RUNNER_TEMP}/stage9b-task-sched-info-a14.config"
 
-      - name: Generate stable Stage 9J 4.14.357 build driver
+      - name: Generate stable Stage 9K 4.14.357 build driver
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -738,7 +746,7 @@ jobs:
 
           start = text.index('# Fetch only the distant commits required by the source-level sanity checks.')
           end = text.index("# GitHub's Ubuntu image contains most dependencies already")
-          gate = '''# Exact Stage 9J tasktrack callstack source sanity gate.
+          gate = '''# Exact Stage 9K GameOpt CPU-frequency source sanity gate.
           source_head="$(git rev-parse HEAD)"
           test "${source_head}" = "${SOURCE_SHA}"
           test -z "$(git ls-files -u)"
@@ -770,12 +778,22 @@ jobs:
           grep -Fxq 'CONFIG_OPLUS_FEATURE_GAME_OPT=y' h40-repro/config/GM1911_11_H.40.config
           grep -Fq 'source "drivers/soc/oplus/game_opt/Kconfig"' drivers/soc/Kconfig
           grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += oplus/game_opt/' drivers/soc/Makefile
-          grep -Fxq 'game_opt-y := game_ctrl.o cpu_load.o task_util.o rt_info.o' drivers/soc/oplus/game_opt/Makefile
+          grep -Fxq 'game_opt-y := game_ctrl.o cpu_load.o cpufreq_limits.o task_util.o rt_info.o' drivers/soc/oplus/game_opt/Makefile
           grep -Fq 'proc_mkdir("game_opt", NULL)' drivers/soc/oplus/game_opt/game_ctrl.c
           grep -Fq 'proc_create_data("cpu_load", 0444' drivers/soc/oplus/game_opt/cpu_load.c
           test "$(grep -Fc 'g_time_in_state_update_idle(dev->cpu,' drivers/cpuidle/cpuidle.c)" -eq 2
           grep -Fq 'cpufreq_register_notifier(&cpufreq_transition_notifier,' drivers/soc/oplus/game_opt/cpu_load.c
           grep -Fq 'gameopt_cpu_load=donor-time-in-state-idle-frequency' scripts/miru/verify_coloros14_procabi.sh
+          test -f drivers/soc/oplus/game_opt/cpufreq_limits.c
+          grep -Fq 'proc_create_data("cpu_min_freq", 0664' drivers/soc/oplus/game_opt/cpufreq_limits.c
+          grep -Fq 'proc_create_data("cpu_max_freq", 0664' drivers/soc/oplus/game_opt/cpufreq_limits.c
+          grep -Fq 'CPUFREQ_POLICY_NOTIFIER' drivers/soc/oplus/game_opt/cpufreq_limits.c
+          grep -Fq 'cpufreq_verify_within_limits(policy, min, max);' drivers/soc/oplus/game_opt/cpufreq_limits.c
+          grep -Fq 'per_cpu(game_cpu_freq_status, cpu).min = 0;' drivers/soc/oplus/game_opt/cpufreq_limits.c
+          grep -Fq 'per_cpu(game_cpu_freq_status, cpu).max = UINT_MAX;' drivers/soc/oplus/game_opt/cpufreq_limits.c
+          ! grep -Fq 'dstate_dump.o' drivers/soc/oplus/game_opt/Makefile
+          grep -Fq 'gameopt_cpufreq_limits=donor-cpu-khz-policy-controls' scripts/miru/verify_coloros14_procabi.sh
+          test -f Documentation/ABI/testing/procfs-oplus-gameopt-cpufreq-limits
           grep -Fq 'proc_create_data("game_pid", 0664' drivers/soc/oplus/game_opt/task_util.c
           grep -Fq 'proc_create_data("heavy_task_info", 0444' drivers/soc/oplus/game_opt/task_util.c
           grep -Fq 'need_stat_runtime = ATOMIC_INIT(0)' drivers/soc/oplus/game_opt/task_util.c
@@ -867,16 +885,16 @@ jobs:
               'printf \'%s\\n\' "${EXPECTED_RELEASE}" > "${ARTIFACT_DIR}/KERNEL-RELEASE.txt"',
               'printf \'%s\\n\' "${SOURCE_SHA}" > "${ARTIFACT_DIR}/SOURCE-SHA.txt"',
               'printf \'%s\\n\' "${MODULES_REPAIR_SHA}" > "${ARTIFACT_DIR}/VENDOR-SHA.txt"',
-              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/STAGE9J-TASKTRACK-CALLSTACK-IMAGE-SHA256.txt"',
-              'echo "Stage 9J tasktrack callstack kernel build: PASS"',
+              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/STAGE9K-GAMEOPT-CPUFREQ-LIMITS-IMAGE-SHA256.txt"',
+              'echo "Stage 9K GameOpt CPU-frequency kernel build: PASS"',
           ])
 
           replacements = {
               'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=01cc0ba0e82796397269a9c165641d9bce089f95',
-              '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Stage 9J tasktrack callstack stable build ==',
-              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage9j-tasktrack-callstack-ci1',
-              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage9j-tasktrack-callstack-ci1"',
-              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-stage9j-tasktrack-callstack-ci1+' || true)\"",
+              '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Stage 9K GameOpt CPU-frequency stable build ==',
+              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage9k-gameopt-cpufreq-limits-ci1',
+              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage9k-gameopt-cpufreq-limits-ci1"',
+              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-stage9k-gameopt-cpufreq-limits-ci1+' || true)\"",
               'echo "Clean kernel build and output validation: PASS"': final,
           }
           for old, new in replacements.items():
@@ -889,9 +907,9 @@ jobs:
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
           grep -Fq 'VENDOR_SHA=01cc0ba0e82796397269a9c165641d9bce089f95' build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage9j-tasktrack-callstack-ci1' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage9k-gameopt-cpufreq-limits-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
-      - name: Build Stage 9J tasktrack callstack kernel with stable builder
+      - name: Build Stage 9K GameOpt CPU-frequency kernel with stable builder
         shell: bash
         working-directory: source
         env:
@@ -930,11 +948,13 @@ jobs:
           gameopt_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/soc/oplus/game_opt/game_opt.o' -print -quit)"
           gameopt_ctrl_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/soc/oplus/game_opt/game_ctrl.o' -print -quit)"
           gameopt_cpu_load_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/soc/oplus/game_opt/cpu_load.o' -print -quit)"
+          gameopt_cpufreq_limits_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/soc/oplus/game_opt/cpufreq_limits.o' -print -quit)"
           gameopt_task_util_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/soc/oplus/game_opt/task_util.o' -print -quit)"
           gameopt_rt_info_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/drivers/soc/oplus/game_opt/rt_info.o' -print -quit)"
           test -s "${gameopt_obj}"
           test -s "${gameopt_ctrl_obj}"
           test -s "${gameopt_cpu_load_obj}"
+          test -s "${gameopt_cpufreq_limits_obj}"
           test -s "${gameopt_task_util_obj}"
           test -s "${gameopt_rt_info_obj}"
           strings "${gameopt_cpu_load_obj}" | grep -Fq 'CPU:%d busy_pct:%d util_pct:%d'
@@ -975,7 +995,7 @@ jobs:
             echo workqueue_notification=absent
           } | tee "${artifact_dir}/CPU-JANK-REPORTING-BINARY-AUDIT.txt"
           cpu_jank_hotthread_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_info/osi_hotthread.o' -print -quit)"
-          hotthread_strings="${RUNNER_TEMP}/stage9j-hotthread.strings"
+          hotthread_strings="${RUNNER_TEMP}/stage9k-hotthread.strings"
           test -s "${cpu_jank_hotthread_obj}"
           strings "${cpu_jank_hotthread_obj}" > "${hotthread_strings}"
           grep -Fxq 'top_hotthread' "${hotthread_strings}"
@@ -995,7 +1015,7 @@ jobs:
             echo cpu_jank_hotthread=opt-in-bounded-workqueue-sampling
           } | tee "${artifact_dir}/CPU-JANK-HOTTHREAD-BINARY-AUDIT.txt"
           tasktrack_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_info/tasktrack.o' -print -quit)"
-          tasktrack_strings="${RUNNER_TEMP}/stage9j-tasktrack.strings"
+          tasktrack_strings="${RUNNER_TEMP}/stage9k-tasktrack.strings"
           test -s "${tasktrack_obj}"
           strings -n 3 "${tasktrack_obj}" > "${tasktrack_strings}"
           grep -Fxq 'sched_latency' "${tasktrack_strings}"
@@ -1041,9 +1061,30 @@ jobs:
             echo proc_path=/proc/game_opt/cpu_load
             echo idle_hook=present
             echo cpufreq_notifier=present
-            echo writable_frequency_controls=absent
+            echo writable_frequency_controls=present-stage9k
             echo gameopt_cpu_load=donor-time-in-state-idle-frequency
           } | tee "${artifact_dir}/GAMEOPT-CPU-LOAD-BINARY-AUDIT.txt"
+          gameopt_cpufreq_strings="${RUNNER_TEMP}/stage9k-gameopt-cpufreq.strings"
+          gameopt_cpufreq_relocs="${RUNNER_TEMP}/stage9k-gameopt-cpufreq.relocations"
+          strings "${gameopt_cpufreq_limits_obj}" > "${gameopt_cpufreq_strings}"
+          readelf -rW "${gameopt_cpufreq_limits_obj}" > "${gameopt_cpufreq_relocs}"
+          grep -Fxq 'cpu_min_freq' "${gameopt_cpufreq_strings}"
+          grep -Fxq 'cpu_max_freq' "${gameopt_cpufreq_strings}"
+          for symbol in cpufreq_register_notifier cpufreq_update_policy cpufreq_cpu_get cpufreq_cpu_put; do
+            grep -Fq "${symbol}" "${gameopt_cpufreq_relocs}"
+          done
+          ! grep -Eq 'schedule_work|queue_work|kobject_uevent' "${gameopt_cpufreq_relocs}"
+          {
+            echo result=PASS
+            echo proc_nodes=cpu_min_freq,cpu_max_freq
+            echo input_grammar=whitespace-separated-CPU:kHz-pairs
+            echo policy_backend=CPUFREQ_ADJUST-notifier
+            echo default_min=0
+            echo default_max=UINT_MAX
+            echo scheduler_hook=absent
+            echo dstate_coupling=absent
+            echo gameopt_cpufreq_limits=donor-cpu-khz-policy-controls
+          } | tee "${artifact_dir}/GAMEOPT-CPUFREQ-LIMITS-BINARY-AUDIT.txt"
           fair_gameopt_obj="${out_dir}/kernel/sched/fair.o"
           rt_gameopt_obj="${out_dir}/kernel/sched/rt.o"
           core_gameopt_obj="${out_dir}/kernel/sched/core.o"
@@ -1288,7 +1329,7 @@ jobs:
               ('4.14.190-miru-h40-lts190-ci1+', release, 1),
               ('miru-v3-modules-dropin-4.14.190', package_tag, 4),
               ('Miru 4.14.190 rebuilt external module ABI report',
-               'Miru Stage 9J Android 14 tasktrack callstack external module report', 1),
+               'Miru Stage 9K Android 14 GameOpt CPU-frequency external module report', 1),
           )
           for old, new, expected_count in replacements:
               actual = text.count(old)
@@ -1348,6 +1389,7 @@ jobs:
           grep -Fxq 'cpu_jank_tasktrack_latency=on-demand-bounded-sched-events' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'cpu_jank_tasktrack_callstack=on-demand-bounded-dsleep-stacktrace' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'gameopt_cpu_load=donor-time-in-state-idle-frequency' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
+          grep -Fxq 'gameopt_cpufreq_limits=donor-cpu-khz-policy-controls' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'gameopt_render_waker=opt-in-bounded-wakeup-accounting' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           test -s "${artifact_dir}/CPU-JANK-REPORTING-BINARY-AUDIT.txt"
@@ -1360,6 +1402,8 @@ jobs:
           grep -Fxq 'cpu_jank_tasktrack_callstack=on-demand-bounded-dsleep-stacktrace' "${artifact_dir}/CPU-JANK-TASKTRACK-CALLSTACK-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/GAMEOPT-CPU-LOAD-BINARY-AUDIT.txt"
           grep -Fxq 'gameopt_cpu_load=donor-time-in-state-idle-frequency' "${artifact_dir}/GAMEOPT-CPU-LOAD-BINARY-AUDIT.txt"
+          test -s "${artifact_dir}/GAMEOPT-CPUFREQ-LIMITS-BINARY-AUDIT.txt"
+          grep -Fxq 'gameopt_cpufreq_limits=donor-cpu-khz-policy-controls' "${artifact_dir}/GAMEOPT-CPUFREQ-LIMITS-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/GAMEOPT-TASK-RUNTIME-BINARY-AUDIT.txt"
           grep -Fxq 'gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting' "${artifact_dir}/GAMEOPT-TASK-RUNTIME-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/GAMEOPT-RENDER-WAKER-BINARY-AUDIT.txt"
@@ -1386,17 +1430,18 @@ jobs:
             echo cpu_jank_tasktrack_latency=on-demand-bounded-sched-events
             echo cpu_jank_tasktrack_callstack=on-demand-bounded-dsleep-stacktrace
             echo gameopt_cpu_load=donor-time-in-state-idle-frequency
+            echo gameopt_cpufreq_limits=donor-cpu-khz-policy-controls
             echo gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting
             echo gameopt_render_waker=opt-in-bounded-wakeup-accounting
             echo production_after=${live_production}
             echo production_write=NONE
           } | tee "${artifact_dir}/FINAL-CANDIDATE-SUMMARY.txt"
 
-      - name: Upload Stage 9J tasktrack callstack kernel and modules
+      - name: Upload Stage 9K GameOpt CPU-frequency kernel and modules
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: miru-h40-stage9j-tasktrack-callstack-kernel-and-modules
+          name: miru-h40-stage9k-gameopt-cpufreq-limits-kernel-and-modules
           if-no-files-found: error
           retention-days: 30
           path: |
