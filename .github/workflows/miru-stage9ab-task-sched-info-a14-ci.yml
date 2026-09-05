@@ -542,11 +542,11 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-wave16-ufs-ddr-telemetry
-      SOURCE_SHA: ed1bc76beee67298fbaebd8df6dad589d745dd67
-      PARENT_SHA: 6d7441b6b2c44d07edf65adbd6e1de9f93b77af5
-      MODULES_REPAIR_BRANCH: miru-h40-wave15-oswap2-hybridswap
-      MODULES_REPAIR_SHA: 0ab0a9b3d4f888d973e165e3d2a9ed35efb3163f
-      MODULES_PARENT_SHA: 2e7bf68503a2388d6f081000ee84c24e656503fa
+      SOURCE_SHA: 365c44fc7c3768bd881869dac1fccf9ee0d52126
+      PARENT_SHA: ed1bc76beee67298fbaebd8df6dad589d745dd67
+      MODULES_REPAIR_BRANCH: miru-h40-wave16-ufs-ddr-telemetry
+      MODULES_REPAIR_SHA: 69e28d98ffecb48f420d9153453b19904b3e7155
+      MODULES_PARENT_SHA: 0ab0a9b3d4f888d973e165e3d2a9ed35efb3163f
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave16-ufs-ddr-telemetry-ci1+
       PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave16-ufs-ddr-telemetry-ci1
 
@@ -1045,7 +1045,7 @@ jobs:
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=0ab0a9b3d4f888d973e165e3d2a9ed35efb3163f',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=69e28d98ffecb48f420d9153453b19904b3e7155',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Wave 16 Midas hardware telemetry stable build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-wave16-ufs-ddr-telemetry-ci1',
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-wave16-ufs-ddr-telemetry-ci1"',
@@ -1061,7 +1061,7 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=0ab0a9b3d4f888d973e165e3d2a9ed35efb3163f' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=69e28d98ffecb48f420d9153453b19904b3e7155' build-stage9b-task-sched-info-a14-stable.sh
           grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave16-ufs-ddr-telemetry-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
       - name: Build Wave 16 Midas hardware telemetry kernel with stable builder
