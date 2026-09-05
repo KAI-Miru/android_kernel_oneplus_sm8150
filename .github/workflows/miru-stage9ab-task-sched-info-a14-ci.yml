@@ -1137,8 +1137,9 @@ jobs:
             echo debug_trackers=disabled
             echo athena_memory_abi=read-triggered-allocator-totals-native-reclaim-controls
           } | tee "${artifact_dir}/ATHENA-MEMORY-ABI-BINARY-AUDIT.txt"
-          locking_strings="${RUNNER_TEMP}/wave12-locking-strategy.strings"
-          strings "${locking_strategy_obj}" > "${locking_strings}"
+          # Validate the shipped image, not the intermediate relocatable object:
+          # final linking may merge identical/suffix strings across members.
+          locking_strings="${strings_file}"
           for literal in oplus_locking thread_info_ctrl lock_stats mutex rwsem_read rwsem_write futex_art kern_lock_stats kern_lock_stats_rclear fatal_lock_stats lock_thres_ctrl locking_enable locking_debug mutex_opt_spin_time_threshold rwsem_opt_spin_time_threshold futex_ux_set_cnt futex_ux_unset_cnt futex_set_blocked_ux_cnt; do
             grep -Fq "${literal}" "${locking_strings}"
           done
