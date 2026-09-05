@@ -20,6 +20,12 @@
 #ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
 #include "../tuning/frame_group.h"
 #endif
+#ifdef CONFIG_OPLUS_FEATURE_VT_CAP
+#include <linux/sched_assist/eas_opt/oplus_cap.h>
+#endif
+#ifdef CONFIG_OPLUS_CPUFREQ_IOWAIT_PROTECT
+#include <linux/sched_assist/eas_opt/oplus_iowait.h>
+#endif
 #include "sched.h"
 
 #define SUGOV_KTHREAD_PRIORITY	50
@@ -352,17 +358,25 @@ static void sugov_set_iowait_boost(struct sugov_cpu *sg_cpu, u64 time,
 		}
 	} else if (sg_cpu->iowait_boost) {
 		s64 delta_ns = time - sg_cpu->last_update;
+		u64 reset_ns = TICK_NSEC;
+
+#ifdef CONFIG_OPLUS_CPUFREQ_IOWAIT_PROTECT
+		if (READ_ONCE(sysctl_oplus_iowait_boost_enabled) &&
+		    READ_ONCE(sysctl_iowait_reset_ticks))
+			reset_ns = (u64)READ_ONCE(sysctl_iowait_reset_ticks) *
+				TICK_NSEC;
+#endif
 
 		/* Clear iowait_boost if the CPU apprears to have been idle. */
-		if (delta_ns > TICK_NSEC) {
+		if (delta_ns > reset_ns) {
 			sg_cpu->iowait_boost = 0;
 			sg_cpu->iowait_boost_pending = false;
 		}
 	}
 }
 
-static void sugov_iowait_boost(struct sugov_cpu *sg_cpu, unsigned long *util,
-			       unsigned long *max)
+static void sugov_iowait_boost(struct sugov_cpu *sg_cpu, u64 time,
+			       unsigned long *util, unsigned long *max)
 {
 	unsigned int boost_util, boost_max;
 
@@ -372,6 +386,13 @@ static void sugov_iowait_boost(struct sugov_cpu *sg_cpu, unsigned long *util,
 	if (sg_cpu->iowait_boost_pending) {
 		sg_cpu->iowait_boost_pending = false;
 	} else {
+#ifdef CONFIG_OPLUS_CPUFREQ_IOWAIT_PROTECT
+		if (READ_ONCE(sysctl_oplus_iowait_boost_enabled) &&
+		    READ_ONCE(sysctl_iowait_apply_ticks) &&
+		    time - sg_cpu->sg_policy->last_freq_update_time <=
+		    (u64)READ_ONCE(sysctl_iowait_apply_ticks) * TICK_NSEC)
+			goto apply_boost;
+#endif
 		sg_cpu->iowait_boost >>= 1;
 		if (sg_cpu->iowait_boost < sg_cpu->sg_policy->policy->min) {
 			sg_cpu->iowait_boost = 0;
@@ -379,6 +400,9 @@ static void sugov_iowait_boost(struct sugov_cpu *sg_cpu, unsigned long *util,
 		}
 	}
 
+#ifdef CONFIG_OPLUS_CPUFREQ_IOWAIT_PROTECT
+apply_boost:
+#endif
 	boost_util = sg_cpu->iowait_boost;
 	boost_max = sg_cpu->iowait_boost_max;
 
@@ -481,10 +505,14 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 				sg_policy->avg_cap, max, sg_cpu->walt_load.nl,
 				sg_cpu->walt_load.pl, flags);
 
-		sugov_iowait_boost(sg_cpu, &util, &max);
+		sugov_iowait_boost(sg_cpu, time, &util, &max);
 		sugov_walt_adjust(sg_cpu, &util, &max);
 #ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
 		fbg_freq_policy_util(sg_policy->flags, policy->cpus, &util);
+#endif
+#ifdef CONFIG_OPLUS_FEATURE_VT_CAP
+		util = oplus_eas_adjust_util(sg_cpu->cpu,
+				cpu_rq(sg_cpu->cpu)->nr_running, util, max);
 #endif
 		next_f = get_next_freq(sg_policy, util, max);
 		/*
@@ -546,11 +574,15 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 			max = j_max;
 		}
 
-		sugov_iowait_boost(j_sg_cpu, &util, &max);
+		sugov_iowait_boost(j_sg_cpu, time, &util, &max);
 		sugov_walt_adjust(j_sg_cpu, &util, &max);
 	}
 #ifdef CONFIG_OPLUS_FEATURE_FRAME_BOOST
 	fbg_freq_policy_util(sg_policy->flags, policy->cpus, &util);
+#endif
+#ifdef CONFIG_OPLUS_FEATURE_VT_CAP
+	util = oplus_eas_adjust_util(sg_cpu->cpu,
+			cpu_rq(sg_cpu->cpu)->nr_running, util, max);
 #endif
 
 	return get_next_freq(sg_policy, util, max);

@@ -53,6 +53,10 @@ bool ux_task_misfit(struct task_struct *p, int cpu);
 #include "../tuning/frame_group.h"
 #endif /* CONFIG_OPLUS_FEATURE_FRAME_BOOST */
 
+#ifdef CONFIG_OPLUS_FEATURE_VT_CAP
+#include <linux/sched_assist/eas_opt/oplus_cap.h>
+#endif
+
 #if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
 #include <linux/task_sched_info.h>
 #endif
@@ -4094,6 +4098,9 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 		se->vruntime = vruntime;
 	else
 		se->vruntime = max_vruntime(se->vruntime, vruntime);
+#ifdef CONFIG_OPLUS_FEATURE_VT_CAP
+	oplus_eas_place_entity(cfs_rq, se, initial);
+#endif
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 	place_entity_adjust_ux_task(cfs_rq, se, initial);
 #endif
@@ -7688,6 +7695,11 @@ static inline int find_best_target(struct task_struct *p, int *backup_cpu,
 			if (!cpu_online(i) || cpu_isolated(i))
 				continue;
 
+#ifdef CONFIG_OPLUS_FEATURE_VT_CAP
+			if (oplus_eas_task_skip_cpu(p, i))
+				continue;
+#endif
+
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 			if (should_ux_task_skip_cpu(p, i))
 				continue;
@@ -8370,6 +8382,11 @@ static int find_energy_efficient_cpu(struct sched_domain *sd,
 			/* prev_cpu already in list */
 			if (cpu_iter == prev_cpu)
 				continue;
+
+#ifdef CONFIG_OPLUS_FEATURE_VT_CAP
+			if (oplus_eas_task_skip_cpu(p, cpu_iter))
+				continue;
+#endif
 
 			/*
 			 * Consider only CPUs where the task is expected to
@@ -9961,7 +9978,12 @@ static void update_cpu_capacity(struct sched_domain *sd, int cpu)
 	capacity >>= SCHED_CAPACITY_SHIFT;
 
 	capacity = min(capacity, thermal_cap(cpu));
+#ifdef CONFIG_OPLUS_FEATURE_VT_CAP
+	cpu_rq(cpu)->cpu_capacity_orig =
+		oplus_eas_adjust_capacity(cpu, capacity);
+#else
 	cpu_rq(cpu)->cpu_capacity_orig = capacity;
+#endif
 
 	capacity *= scale_rt_capacity(cpu);
 	capacity >>= SCHED_CAPACITY_SHIFT;

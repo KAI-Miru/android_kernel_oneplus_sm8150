@@ -20,6 +20,10 @@ sched_assist_dir="${vendor_root}/oplus/kernel/oplus_performance/sched_assist"
 sched_info_dir="${vendor_root}/oplus/kernel/oplus_performance/sched_info"
 sched_assist_c="${sched_assist_dir}/sched_assist_common.c"
 sched_assist_slide_c="${sched_assist_dir}/sched_assist_slide.c"
+eas_opt_dir="${sched_assist_dir}/eas_opt"
+eas_opt_c="${eas_opt_dir}/eas_opt.c"
+eas_cap_c="${eas_opt_dir}/oplus_cap.c"
+eas_iowait_c="${eas_opt_dir}/oplus_iowait.c"
 sched_info_c="${sched_info_dir}/oplus_sched_info.c"
 tasktrack_c="${sched_info_dir}/tasktrack.c"
 cpu_jank_base_c="${sched_info_dir}/osi_base.c"
@@ -304,13 +308,46 @@ check proactive-compact-kconfig \
 check proactive-compact-config-enabled \
   grep -Fxq 'CONFIG_OPLUS_PROACTIVE_COMPACT=y' "${config}"
 check proactive-compact-kbuild \
-  grep -Fq 'obj-$(CONFIG_OPLUS_PROACTIVE_COMPACT) += oplus_proactive_compact.o' fs/proc/Makefile
+  grep -Fq 'obj-$(CONFIG_OPLUS_PROACTIVE_COMPACT) += oplus_bsp_proactive_compact.o' fs/proc/Makefile
 check proactive-compact-node \
   grep -Fq 'proc_create("fragmentation_index", 0666' "${proactive_compact_c}"
 check proactive-compact-no-trigger \
   grep -Fq 'does not initiate compaction' fs/proc/Kconfig
 check_absent proactive-compact-no-compact-node \
   grep -Fq 'compact_node' "${proactive_compact_c}"
+for parameter in compaction_hpage_order compaction_proactiveness; do
+  check "proactive-compact-parameter-${parameter}" \
+    grep -Fq "module_param_cb(${parameter}," "${proactive_compact_c}"
+done
+
+# Wave 10 restores the enabled 9R EAS/iowait control plane and wires each
+# control into the native 4.14 scheduling/cpufreq path.
+for option in OPLUS_FEATURE_EAS_OPT OPLUS_FEATURE_VT_CAP OPLUS_CPUFREQ_IOWAIT_PROTECT; do
+  check "eas-config-${option}" grep -Fxq "CONFIG_${option}=y" "${config}"
+done
+check eas-kconfig-source \
+  grep -Fq 'source "kernel/sched_assist/Kconfig"' init/Kconfig
+check eas-master-source test -f "${eas_opt_c}"
+check eas-cap-source test -f "${eas_cap_c}"
+check eas-iowait-source test -f "${eas_iowait_c}"
+check eas-master-node \
+  grep -Fq 'proc_create("eas_opt_enable", 0666' "${eas_opt_c}"
+for node in group_adjust_enable oplus_cap_multiple group_adjust util_thresh_percent; do
+  check "eas-cap-node-${node}" grep -Fq "proc_create(\"${node}\", 0666" "${eas_cap_c}"
+done
+for node in iowait_reset_ticks iowait_apply_ticks oplus_iowait_boost_enabled oplus_iowait_skip_min_enabled; do
+  check "eas-iowait-node-${node}" grep -Fq "\"${node}\"" "${eas_iowait_c}"
+done
+check eas-placement-hook grep -Fq 'oplus_eas_task_skip_cpu(p, i)' kernel/sched/fair.c
+check eas-vruntime-hook grep -Fq 'oplus_eas_place_entity(cfs_rq, se, initial);' kernel/sched/fair.c
+check eas-capacity-hook grep -Fq 'oplus_eas_adjust_capacity(cpu, capacity);' kernel/sched/fair.c
+check eas-util-hook grep -Fq 'oplus_eas_adjust_util(sg_cpu->cpu,' kernel/sched/cpufreq_schedutil.c
+check eas-iowait-reset-hook grep -Fq 'sysctl_iowait_reset_ticks' kernel/sched/cpufreq_schedutil.c
+check eas-iowait-apply-hook grep -Fq 'sysctl_iowait_apply_ticks' kernel/sched/cpufreq_schedutil.c
+check sched-assist-boost-kill-param \
+  grep -Fq 'module_param_named(boost_kill, boost_kill, uint, 0644);' "${sched_assist_c}"
+check sched-assist-boost-kill-hook \
+  grep -Fq 'oplus_boost_kill_signal(sig, current, p);' kernel/signal.c
 
 check storage-log-source test -f "${storage_log_c}"
 check storage-log-kconfig \
@@ -1041,4 +1078,7 @@ sched_assist_debug=donor-module-parameter-default-off
 task_cpustats=real-tick-accounting
 task_sched_info=full-scheduler-frequency-isolation-telemetry
 frame_boost_control_plane=task-group-walt-ioctl-sysctl
+eas_opt=active-4.14-placement-capacity-schedutil-iowait
+proactive_compact_parameters=bounded-runtime-tunables
+sched_assist_boost_kill=donor-background-exit-acceleration
 EOF

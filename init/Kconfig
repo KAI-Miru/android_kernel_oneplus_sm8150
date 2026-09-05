@@ -2084,6 +2084,9 @@ config ASN1
 
 source "kernel/Kconfig.locks"
 
+# ColorOS 14 scheduler-assist and EAS controls (external Oplus source).
+source "kernel/sched_assist/Kconfig"
+
 # Android 14 ColorOS CPU-jank proc ABI (external Oplus source via kernel/sched_info).
 source "kernel/sched_info/Kconfig"
 

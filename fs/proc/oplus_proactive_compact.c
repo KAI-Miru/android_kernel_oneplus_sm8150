@@ -23,6 +23,55 @@
 static unsigned int oplus_compaction_hpage_order = 4;
 static unsigned int oplus_compaction_proactiveness = 20;
 
+static int oplus_compaction_hpage_order_set(const char *value,
+		const struct kernel_param *kp)
+{
+	unsigned int parsed;
+	int ret;
+
+	ret = kstrtouint(value, 0, &parsed);
+	if (ret)
+		return ret;
+	if (parsed >= MAX_ORDER)
+		return -ERANGE;
+
+	WRITE_ONCE(*(unsigned int *)kp->arg, parsed);
+	return 0;
+}
+
+static int oplus_compaction_proactiveness_set(const char *value,
+		const struct kernel_param *kp)
+{
+	unsigned int parsed;
+	int ret;
+
+	ret = kstrtouint(value, 0, &parsed);
+	if (ret)
+		return ret;
+	if (parsed > 100)
+		return -ERANGE;
+
+	WRITE_ONCE(*(unsigned int *)kp->arg, parsed);
+	return 0;
+}
+
+static const struct kernel_param_ops oplus_compaction_hpage_order_ops = {
+	.set = oplus_compaction_hpage_order_set,
+	.get = param_get_uint,
+};
+
+static const struct kernel_param_ops oplus_compaction_proactiveness_ops = {
+	.set = oplus_compaction_proactiveness_set,
+	.get = param_get_uint,
+};
+
+module_param_cb(compaction_hpage_order,
+		&oplus_compaction_hpage_order_ops,
+		&oplus_compaction_hpage_order, 0644);
+module_param_cb(compaction_proactiveness,
+		&oplus_compaction_proactiveness_ops,
+		&oplus_compaction_proactiveness, 0644);
+
 struct oplus_contig_page_info {
 	unsigned long free_pages;
 	unsigned long free_blocks_suitable;

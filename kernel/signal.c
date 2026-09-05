@@ -33,6 +33,10 @@
 #include <linux/ratelimit.h>
 #include <linux/tracehook.h>
 #include <linux/capability.h>
+
+#ifdef OPLUS_FEATURE_SCHED_ASSIST
+#include <linux/sched_assist/sched_assist_common.h>
+#endif
 #include <linux/freezer.h>
 #include <linux/pid_namespace.h>
 #include <linux/nsproxy.h>
@@ -1237,6 +1241,10 @@ int do_send_sig_info(int sig, struct siginfo *info, struct task_struct *p,
                         printk(KERN_ERR "HANS: report signal-cpuctl failed, sig = %d, caller = %d, target_uid = %d\n", sig, task_tgid_nr(current), task_uid(p).val);
                 }
         }
+#endif
+
+#ifdef OPLUS_FEATURE_SCHED_ASSIST
+	oplus_boost_kill_signal(sig, current, p);
 #endif
 
 	if (lock_task_sighand(p, &flags)) {
