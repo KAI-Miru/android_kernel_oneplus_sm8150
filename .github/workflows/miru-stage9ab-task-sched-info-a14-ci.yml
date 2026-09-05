@@ -991,7 +991,7 @@ jobs:
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=44a3e3dd82edf3aafce9b1546561fee94bd691b4',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=aaa36b94b5b3e8b22090a41ddcb236e3e762c1c1',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Wave 12 locking strategy ABI stable build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-wave12-locking-strategy-abi-ci1',
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-wave12-locking-strategy-abi-ci1"',
@@ -1007,7 +1007,7 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=44a3e3dd82edf3aafce9b1546561fee94bd691b4' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=aaa36b94b5b3e8b22090a41ddcb236e3e762c1c1' build-stage9b-task-sched-info-a14-stable.sh
           grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave12-locking-strategy-abi-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
       - name: Build Wave 12 locking strategy ABI kernel with stable builder
