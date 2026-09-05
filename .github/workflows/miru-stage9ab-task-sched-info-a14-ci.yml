@@ -1040,16 +1040,16 @@ jobs:
           test -s "${proactive_compact_obj}"
           test -s "${athena_memory_obj}"
           sched_assist_check_strings="${RUNNER_TEMP}/wave11-sched-assist-common.strings"
-          proactive_compact_strings="${RUNNER_TEMP}/wave11-proactive-compact.strings"
+          proactive_compact_symbols="${RUNNER_TEMP}/wave11-proactive-compact.symbols"
           cpu_jank_version_strings="${RUNNER_TEMP}/wave11-cpu-jank-version.strings"
           cpu_jank_cpuload_symbols="${RUNNER_TEMP}/wave11-cpu-jank-cpuload.symbols"
           strings "${sched_assist_common_obj}" > "${sched_assist_check_strings}"
-          strings "${proactive_compact_obj}" > "${proactive_compact_strings}"
+          readelf -sW "${proactive_compact_obj}" > "${proactive_compact_symbols}"
           strings "${cpu_jank_version_obj}" > "${cpu_jank_version_strings}"
           readelf -sW "${cpu_jank_cpuload_obj}" > "${cpu_jank_cpuload_symbols}"
           grep -Fxq 'boost_kill' "${sched_assist_check_strings}"
-          for literal in compaction_hpage_order compaction_proactiveness; do
-            grep -Fq "${literal}" "${proactive_compact_strings}"
+          for symbol in oplus_compaction_hpage_order oplus_compaction_proactiveness; do
+            grep -Fq "${symbol}" "${proactive_compact_symbols}"
           done
           grep -Fxq 'v4.1@20230306' "${cpu_jank_version_strings}"
           grep -Fq 'jankinfo_update_time_info' "${cpu_jank_cpuload_symbols}"
