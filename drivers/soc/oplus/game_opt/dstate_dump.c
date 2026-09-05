@@ -11,6 +11,7 @@
 #include <linux/proc_fs.h>
 #include <linux/sched.h>
 #include <linux/sched/stat.h>
+#include <linux/sched/task.h>
 #include <linux/stacktrace.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
