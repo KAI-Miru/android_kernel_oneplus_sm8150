@@ -62,6 +62,7 @@
 #include <linux/swap_cgroup.h>
 #include <linux/cpu.h>
 #include <linux/oom.h>
+#include <linux/hybridswap.h>
 #include <linux/lockdep.h>
 #include <linux/file.h>
 #include <linux/tracehook.h>
@@ -4225,6 +4226,7 @@ static DEFINE_IDR(mem_cgroup_idr);
 static void mem_cgroup_id_remove(struct mem_cgroup *memcg)
 {
 	if (memcg->id.id > 0) {
+		mem_cgroup_id_remove_hook(NULL, memcg);
 		idr_remove(&mem_cgroup_idr, memcg->id.id);
 		memcg->id.id = 0;
 	}
@@ -4320,6 +4322,7 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
 	for_each_node(node)
 		free_mem_cgroup_per_node_info(memcg, node);
 	free_percpu(memcg->stat_cpu);
+	hybridswap_mem_cgroup_free(memcg);
 	kfree(memcg);
 }
 
@@ -4375,6 +4378,7 @@ static struct mem_cgroup *mem_cgroup_alloc(void)
 	INIT_LIST_HEAD(&memcg->cgwb_list);
 #endif
 	idr_replace(&mem_cgroup_idr, memcg, memcg->id.id);
+	hybridswap_mem_cgroup_alloc(memcg);
 	return memcg;
 fail:
 	mem_cgroup_id_remove(memcg);
@@ -4448,6 +4452,7 @@ static int mem_cgroup_css_online(struct cgroup_subsys_state *css)
 	/* Online state pins memcg ID, memcg ID pins CSS */
 	atomic_set(&memcg->id.ref, 1);
 	css_get(css);
+	hybridswap_mem_cgroup_online(css, memcg);
 	return 0;
 }
 
@@ -4455,6 +4460,8 @@ static void mem_cgroup_css_offline(struct cgroup_subsys_state *css)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_css(css);
 	struct mem_cgroup_event *event, *tmp;
+
+	hybridswap_mem_cgroup_offline(css, memcg);
 
 	/*
 	 * Unregister events and notify userspace.

@@ -49,6 +49,7 @@
 #include <linux/printk.h>
 #include <linux/dax.h>
 #include <linux/psi.h>
+#include <linux/hybridswap.h>
 
 #include <asm/tlbflush.h>
 #include <asm/div64.h>
@@ -188,6 +189,10 @@ int swappiness_threshold2_size = 0;
  */
 int direct_vm_swappiness = 60;
 #endif /*OPLUS_FEATURE_ZRAM_OPT*/
+#ifdef CONFIG_HYBRIDSWAP_SWAPD
+int hybridswapd_swappiness = 200;
+EXPORT_SYMBOL(hybridswapd_swappiness);
+#endif
 /*
  * The total number of pages which are beyond the high watermark within all
  * zones.
@@ -2389,8 +2394,17 @@ static void get_scan_count(struct lruvec *lruvec, struct mem_cgroup *memcg,
 
 
 #if defined(OPLUS_FEATURE_ZRAM_OPT) && defined(CONFIG_OPLUS_ZRAM_OPT)
-	if (!current_is_kswapd())
+	if (!current_is_kswapd()) {
+#ifdef CONFIG_HYBRIDSWAP_SWAPD
+		if (!strncmp(current->comm, "hybridswapd:",
+				sizeof("hybridswapd:") - 1)) {
+			swappiness = hybridswapd_swappiness;
+			if (free_swap_is_low())
+				swappiness = 0;
+		} else
+#endif
 		swappiness = direct_vm_swappiness;
+	}
 #ifdef CONFIG_DAYAMIC_TUNNING_SWAPPINESS
 	else {
 		unsigned long nr_file_pages =
@@ -2565,6 +2579,7 @@ out:
 		if (!scan && !mem_cgroup_online(memcg))
 			scan = min(size, SWAP_CLUSTER_MAX);
 
+		hybridswap_tune_scan_type((char *)&scan_balance);
 		switch (scan_balance) {
 		case SCAN_EQUAL:
 			/* Scan lists relative to size */

@@ -62,3 +62,26 @@ config OPLUS_ZRAM_OPT
 	help
 	oplus zram optimization
 #endif /*OPLUS_FEATURE_ZRAM_OPT*/
+
+config HYBRIDSWAP
+	bool "Enable Hybridswap"
+	depends on MEMCG && ZRAM && !ZRAM_DEDUP && !ZRAM_WRITEBACK
+	default n
+	help
+	  Hybridswap is an intelligent memory-management solution which moves
+	  compressed zram extents to a configured backing block device.
+
+config HYBRIDSWAP_SWAPD
+	bool "Enable hybridswap swapd background reclaim"
+	depends on HYBRIDSWAP
+	default n
+	help
+	  Reclaim anonymous pages into zram in a per-node background thread and
+	  move cold compressed extents to the Hybridswap backing device.
+
+config HYBRIDSWAP_CORE
+	bool "Hybridswap backing-device container support"
+	depends on HYBRIDSWAP
+	default n
+	help
+	  Build the backing-device extent manager into the zram driver.

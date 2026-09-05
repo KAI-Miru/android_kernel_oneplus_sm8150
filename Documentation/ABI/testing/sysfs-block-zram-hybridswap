@@ -1,0 +1,32 @@
+What:		/sys/block/zram<id>/hybridswap_vmstat
+What:		/sys/block/zram<id>/hybridswap_loglevel
+What:		/sys/block/zram<id>/hybridswap_enable
+What:		/sys/block/zram<id>/hybridswap_swapd_pause
+What:		/sys/block/zram<id>/hybridswap_core_enable
+What:		/sys/block/zram<id>/hybridswap_loop_device
+What:		/sys/block/zram<id>/hybridswap_dev_life
+What:		/sys/block/zram<id>/hybridswap_quota_day
+What:		/sys/block/zram<id>/hybridswap_report
+What:		/sys/block/zram<id>/hybridswap_stat_snap
+What:		/sys/block/zram<id>/hybridswap_meminfo
+What:		/sys/block/zram<id>/hybridswap_zram_increase
+Date:		September 2026
+Contact:	Miru kernel maintainers
+Description:
+		OnePlus OSwap 2.0 controls and statistics attached to each zram
+		device.  Userspace configures the loop backing device through
+		hybridswap_loop_device, enables the extent-backed core through
+		hybridswap_core_enable, and controls background reclaim through
+		hybridswap_enable and hybridswap_swapd_pause.  The remaining files
+		expose donor-compatible lifetime, quota, capacity, and telemetry
+		controls consumed by ColorOS 14 memory services.
+
+What:		/dev/memcg/memory.{force_shrink_anon,total_info_per_app,swap_stat,name,app_score,app_uid,ub_ufs2zram_ratio,force_swapin,force_swapout,psi,stored_wm_ratio}
+What:		/dev/memcg/memory.{active_app_info_list,zram_wm_ratio,compress_ratio,swapd_pressure,swapd_pid,avail_buffers,swapd_max_reclaim_size,area_anon_refault_threshold,empty_round_skip_interval,max_skip_interval,empty_round_check_threshold,anon_refault_snapshot_min_interval,swapd_memcgs_param,swapd_single_memcg_param,zram_critical_threshold,cpuload_threshold,reclaim_exceed_sleep_ms,swapd_bind,max_reclaimin_size_mb,swapd_shrink_parameter,swapd_nap_jiffies}
+Date:		September 2026
+Contact:	Miru kernel maintainers
+Description:
+		Legacy memory-cgroup-v1 controls installed by the 9R HybridSwap
+		implementation.  They carry per-application scoring, reclaim,
+		zram/backing-store ratios, refault policy, daemon placement, and
+		pressure telemetry used by Athena and the ColorOS performance stack.

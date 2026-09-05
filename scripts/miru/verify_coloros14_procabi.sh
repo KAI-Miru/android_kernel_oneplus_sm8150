@@ -70,6 +70,11 @@ game_opt_task_util_c="${game_opt_dir}/task_util.c"
 game_opt_rt_info_c="${game_opt_dir}/rt_info.c"
 game_opt_dstate_c="${game_opt_dir}/dstate_dump.c"
 game_opt_header="include/linux/oplus_game_opt.h"
+hybridswap_dir="drivers/block/zram/hybridswap"
+hybridswap_main_c="${hybridswap_dir}/hybridswap_main.c"
+hybridswap_swapd_c="${hybridswap_dir}/hybridswap_swapd.c"
+hybridswap_core_c="${hybridswap_dir}/hybridswap_core.c"
+zram_c="drivers/block/zram/zram_drv.c"
 
 check() {
   local label="$1"
@@ -1123,8 +1128,8 @@ check athena-memory-memcg-accounting \
   grep -Fq 'for_each_memcg_cache(child, cache)' "${athena_memory_c}"
 check athena-memory-live-vmalloc-accounting \
   grep -Fq 'vmalloc_nr_pages() << 2' "${athena_memory_c}"
-check athena-memory-native-kswapd-binding \
-  grep -Fq '"swapd_swappiness=", &vm_swappiness' "${athena_memory_c}"
+check athena-memory-native-hybridswapd-binding \
+  grep -Fq '&hybridswapd_swappiness' "${athena_memory_c}"
 check athena-memory-native-direct-binding \
   grep -Fq '&direct_vm_swappiness' "${athena_memory_c}"
 check_absent athena-memory-no-debug-cache-replacement \
@@ -1133,6 +1138,69 @@ check_absent athena-memory-no-stack-tracking \
   grep -Fq 'stack_trace' "${athena_memory_c}"
 check athena-memory-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-athena-memory
+
+# Wave 15 replaces the legacy NandSwap path with the complete Android 14 9R
+# OSwap 2.0 implementation: zram backing-store core, per-node swapd reclaim,
+# per-memcg controls, and the allocator/reclaim lifecycle feeds it consumes.
+for option in HYBRIDSWAP HYBRIDSWAP_SWAPD HYBRIDSWAP_CORE; do
+  check "hybridswap-config-${option}" grep -Fxq "CONFIG_${option}=y" "${config}"
+done
+check_absent hybridswap-legacy-nandswap-disabled \
+  grep -Eq '^CONFIG_NANDSWAP=[ym]$' "${config}"
+check hybridswap-kconfig grep -Fq 'config HYBRIDSWAP' drivers/block/zram/Kconfig
+for object in hybridswap_main.o hybridswap_swapd.o hybridswap_area.o \
+  hybridswap_core.o hybridswap_ctrl.o hybridswap_list.o hybridswap_lru_rmap.o \
+  hybridswap_manager.o hybridswap_perf.o hybridswap_schedule.o \
+  hybridswap_stats.o; do
+  check "hybridswap-object-${object}" grep -Fq "${object}" drivers/block/zram/Makefile
+done
+for source in hybridswap_main.c hybridswap_swapd.c hybridswap_area.c \
+  hybridswap_core.c hybridswap_ctrl.c hybridswap_list.c hybridswap_lru_rmap.c \
+  hybridswap_manager.c hybridswap_perf.c hybridswap_schedule.c \
+  hybridswap_stats.c hybridswap_akcompress.c hybridswap_area.h \
+  hybridswap_list.h hybridswap_lru_rmap.h hybridswap_internal.h hybridswap.h; do
+  check "hybridswap-source-${source}" test -f "${hybridswap_dir}/${source}"
+done
+for node in hybridswap_vmstat hybridswap_loglevel hybridswap_enable \
+  hybridswap_swapd_pause hybridswap_core_enable hybridswap_loop_device \
+  hybridswap_dev_life hybridswap_quota_day hybridswap_report \
+  hybridswap_stat_snap hybridswap_meminfo hybridswap_zram_increase; do
+  check "hybridswap-zram-node-${node}" \
+    grep -Eq "DEVICE_ATTR_(RO|RW|WO)\\(${node}\\)" "${zram_c}"
+  check "hybridswap-zram-registration-${node}" grep -Fq "dev_attr_${node}.attr" "${zram_c}"
+done
+for node in force_shrink_anon total_info_per_app swap_stat name app_score \
+  app_uid ub_ufs2zram_ratio force_swapin force_swapout psi stored_wm_ratio; do
+  check "hybridswap-memcg-node-${node}" grep -Fq ".name = \"${node}\"" "${hybridswap_main_c}"
+done
+for node in active_app_info_list zram_wm_ratio compress_ratio swapd_pressure \
+  swapd_pid avail_buffers swapd_max_reclaim_size area_anon_refault_threshold \
+  empty_round_skip_interval max_skip_interval empty_round_check_threshold \
+  anon_refault_snapshot_min_interval swapd_memcgs_param \
+  swapd_single_memcg_param zram_critical_threshold cpuload_threshold \
+  reclaim_exceed_sleep_ms swapd_bind max_reclaimin_size_mb \
+  swapd_shrink_parameter swapd_nap_jiffies; do
+  check "hybridswap-swapd-memcg-node-${node}" grep -Fq ".name = \"${node}\"" "${hybridswap_swapd_c}"
+done
+for hook in hybridswap_track hybridswap_untrack hybridswap_fault_out \
+  hybridswap_delete; do
+  check "hybridswap-zram-hook-${hook}" grep -Fq "${hook}(zram" "${zram_c}"
+done
+check hybridswap-pre-init grep -Fq 'hybridswap_pre_init();' "${zram_c}"
+for hook in hybridswap_mem_cgroup_alloc hybridswap_mem_cgroup_free \
+  hybridswap_mem_cgroup_online hybridswap_mem_cgroup_offline \
+  mem_cgroup_id_remove_hook; do
+  check "hybridswap-memcg-lifecycle-${hook}" grep -Fq "${hook}(" mm/memcontrol.c
+done
+check hybridswap-rmqueue-feed grep -Fq 'rmqueue_hook(NULL' mm/page_alloc.c
+check hybridswap-slowpath-feed \
+  grep -Fq 'alloc_pages_slowpath_hook(NULL' mm/page_alloc.c
+check hybridswap-scan-feed \
+  grep -Fq 'hybridswap_tune_scan_type((char *)&scan_balance);' mm/vmscan.c
+check hybridswap-swapd-swappiness \
+  grep -Fq 'int hybridswapd_swappiness = 200;' mm/vmscan.c
+check hybridswap-abi-document \
+  test -f Documentation/ABI/testing/sysfs-block-zram-hybridswap
 
 # Wave 12 imports the complete locking strategy selected by the Android 14
 # OnePlus 9R Kona configuration.  Its mutex/rwsem strategy and OSQ timeout
@@ -1230,5 +1298,6 @@ eas_opt=active-4.14-placement-capacity-schedutil-iowait
 proactive_compact_parameters=bounded-runtime-tunables
 sched_assist_boost_kill=donor-background-exit-acceleration
 athena_memory_abi=read-triggered-allocator-totals-native-reclaim-controls
+oswap2_hybridswap=donor-core-swapd-memcg-extent-io
 locking_strategy=active-donor-mutex-rwsem-osq-monitor-futex-control-abi
 EOF

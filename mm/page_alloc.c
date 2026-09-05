@@ -25,6 +25,7 @@
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/kasan.h>
+#include <linux/hybridswap.h>
 #include <linux/module.h>
 #include <linux/suspend.h>
 #include <linux/pagevec.h>
@@ -3119,6 +3120,8 @@ struct page *rmqueue(struct zone *preferred_zone,
 
 	__count_zid_vm_events(PGALLOC, page_zonenum(page), 1 << order);
 	zone_statistics(preferred_zone, zone);
+	rmqueue_hook(NULL, preferred_zone, zone, order, gfp_flags,
+			alloc_flags, migratetype);
 	local_irq_restore(flags);
 
 out:
@@ -4502,6 +4505,7 @@ got_pg:
 	memory_alloc_monitor(gfp_mask, order, jiffies_to_msecs(jiffies - oplus_alloc_start));
 #endif
 #endif /* OPLUS_FEATURE_HEALTHINFO */
+	alloc_pages_slowpath_hook(NULL, gfp_mask, order, 0);
 	return page;
 }
 
