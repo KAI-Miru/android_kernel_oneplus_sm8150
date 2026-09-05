@@ -1,10 +1,10 @@
-name: Miru H.40 Stage 9L GameOpt-complete passive-controls build
+name: Miru H.40 Stage 9M Frame Boost parity build
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - miru-h40-stage9l-gameopt-complete-passive-controls-ci-trigger
+      - miru-h40-stage9m-frame-boost-parity-ci-trigger
     paths:
       - '.github/workflows/miru-stage9ab-task-sched-info-a14-ci.yml'
 
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-stage9l-gameopt-complete-passive-controls
+  group: miru-h40-stage9m-frame-boost-parity
   cancel-in-progress: true
 
 env:
@@ -530,21 +530,21 @@ jobs:
             build-diagnostics/**
             external-module-diagnostics/**
 
-  build-stage9l:
+  build-stage9m:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
-      SOURCE_BRANCH: miru-h40-stage9l-gameopt-complete-passive-controls
-      SOURCE_SHA: f8c0c8825bc38e0a6c9bfc0deed8f10439a9197f
-      PARENT_SHA: f242570c498b2a4a60adf2e4d752e1305b6031ae
-      MODULES_REPAIR_BRANCH: miru-h40-stage9l-gameopt-complete-passive-controls
-      MODULES_REPAIR_SHA: 288cdf66ac65041fd709ae5f1581cc1c208d03fb
-      MODULES_PARENT_SHA: 3d5854a018a6726a55cb90cba94bd8d69cb9be36
-      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9l-gameopt-ci1+
-      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage9l-gameopt-ci1
+      SOURCE_BRANCH: miru-h40-stage9m-frame-boost-parity
+      SOURCE_SHA: abf264124626cc4609a1642d116cdb3804f8f314
+      PARENT_SHA: f8c0c8825bc38e0a6c9bfc0deed8f10439a9197f
+      MODULES_REPAIR_BRANCH: miru-h40-stage9m-frame-boost-parity
+      MODULES_REPAIR_SHA: 52bb2b9aa4fd8180070dc950cc1b83ced2de5682
+      MODULES_PARENT_SHA: 288cdf66ac65041fd709ae5f1581cc1c208d03fb
+      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-stage9m-ofb-parity-ci1+
+      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-stage9m-ofb-parity-ci1
 
     steps:
-      - name: Checkout Stage 9L GameOpt-complete passive-controls source
+      - name: Checkout Stage 9M Frame Boost parity source
         uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_SHA }}
@@ -559,7 +559,7 @@ jobs:
             local label="$1"
             shift
             if ! "$@"; then
-              echo "::error title=Stage 9L boundary check failed::${label}"
+              echo "::error title=Stage 9M boundary check failed::${label}"
               exit 1
             fi
             echo "boundary check passed: ${label}"
@@ -613,6 +613,16 @@ jobs:
           check cpu-jank-tasktrack-latency-document test -f source/Documentation/ABI/testing/procfs-oplus-cpu-jank-tasktrack-latency
           check cpu-jank-tasktrack-callstack-audit grep -Fq 'cpu_jank_tasktrack_callstack=on-demand-bounded-dsleep-stacktrace' source/scripts/miru/verify_coloros14_procabi.sh
           check cpu-jank-tasktrack-callstack-document test -f source/Documentation/ABI/testing/procfs-oplus-cpu-jank-tasktrack-callstack
+          check frame-boost-kernel-enable-path grep -Eq '\.procname[[:space:]]*=[[:space:]]*"frame_boost_enabled"' source/kernel/sysctl.c
+          check frame-boost-kernel-enable-storage grep -Eq '\.data[[:space:]]*=[[:space:]]*&sysctl_frame_boost_enable' source/kernel/sysctl.c
+          check frame-boost-kernel-debug-path grep -Eq '\.procname[[:space:]]*=[[:space:]]*"frame_boost_debug"' source/kernel/sysctl.c
+          check frame-boost-kernel-debug-storage grep -Eq '\.data[[:space:]]*=[[:space:]]*&sysctl_frame_boost_debug' source/kernel/sysctl.c
+          check frame-boost-enable-declaration grep -Fq 'extern unsigned int sysctl_frame_boost_enable;' source/include/linux/sched/sysctl.h
+          check frame-boost-debug-declaration grep -Fq 'extern unsigned int sysctl_frame_boost_debug;' source/include/linux/sched/sysctl.h
+          check frame-boost-safe-mode-audit grep -Fq 'frame-boost-safe-mode-default-clear' source/scripts/miru/verify_coloros14_procabi.sh
+          check frame-boost-ua-audit grep -Fq 'frame-boost-ua-control-node' source/scripts/miru/verify_coloros14_procabi.sh
+          check frame-boost-touch-audit grep -Fq 'frame-boost-touch-info' source/scripts/miru/verify_coloros14_procabi.sh
+          check frame-boost-parity-document test -f source/Documentation/ABI/testing/procfs-oplus-frame-boost
           check gameopt-config grep -Fxq 'CONFIG_OPLUS_FEATURE_GAME_OPT=y' source/h40-repro/config/GM1911_11_H.40.config
           check gameopt-kconfig grep -Fq 'source "drivers/soc/oplus/game_opt/Kconfig"' source/drivers/soc/Kconfig
           check gameopt-kbuild grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += oplus/game_opt/' source/drivers/soc/Makefile
@@ -741,7 +751,7 @@ jobs:
             echo "production_write=NONE"
           } | tee BUILD-BOUNDARIES.txt
 
-      - name: Prepare Stage 9L GameOpt-complete H.40 config
+      - name: Prepare Stage 9M Frame Boost parity H.40 config
         shell: bash
         working-directory: source
         run: |
@@ -749,7 +759,7 @@ jobs:
           cp h40-repro/config/GM1911_11_H.40.config "${RUNNER_TEMP}/stage9b-task-sched-info-a14.config"
           bash scripts/miru/configure_mem_stage4.sh "${RUNNER_TEMP}/stage9b-task-sched-info-a14.config"
 
-      - name: Generate stable Stage 9L 4.14.357 build driver
+      - name: Generate stable Stage 9M 4.14.357 build driver
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -762,7 +772,7 @@ jobs:
 
           start = text.index('# Fetch only the distant commits required by the source-level sanity checks.')
           end = text.index("# GitHub's Ubuntu image contains most dependencies already")
-          gate = '''# Exact Stage 9L GameOpt-complete passive-controls source sanity gate.
+          gate = '''# Exact Stage 9M Frame Boost parity source sanity gate.
           source_head="$(git rev-parse HEAD)"
           test "${source_head}" = "${SOURCE_SHA}"
           test -z "$(git ls-files -u)"
@@ -894,6 +904,16 @@ jobs:
           grep -Fxq 'CONFIG_OPLUS_FEATURE_FRAME_BOOST=y' h40-repro/config/GM1911_11_H.40.config
           grep -Fq 'unsigned int fbg_state;' include/linux/sched.h
           grep -Fq 'fbg_sched_fork_hook(NULL, p);' kernel/sched/core.c
+          grep -Eq '\.procname[[:space:]]*=[[:space:]]*"frame_boost_enabled"' kernel/sysctl.c
+          grep -Eq '\.data[[:space:]]*=[[:space:]]*&sysctl_frame_boost_enable' kernel/sysctl.c
+          grep -Eq '\.procname[[:space:]]*=[[:space:]]*"frame_boost_debug"' kernel/sysctl.c
+          grep -Eq '\.data[[:space:]]*=[[:space:]]*&sysctl_frame_boost_debug' kernel/sysctl.c
+          grep -Fq 'extern unsigned int sysctl_frame_boost_enable;' include/linux/sched/sysctl.h
+          grep -Fq 'extern unsigned int sysctl_frame_boost_debug;' include/linux/sched/sysctl.h
+          grep -Fq 'frame-boost-safe-mode-default-clear' scripts/miru/verify_coloros14_procabi.sh
+          grep -Fq 'frame-boost-ua-control-node' scripts/miru/verify_coloros14_procabi.sh
+          grep -Fq 'frame-boost-touch-info' scripts/miru/verify_coloros14_procabi.sh
+          test -f Documentation/ABI/testing/procfs-oplus-frame-boost
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
           test "${live_production}" = "${PRODUCTION_SHA}"
           {
@@ -915,16 +935,16 @@ jobs:
               'printf \'%s\\n\' "${EXPECTED_RELEASE}" > "${ARTIFACT_DIR}/KERNEL-RELEASE.txt"',
               'printf \'%s\\n\' "${SOURCE_SHA}" > "${ARTIFACT_DIR}/SOURCE-SHA.txt"',
               'printf \'%s\\n\' "${MODULES_REPAIR_SHA}" > "${ARTIFACT_DIR}/VENDOR-SHA.txt"',
-              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/STAGE9L-GAMEOPT-COMPLETE-IMAGE-SHA256.txt"',
-              'echo "Stage 9L GameOpt-complete passive-controls kernel build: PASS"',
+              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/STAGE9M-FRAME-BOOST-PARITY-IMAGE-SHA256.txt"',
+              'echo "Stage 9M Frame Boost parity kernel build: PASS"',
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=288cdf66ac65041fd709ae5f1581cc1c208d03fb',
-              '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Stage 9L GameOpt-complete passive-controls stable build ==',
-              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage9l-gameopt-ci1',
-              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage9l-gameopt-ci1"',
-              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-stage9l-gameopt-ci1+' || true)\"",
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=52bb2b9aa4fd8180070dc950cc1b83ced2de5682',
+              '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Stage 9M Frame Boost parity stable build ==',
+              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-stage9m-ofb-parity-ci1',
+              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-stage9m-ofb-parity-ci1"',
+              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-stage9m-ofb-parity-ci1+' || true)\"",
               'echo "Clean kernel build and output validation: PASS"': final,
           }
           for old, new in replacements.items():
@@ -936,10 +956,10 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=288cdf66ac65041fd709ae5f1581cc1c208d03fb' build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage9l-gameopt-ci1' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=52bb2b9aa4fd8180070dc950cc1b83ced2de5682' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-stage9m-ofb-parity-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
-      - name: Build Stage 9L GameOpt-complete passive-controls kernel with stable builder
+      - name: Build Stage 9M Frame Boost parity kernel with stable builder
         shell: bash
         working-directory: source
         env:
@@ -997,6 +1017,13 @@ jobs:
           strings "${gameopt_rt_info_obj}" | grep -Fq '%d;%s;%d;%llu;%u'
           find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/tuning/frame_group.o' -print -quit | grep -q .
           find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/tuning/frame_ioctl.o' -print -quit | grep -q .
+          frame_boost_main_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/tuning/frame_boost.o' -print -quit)"
+          frame_boost_sysctl_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/tuning/frame_sysctl.o' -print -quit)"
+          frame_boost_ua_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/tuning/ua_ioctl_common.o' -print -quit)"
+          frame_boost_touch_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/tuning/touch_ioctl.o' -print -quit)"
+          for object in "${frame_boost_main_obj}" "${frame_boost_sysctl_obj}" "${frame_boost_ua_obj}" "${frame_boost_touch_obj}"; do
+            test -s "${object}"
+          done
           task_cpustats_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/fs/proc/task_cpustats.o' -print -quit)"
           test -n "${task_cpustats_obj}"
           test -s "${task_cpustats_obj}"
@@ -1010,6 +1037,34 @@ jobs:
           grep -Eq '[[:space:]][Tt][[:space:]]account_task_time$' "${out_dir}/System.map"
           grep -Eq '[[:space:]][BbDd][[:space:]]sysctl_task_cpustats_enable$' "${out_dir}/System.map"
           strings "${out_dir}/vmlinux" > "${strings_file}"
+          frame_boost_ua_strings="${RUNNER_TEMP}/stage9m-frame-boost-ua.strings"
+          frame_boost_touch_strings="${RUNNER_TEMP}/stage9m-frame-boost-touch.strings"
+          strings "${frame_boost_ua_obj}" > "${frame_boost_ua_strings}"
+          strings "${frame_boost_touch_obj}" > "${frame_boost_touch_strings}"
+          for literal in oplus_cpu ua_ctrl; do
+            grep -Fxq "${literal}" "${frame_boost_ua_strings}"
+          done
+          for literal in oplus_touch_boost touch_info; do
+            grep -Fxq "${literal}" "${frame_boost_touch_strings}"
+          done
+          readelf -rW "${frame_boost_main_obj}" | grep -Fq 'ua_ioctl_init'
+          readelf -rW "${frame_boost_ua_obj}" | grep -Fq 'fbg_get_prev_util'
+          readelf -rW "${frame_boost_ua_obj}" | grep -Fq 'fbg_get_curr_util'
+          readelf -rW "${frame_boost_touch_obj}" | grep -Fq 'input_register_handler'
+          readelf -rW "${out_dir}/kernel/sysctl.o" | grep -Fq 'sysctl_frame_boost_enable'
+          readelf -rW "${out_dir}/kernel/sysctl.o" | grep -Fq 'sysctl_frame_boost_debug'
+          for symbol in fbg_get_prev_util fbg_get_curr_util sysctl_frame_boost_enable sysctl_frame_boost_debug sysctl_frame_boost_safe_mode; do
+            grep -Eq "[[:space:]][TtBbDd][[:space:]]${symbol}$" "${out_dir}/System.map"
+          done
+          {
+            echo result=PASS
+            echo sysctl_paths=/proc/sys/kernel/frame_boost_enabled,/proc/sys/kernel/frame_boost_debug
+            echo proc_nodes=/proc/oplus_cpu/ua_ctrl,/proc/oplus_touch_boost/touch_info
+            echo ua_util_backend=fbg-prev-current-util
+            echo safe_mode_default=clear
+            echo frame_boost_default=active
+            echo frame_boost_parity=donor-paths-ua-touch-active-default
+          } | tee "${artifact_dir}/FRAME-BOOST-PARITY-BINARY-AUDIT.txt"
           for symbol in jankinfo_update_time_info jankinfo_update_freq_reach_limit_count; do
             grep -Eq "[[:space:]][Tt][[:space:]]${symbol}$" "${out_dir}/System.map"
           done
@@ -1030,7 +1085,7 @@ jobs:
             echo workqueue_notification=absent
           } | tee "${artifact_dir}/CPU-JANK-REPORTING-BINARY-AUDIT.txt"
           cpu_jank_hotthread_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_info/osi_hotthread.o' -print -quit)"
-          hotthread_strings="${RUNNER_TEMP}/stage9l-hotthread.strings"
+          hotthread_strings="${RUNNER_TEMP}/stage9m-hotthread.strings"
           test -s "${cpu_jank_hotthread_obj}"
           strings "${cpu_jank_hotthread_obj}" > "${hotthread_strings}"
           grep -Fxq 'top_hotthread' "${hotthread_strings}"
@@ -1049,9 +1104,9 @@ jobs:
             echo dynamic_sampling_allocation=absent
             echo cpu_jank_hotthread=opt-in-bounded-workqueue-sampling
           } | tee "${artifact_dir}/CPU-JANK-HOTTHREAD-BINARY-AUDIT.txt"
-          cpu_jank_base_strings="${RUNNER_TEMP}/stage9l-osi-base.strings"
-          cpu_jank_enable_strings="${RUNNER_TEMP}/stage9l-osi-enable.strings"
-          sched_assist_strings="${RUNNER_TEMP}/stage9l-sched-assist.strings"
+          cpu_jank_base_strings="${RUNNER_TEMP}/stage9m-osi-base.strings"
+          cpu_jank_enable_strings="${RUNNER_TEMP}/stage9m-osi-enable.strings"
+          sched_assist_strings="${RUNNER_TEMP}/stage9m-sched-assist.strings"
           strings "${cpu_jank_base_obj}" > "${cpu_jank_base_strings}"
           strings "${cpu_jank_enable_obj}" > "${cpu_jank_enable_strings}"
           strings "${sched_assist_common_obj}" > "${sched_assist_strings}"
@@ -1071,7 +1126,7 @@ jobs:
             echo sched_assist_debug=donor-module-parameter-default-off
           } | tee "${artifact_dir}/CPU-JANK-PASSIVE-CONTROLS-BINARY-AUDIT.txt"
           tasktrack_obj="$(find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_info/tasktrack.o' -print -quit)"
-          tasktrack_strings="${RUNNER_TEMP}/stage9l-tasktrack.strings"
+          tasktrack_strings="${RUNNER_TEMP}/stage9m-tasktrack.strings"
           test -s "${tasktrack_obj}"
           strings -n 3 "${tasktrack_obj}" > "${tasktrack_strings}"
           grep -Fxq 'sched_latency' "${tasktrack_strings}"
@@ -1117,11 +1172,11 @@ jobs:
             echo proc_path=/proc/game_opt/cpu_load
             echo idle_hook=present
             echo cpufreq_notifier=present
-            echo writable_frequency_controls=present-stage9l
+            echo writable_frequency_controls=present-stage9l-inherited
             echo gameopt_cpu_load=donor-time-in-state-idle-frequency
           } | tee "${artifact_dir}/GAMEOPT-CPU-LOAD-BINARY-AUDIT.txt"
-          gameopt_cpufreq_strings="${RUNNER_TEMP}/stage9l-gameopt-cpufreq.strings"
-          gameopt_cpufreq_relocs="${RUNNER_TEMP}/stage9l-gameopt-cpufreq.relocations"
+          gameopt_cpufreq_strings="${RUNNER_TEMP}/stage9m-gameopt-cpufreq.strings"
+          gameopt_cpufreq_relocs="${RUNNER_TEMP}/stage9m-gameopt-cpufreq.relocations"
           strings "${gameopt_cpufreq_limits_obj}" > "${gameopt_cpufreq_strings}"
           readelf -rW "${gameopt_cpufreq_limits_obj}" > "${gameopt_cpufreq_relocs}"
           grep -Fxq 'cpu_min_freq' "${gameopt_cpufreq_strings}"
@@ -1179,11 +1234,11 @@ jobs:
             echo default_state=off-until-render-tids
             echo maximum_render_threads=2
             echo maximum_waker_records=256
-            echo dstate_coupling=selected-tid-forwarding-stage9l
+            echo dstate_coupling=selected-tid-forwarding-stage9l-inherited
             echo gameopt_render_waker=opt-in-bounded-wakeup-accounting
           } | tee "${artifact_dir}/GAMEOPT-RENDER-WAKER-BINARY-AUDIT.txt"
-          gameopt_dstate_strings="${RUNNER_TEMP}/stage9l-gameopt-dstate.strings"
-          gameopt_dstate_relocs="${RUNNER_TEMP}/stage9l-gameopt-dstate.relocations"
+          gameopt_dstate_strings="${RUNNER_TEMP}/stage9m-gameopt-dstate.strings"
+          gameopt_dstate_relocs="${RUNNER_TEMP}/stage9m-gameopt-dstate.relocations"
           strings "${gameopt_dstate_obj}" > "${gameopt_dstate_strings}"
           readelf -rW "${gameopt_dstate_obj}" > "${gameopt_dstate_relocs}"
           for literal in dump_enable duration interested_tids game_opt_dstate; do
@@ -1336,6 +1391,23 @@ jobs:
           grep -Fq 'proc_create("sched_impt_task", 0666' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_assist/sched_assist_common.c"
           grep -Fq 'proc_create("im_flag", 0666' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_assist/sched_assist_common.c"
           grep -Fq 'module_param_named(debug, param_ux_debug, uint, 0644);' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_assist/sched_assist_common.c"
+          test -f "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/ua_ioctl_common.c"
+          test -f "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/ua_ioctl_common.h"
+          test -f "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/touch_ioctl.c"
+          test -f "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/touch_ioctl.h"
+          grep -Fq 'sysctl_frame_boost_safe_mode = 0;' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/frame_sysctl.c"
+          grep -Fq 'obj-y += ua_ioctl_common.o' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/Makefile"
+          grep -Fq 'obj-y += touch_ioctl.o' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/Makefile"
+          grep -Fq 'ret = ua_ioctl_init();' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/frame_boost.c"
+          grep -Fq '#define UA_PROC_NODE "oplus_cpu"' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/ua_ioctl_common.c"
+          grep -Fq 'proc_create("ua_ctrl", UA_CTRL_MODE' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/ua_ioctl_common.c"
+          grep -Fq '#define UA_CTRL_MODE 0777' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/ua_ioctl_common.c"
+          grep -Fq "#define CPU_CTRL_MAGIC 'o'" "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/ua_ioctl_common.h"
+          grep -Fq 'fbg_get_prev_util(&info.frame_prev_util_scale);' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/ua_ioctl_common.c"
+          grep -Fq 'fbg_get_curr_util(&info.frame_curr_util_scale);' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/ua_ioctl_common.c"
+          grep -Fq '#define TOUCHBOOST_PROC_NODE "oplus_touch_boost"' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/touch_ioctl.c"
+          grep -Fq 'proc_create("touch_info", 0444' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/touch_ioctl.c"
+          grep -Fq 'input_register_handler(&touchboost_input_handler);' "${vendor_source}/vendor/oplus/kernel/oplus_performance/frame_boost/touch_ioctl.c"
           grep -Fq 'if (likely(!param_ux_debug))' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_assist/sched_assist_common.c"
           grep -Fq 'proc_create("clm_mux_switch", 0666' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/oplus_sched_info.c"
           grep -Fq 'ret = osi_base_proc_init(cpu_jank_dir);' "${vendor_source}/vendor/oplus/kernel/oplus_performance/sched_info/oplus_sched_info.c"
@@ -1417,7 +1489,7 @@ jobs:
               ('4.14.190-miru-h40-lts190-ci1+', release, 1),
               ('miru-v3-modules-dropin-4.14.190', package_tag, 4),
               ('Miru 4.14.190 rebuilt external module ABI report',
-               'Miru Stage 9L Android 14 GameOpt-complete passive-controls external module report', 1),
+               'Miru Stage 9M Android 14 Frame Boost parity external module report', 1),
           )
           for old, new, expected_count in replacements:
               actual = text.count(old)
@@ -1483,6 +1555,7 @@ jobs:
           grep -Fxq 'gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'gameopt_render_waker=opt-in-bounded-wakeup-accounting' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           grep -Fxq 'gameopt_dstate=selected-rate-limited-deferred-stack-reporting' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
+          grep -Fxq 'frame_boost_control_plane=task-group-walt-ioctl-sysctl' "${external_dir}/COLOROS14-PROCABI-AUDIT.txt"
           test -s "${artifact_dir}/CPU-JANK-REPORTING-BINARY-AUDIT.txt"
           grep -Fxq 'cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup' "${artifact_dir}/CPU-JANK-REPORTING-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/CPU-JANK-HOTTHREAD-BINARY-AUDIT.txt"
@@ -1504,6 +1577,9 @@ jobs:
           grep -Fxq 'gameopt_render_waker=opt-in-bounded-wakeup-accounting' "${artifact_dir}/GAMEOPT-RENDER-WAKER-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/GAMEOPT-DSTATE-BINARY-AUDIT.txt"
           grep -Fxq 'gameopt_dstate=selected-rate-limited-deferred-stack-reporting' "${artifact_dir}/GAMEOPT-DSTATE-BINARY-AUDIT.txt"
+          test -s "${artifact_dir}/FRAME-BOOST-PARITY-BINARY-AUDIT.txt"
+          grep -Fxq 'frame_boost_parity=donor-paths-ua-touch-active-default' "${artifact_dir}/FRAME-BOOST-PARITY-BINARY-AUDIT.txt"
+          grep -Fxq 'frame_boost_default=active' "${artifact_dir}/FRAME-BOOST-PARITY-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/TASK-SCHED-INFO-BINARY-AUDIT.txt"
           grep -Fxq 'task_sched_info=full-scheduler-frequency-isolation-telemetry' "${artifact_dir}/TASK-SCHED-INFO-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/TASK-CPUSTATS-BINARY-AUDIT.txt"
@@ -1532,15 +1608,18 @@ jobs:
             echo gameopt_task_runtime=opt-in-bounded-cfs-rt-accounting
             echo gameopt_render_waker=opt-in-bounded-wakeup-accounting
             echo gameopt_dstate=selected-rate-limited-deferred-stack-reporting
+            echo frame_boost_control_plane=task-group-walt-ioctl-sysctl
+            echo frame_boost_parity=donor-paths-ua-touch-active-default
+            echo frame_boost_default=active
             echo production_after=${live_production}
             echo production_write=NONE
           } | tee "${artifact_dir}/FINAL-CANDIDATE-SUMMARY.txt"
 
-      - name: Upload Stage 9L GameOpt-complete passive-controls kernel and modules
+      - name: Upload Stage 9M Frame Boost parity kernel and modules
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: miru-h40-stage9l-gameopt-complete-passive-controls-kernel-and-modules
+          name: miru-h40-stage9m-frame-boost-parity-kernel-and-modules
           if-no-files-found: error
           retention-days: 30
           path: |
