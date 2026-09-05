@@ -545,8 +545,8 @@ jobs:
       SOURCE_SHA: 74b5c14bf3cf97d0460e8db68233beb6f9be5c77
       PARENT_SHA: 298216c298d907f2b60b80066a89e52d4b54813e
       MODULES_REPAIR_BRANCH: miru-h40-wave12-locking-strategy-abi
-      MODULES_REPAIR_SHA: ef9af2fad6218446d7d6e0ff34bf56b6599058c7
-      MODULES_PARENT_SHA: aaa36b94b5b3e8b22090a41ddcb236e3e762c1c1
+      MODULES_REPAIR_SHA: 861d3115441ca98dd9ecc12dcdbeefe24d35b335
+      MODULES_PARENT_SHA: ef9af2fad6218446d7d6e0ff34bf56b6599058c7
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave12-locking-strategy-abi-ci1+
       PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave12-locking-strategy-abi-ci1
 
@@ -991,7 +991,7 @@ jobs:
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=ef9af2fad6218446d7d6e0ff34bf56b6599058c7',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=861d3115441ca98dd9ecc12dcdbeefe24d35b335',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Wave 12 locking strategy ABI stable build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-wave12-locking-strategy-abi-ci1',
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-wave12-locking-strategy-abi-ci1"',
@@ -1007,7 +1007,7 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=ef9af2fad6218446d7d6e0ff34bf56b6599058c7' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=861d3115441ca98dd9ecc12dcdbeefe24d35b335' build-stage9b-task-sched-info-a14-stable.sh
           grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave12-locking-strategy-abi-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
       - name: Build Wave 12 locking strategy ABI kernel with stable builder
