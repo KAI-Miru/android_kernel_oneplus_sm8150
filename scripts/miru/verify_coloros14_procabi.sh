@@ -1300,7 +1300,7 @@ check uxio-first-bg-depth-definition grep -Fq '#define BLK_MAX_BG_DEPTH' "${uxio
 check uxio-first-bg-depth-field grep -Fq 'int bg_max_depth;' include/linux/blkdev.h
 check uxio-first-bg-depth-node grep -Fq '.name = "bg_max_depth"' block/blk-sysfs.c
 check uxio-first-inflight-node grep -Fq '.name = "ohm_inflight"' block/blk-sysfs.c
-check uxio-first-inflight-ux-output grep -Fq '"ux:%d\\n"' block/blk-sysfs.c
+check uxio-first-inflight-ux-output grep -Fq '"ux:%d\n"' block/blk-sysfs.c
 check uxio-first-abi-document \
   test -f Documentation/ABI/testing/sysfs-block-queue-oplus-uxio-first
 
