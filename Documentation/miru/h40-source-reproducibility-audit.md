@@ -1,5 +1,29 @@
 # OnePlus 7 Pro GM1911_11_H.40 kernel reproducibility audit
 
+## Miru reconstruction update
+
+The original audit below describes the incompleteness of the published
+OnePlus repositories. Miru subsequently recovered every shipped FDT from the
+canonical H.40 images and moved the verified reconstruction into the active
+build tree at `arch/arm64/boot/dts/h40-reconstructed/`.
+
+- all 25 boot-header FDTs recompile byte-for-byte, including the four base
+  variants for selector 19861 and the RTIC FDT;
+- all 15 overlay FDTs recompile byte-for-byte;
+- the ordered base concatenation reproduces boot DTB field SHA-256
+  `36f8cbbcf1fd393b8df397f69596069e715bf8da1603b0c8f5fd690005fcf7eb`;
+- the packed Android DT table reproduces recovery-DTBO SHA-256
+  `ddf316ecd06a35b554cf66d0f217063490eccb9e297c4c51302ae03cb6cdafef`.
+
+Selector 18821 is identified as OnePlus 7 Pro. Selector 19861 is identified
+as OnePlus 7T Pro 5G (`hotdogg`). The other selectors are intentionally left
+unknown. Two stock overlay model strings say `18961`, but those entries select
+`oplus,dtsi_no=19861`; they are not treated as a separate inferred project.
+
+The historical missing-source verdict is therefore still true of the
+published OnePlus source baseline, but no longer describes Miru's active H.40
+device-tree inputs.
+
 ## Result
 
 The official H.40 kernel source compiles after one narrowly scoped Kconfig

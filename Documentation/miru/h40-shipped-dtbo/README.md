@@ -6,7 +6,7 @@ OnePlus 7 Pro ColorOS 12 H.40 `dtbo.img`.
 Input SHA-256:
 
 ```text
-2f6015b1f9fa9dafd5e7fbc61a297559741c6d33bb42cb2ccd7e6dbe0526c90c
+2f6015b1f9fa9dafd5e7fbc61a297559741c6d33bb42cb2ccd7e6dbe0526c90
 ```
 
 ## Contents and verification
@@ -28,21 +28,19 @@ verification.
 | 19863 | 3 | Present |
 | 18857 | 1 | Present |
 | 19801 | 2 | Present |
-| 19861 | 3 | Absent; recovered here |
-| 18961 | 2 | Absent; recovered here |
+| 19861 | 5 | Absent; recovered here |
 
-The five `19861`/`18961` entries are the previously unpublished SDX55M
-overlay family. The supplied published source has no directories or build
-rules for either family.
+The five entries are the previously unpublished selector family 19861,
+identified as OnePlus 7T Pro 5G (`hotdogg`). Two preserved stock `model`
+strings say `18961`, but all five entries select `oplus,dtsi_no=19861`; no
+separate 18961 project is inferred. The supplied published source has no
+directory or build rule for this family.
 
 ## Scope and safety
 
-This is an evidence-preserving reconstruction, not an active build-system
-change. It intentionally does not add the recovered projects to
-`arch/arm64/boot/dts/Makefile` or the DTBO packaging list: their matching
-base DTBs and original source composition are absent from the published H.40
-tree. Enabling them now could change production DTBO output without proving
-the required base-tree linkage.
+This directory remains the evidence-preserving archive created by the first
+DTBO-only reconstruction. The complete, verified base-DTB and overlay recovery
+is now active under `arch/arm64/boot/dts/h40-reconstructed/`.
 
 For the five published project families, the matching **base DTBs** were
 previously reproduced byte-for-byte. The corresponding ten overlay sources

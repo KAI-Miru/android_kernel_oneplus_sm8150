@@ -26,7 +26,10 @@ DTB_LIST := $(addsuffix .dtb,$(DTB_NAMES))
 else
 DTB_LIST := $(dtb-y)
 endif
-DTB_OBJS := $(shell find $(obj)/dts/ -name \*.dtb)
+# The stock v2 boot image carries an ordered DTB field.  Do not derive that
+# order from the filesystem (or accidentally include stale project outputs).
+include $(srctree)/arch/arm64/boot/dts/h40-reconstructed/dtb-order.mk
+DTB_OBJS := $(addprefix $(obj)/dts/h40-reconstructed/base/,$(H40_DTB_NAMES))
 
 # Add RTIC DTB to the DTB list if RTIC MPGen is enabled
 # Note, we keep this for compatibility with

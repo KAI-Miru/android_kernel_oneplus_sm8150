@@ -26,11 +26,11 @@
 #dts-dirs += lg
 #dts-dirs += zte
 #else
-dts-dirs += 18821
-dts-dirs += 18857
-dts-dirs += 18865
-dts-dirs += 19801
-dts-dirs += 19863
+# The published project directories are incomplete: the shipped H.40 boot
+# image also contains project 19861 and an RTIC FDT.  Build the losslessly
+# reconstructed production set instead; keep the component trees as source
+# history and reference material.
+dts-dirs += h40-reconstructed
 #endif
 
 subdir-y	:= $(dts-dirs)

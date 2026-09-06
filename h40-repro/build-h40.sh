@@ -16,8 +16,11 @@ Optional environment:
   STOCK_CONFIG, CONFIG_MODE=stock|official, JOBS
   KERNEL_LOCALVERSION (default: -miru; use -perf for stock naming)
   MODULE_SIG_POLICY=enforce|permit-untrusted (default: enforce)
-  MODULE_SIGNING_KEY, STOCK_BOOT_IMAGE, EXTERNAL_DTC
+  MODULE_SIGNING_KEY, STOCK_BOOT_IMAGE, EXTERNAL_DTC, PYTHON3
   SKIP_PRODUCTION_DTS=1
+
+EXTERNAL_DTC must be an Android-compatible DTC that reproduces the recovered
+H.40 sources (verified with DTC 1.6.0) unless SKIP_PRODUCTION_DTS=1 is set.
 
 Use a fixed MODULE_SIGNING_KEY and the same OUT_DIR for deterministic builds.
 The supplied key must be a combined PEM accepted by certs/Makefile.
@@ -44,6 +47,7 @@ CONFIG_MODE="${CONFIG_MODE:-stock}"
 JOBS="${JOBS:-$(getconf _NPROCESSORS_ONLN)}"
 KERNEL_LOCALVERSION="${KERNEL_LOCALVERSION:--miru}"
 MODULE_SIG_POLICY="${MODULE_SIG_POLICY:-enforce}"
+PYTHON3="${PYTHON3:-python3}"
 
 : "${CLANG_DIR:?Set CLANG_DIR to the AOSP/Qualcomm Clang directory}"
 : "${GCC64_DIR:?Set GCC64_DIR to the AArch64 Android 4.9 directory}"
@@ -75,6 +79,13 @@ require_exec "${H40_AOSP_BC}"
 [[ "${MODULE_SIG_POLICY}" == enforce || "${MODULE_SIG_POLICY}" == permit-untrusted ]] || {
 	echo "MODULE_SIG_POLICY must be enforce or permit-untrusted" >&2; exit 2;
 }
+if [[ "${SKIP_PRODUCTION_DTS:-0}" != 1 ]]; then
+	: "${EXTERNAL_DTC:?Set EXTERNAL_DTC to the verified Android DTC, or set SKIP_PRODUCTION_DTS=1}"
+	require_exec "${EXTERNAL_DTC}"
+	command -v "${PYTHON3}" >/dev/null 2>&1 || {
+		echo "Required Python 3 executable missing: ${PYTHON3}" >&2; exit 1;
+	}
+fi
 
 if [[ "${action}" == clean ]]; then rm -rf "${OUT_DIR}" "${DTS_OUT_DIR}" "${ARTIFACT_DIR}"; fi
 mkdir -p "${OUT_DIR}" "${ARTIFACT_DIR}" "$(dirname "${BUILD_LOG}")"
@@ -102,6 +113,7 @@ make_args=(
 	"REAL_CC=${CLANG}" "CLANG_TRIPLE=aarch64-linux-gnu-" "PYTHON=${PYTHON2}"
 	"HOSTCC=gcc" "HOSTCXX=g++" "LOCALVERSION=+"
 )
+if [[ -n "${EXTERNAL_DTC:-}" ]]; then make_args+=("DTC=${EXTERNAL_DTC}"); fi
 
 configure_stock() {
 	require_file "${STOCK_CONFIG}"
@@ -172,30 +184,17 @@ if [[ "${SKIP_PRODUCTION_DTS:-0}" != 1 ]]; then
 	mkdir -p "${DTS_OUT_DIR}"
 	cp "${OUT_DIR}/.config" "${DTS_OUT_DIR}/.config"
 	make -C "${KERNEL_DIR}" "${dts_make_args[@]}" olddefconfig 2>&1 | tee -a "${BUILD_LOG}"
-	production_base_dts=()
-	for project in 18821 18857 18865 19801 19863; do
-		for tree in sm8150 sm8150-v2 sm8150p sm8150p-v2; do
-			production_base_dts+=("${project}/${tree}.dtb")
-		done
-	done
 	{
-		printf 'base device-tree command: make -C %q -j%s' "${KERNEL_DIR}" "${JOBS}"
-		printf ' %q' "${dts_make_args[@]}" CONFIG_BUILD_ARM64_DT_OVERLAY=y 'DTC_FLAGS=-@ -H epapr'
-		printf ' %q' "${production_base_dts[@]}"
+		printf 'reconstructed device-tree command: make -C %q -j%s' "${KERNEL_DIR}" "${JOBS}"
+		printf ' %q' "${dts_make_args[@]}" 'DTC_FLAGS=-H epapr' dtbs
 		echo
-		echo "WARNING: stock also contains project 19861/18961 trees; that source is absent from the official repositories."
 	} | tee -a "${BUILD_LOG}"
 	make -C "${KERNEL_DIR}" -j"${JOBS}" V=0 "${dts_make_args[@]}" \
-		CONFIG_BUILD_ARM64_DT_OVERLAY=y DTC_FLAGS='-@ -H epapr' \
-		"${production_base_dts[@]}" 2>&1 | tee -a "${BUILD_LOG}"
-	if [[ -n "${EXTERNAL_DTC:-}" ]]; then
-		require_exec "${EXTERNAL_DTC}"
-		make -C "${KERNEL_DIR}" -j"${JOBS}" V=0 "${dts_make_args[@]}" \
-			CONFIG_BUILD_ARM64_DT_OVERLAY=y DTC_FLAGS='-@ -H epapr' \
-			DTC="${EXTERNAL_DTC}" dtbs 2>&1 | tee -a "${BUILD_LOG}"
-	else
-		echo "WARNING: overlay DTBOs skipped: bundled DTC 1.4.4 cannot parse the published overlay syntax; set EXTERNAL_DTC to a compatible AOSP DTC." | tee -a "${BUILD_LOG}" >&2
-	fi
+		DTC_FLAGS='-H epapr' dtbs 2>&1 | tee -a "${BUILD_LOG}"
+	"${PYTHON3}" "${SCRIPT_DIR}/build-reconstructed-device-trees.py" \
+		--dtc "${EXTERNAL_DTC}" \
+		--out-dir "${DTS_OUT_DIR}/h40-images" \
+		--mode active 2>&1 | tee -a "${BUILD_LOG}"
 fi
 
 rm -rf "${ARTIFACT_DIR}"
@@ -220,6 +219,10 @@ if [[ -d "${DTS_OUT_DIR}/arch/arm64/boot/dts" ]]; then
 		mkdir -p "${ARTIFACT_DIR}/$(dirname "${rel}")"
 		cp "${output}" "${ARTIFACT_DIR}/${rel}"
 	done < <(find "${DTS_OUT_DIR}/arch/arm64/boot/dts" -type f \( -name '*.dtb' -o -name '*.dtbo' \) -print0)
+fi
+if [[ -d "${DTS_OUT_DIR}/h40-images" ]]; then
+	mkdir -p "${ARTIFACT_DIR}/production-device-trees"
+	cp -a "${DTS_OUT_DIR}/h40-images/." "${ARTIFACT_DIR}/production-device-trees/"
 fi
 while IFS= read -r -d '' output; do copy_output "${output}"; done < <(find "${OUT_DIR}" -type f -name '*.ko' -print0)
 
