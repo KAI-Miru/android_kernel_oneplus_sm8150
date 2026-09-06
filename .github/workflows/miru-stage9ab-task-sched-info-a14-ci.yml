@@ -1814,7 +1814,7 @@ jobs:
           binder_obj="${out_dir}/drivers/android/binder.o"
           binder_relocs="${artifact_dir}/WAVE23-BINDER-RELOCATIONS.txt"
           test -s "${binder_obj}"
-          "${CROSS_COMPILE}readelf" -rW "${binder_obj}" > "${binder_relocs}"
+          readelf -rW "${binder_obj}" > "${binder_relocs}"
           for symbol in register_binderevent_notifier unregister_binderevent_notifier; do
             echo checking-wave23-system-map-symbol="${symbol}"
             grep -Eq "[[:space:]][Tt][[:space:]]${symbol}$" "${out_dir}/System.map"
