@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_SHA: f23f302957afcb64eb31dd9f287581a1b9a8ebd2
-      MODULES_REPAIR_SHA: ca7729a1c78e0dedc36f3e1410fc01382aba9285
+      MODULES_REPAIR_SHA: e5a71d0287535d73a3b1f095d8d1a6e00737f223
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave25-midas-core-ci1+
       PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave25-midas-core-ci1
 
@@ -79,7 +79,7 @@ jobs:
 
           replacements = {
               'VENDOR_SHA=a21f9352e70a8685556582465309f8eb3fe401cb':
-                  'VENDOR_SHA=ca7729a1c78e0dedc36f3e1410fc01382aba9285',
+                  'VENDOR_SHA=e5a71d0287535d73a3b1f095d8d1a6e00737f223',
               '== Miru H.40 Android 4.14.190 CI build ==':
                   '== Miru H.40 Wave 25 MIDAS core stable build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1':
