@@ -543,8 +543,8 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-wave23-binder-stats
-      SOURCE_SHA: 9f15ad3759f5128a3a6543d70672ee6ba2d824db
-      PARENT_SHA: b54e81dad7cef1417bcea6ae755567b9b321ca24
+      SOURCE_SHA: 3e3b551f715f4526e578997207d6f7c1ce1b6d52
+      PARENT_SHA: 9f15ad3759f5128a3a6543d70672ee6ba2d824db
       MODULES_REPAIR_BRANCH: miru-h40-wave21-task-identity-diagnostics
       MODULES_REPAIR_SHA: 8e85947dfb9b9f7cf995c8fcba98b969d3a4506a
       MODULES_PARENT_SHA: f0679cb337b85e2e0b992d9b16e356b1839945bd
