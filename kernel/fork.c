@@ -120,6 +120,9 @@
 #include <linux/oplus_healthinfo/oplus_jank_monitor.h>
 #endif
 #endif /* OPLUS_FEATURE_HEALTHINFO */
+#ifdef CONFIG_OPLUS_FEATURE_UID_PERF
+extern void uid_perf_work_add(struct task_struct *task, bool force);
+#endif
 
 /*
  * Minimum number of threads to boot the kernel
@@ -1926,6 +1929,17 @@ static __latent_entropy struct task_struct *copy_process(
 	p->wake_tid = 0;
 	p->running_start_time = 0;
 #endif
+#ifdef CONFIG_OPLUS_FEATURE_UID_PERF
+	memset(p->uid_pevents, 0, sizeof(p->uid_pevents));
+	memset(p->uid_counts, 0, sizeof(p->uid_counts));
+	memset(p->uid_prev_counts, 0, sizeof(p->uid_prev_counts));
+	memset(p->uid_leaving_counts, 0, sizeof(p->uid_leaving_counts));
+	memset(p->uid_group, 0, sizeof(p->uid_group));
+	memset(p->uid_group_prev_counts, 0,
+	       sizeof(p->uid_group_prev_counts));
+	memset(p->uid_group_snapshot_prev_counts, 0,
+	       sizeof(p->uid_group_snapshot_prev_counts));
+#endif
 #ifdef OPLUS_FEATURE_HEALTHINFO
 #ifdef CONFIG_OPLUS_JANK_INFO
 	p->jank_trace = 0;
@@ -2167,6 +2181,9 @@ static __latent_entropy struct task_struct *copy_process(
 
 #ifdef CONFIG_OPLUS_FEATURE_IM
 	im_tsk_init_flag((void *)p);
+#endif
+#ifdef CONFIG_OPLUS_FEATURE_UID_PERF
+	uid_perf_work_add(p, false);
 #endif
 
 	return p;

@@ -546,6 +546,14 @@ config UID_SYS_STATS_DEBUG
 	help
 	  Per TASK based io statistics exported to /proc/uid_io
 
+config OPLUS_FEATURE_UID_PERF
+	bool "Per-task perf-event statistics"
+	depends on UID_SYS_STATS && PERF_EVENTS && CPUSETS
+	default n
+	help
+	  Export the OnePlus per-task hardware performance-counter ABI under
+	  /proc/uid_cputime. Collection remains off until userspace enables it.
+
 config MEMORY_STATE_TIME
 	tristate "Memory freq/bandwidth time statistics"
 	depends on PROFILING

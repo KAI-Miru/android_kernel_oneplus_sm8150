@@ -1,0 +1,50 @@
+What:		/proc/uid_cputime/show_uid_perf
+Date:		September 2026
+Contact:	Miru H.40 kernel maintainers
+Description:
+		Read-only OnePlus per-task performance-counter snapshot used by the
+		Android 14 UID performance-accounting stack. Each task row reports
+		command name, PID, TGID, UID, the configured hardware perf-event
+		counts, and instruction-count attribution across up to eight cpuset
+		groups. Aggregate rows retain counters for tasks that have exited.
+
+		Collection is disabled by default and starts only when userspace sets
+		/sys/module/uid_sys_stats/parameters/uid_perf_enable to 1.
+
+What:		/proc/cpuset_info/show_hash
+Date:		September 2026
+Contact:	Miru H.40 kernel maintainers
+Description:
+		Read-only mapping from live cpuset cgroup IDs and names to the bounded
+		eight-slot accounting indices reported by show_uid_perf.
+
+What:		/proc/cpuset_info/dbg_enable
+Date:		September 2026
+Contact:	Miru H.40 kernel maintainers
+Description:
+		Read/write diagnostic gate for UID performance cpuset-accounting logs.
+		The default value is 0.
+
+What:		/sys/module/uid_sys_stats/parameters/uid_perf_enable
+Date:		September 2026
+Contact:	Miru H.40 kernel maintainers
+Description:
+		Boolean master switch for per-task hardware performance counters.
+		Only 0 and 1 are accepted. The default is 0.
+
+What:		/sys/module/uid_sys_stats/parameters/uid_perf_debug
+Date:		September 2026
+Contact:	Miru H.40 kernel maintainers
+Description:
+		Boolean diagnostic logging switch for UID performance accounting.
+
+What:		/sys/module/uid_sys_stats/parameters/uid_perf_event_id
+What:		/sys/module/uid_sys_stats/parameters/uid_perf_event_type
+What:		/sys/module/uid_sys_stats/parameters/uid_perf_event_pin
+Date:		September 2026
+Contact:	Miru H.40 kernel maintainers
+Description:
+		Three-element arrays configuring the raw perf-event IDs, perf-event
+		types, and pinned flags used by UID performance accounting. Donor
+		defaults are event IDs 0x8, 0x11, and 0x24, all PERF_TYPE_RAW and
+		unpinned.

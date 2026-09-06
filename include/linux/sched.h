@@ -1232,6 +1232,18 @@ struct task_struct {
 	struct mutex			perf_event_mutex;
 	struct list_head		perf_event_list;
 #endif
+#ifdef CONFIG_OPLUS_FEATURE_UID_PERF
+#define UID_PERF_EVENTS 3
+	struct perf_event		*uid_pevents[UID_PERF_EVENTS];
+	long long			uid_counts[UID_PERF_EVENTS];
+	long long			uid_prev_counts[UID_PERF_EVENTS];
+	long long			uid_leaving_counts[UID_PERF_EVENTS];
+
+#define UID_GROUP_SIZE 8
+	long long			uid_group[UID_GROUP_SIZE];
+	long long			uid_group_prev_counts[UID_GROUP_SIZE];
+	long long			uid_group_snapshot_prev_counts[UID_GROUP_SIZE];
+#endif
 #ifdef CONFIG_DEBUG_PREEMPT
 	unsigned long			preempt_disable_ip;
 #endif
