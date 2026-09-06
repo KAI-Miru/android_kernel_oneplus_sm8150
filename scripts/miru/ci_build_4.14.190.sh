@@ -4,7 +4,7 @@ set -Eeuo pipefail
 BASE_SHA=59858c8f798778f4e6c1c4449baba631e353600e
 SCAFFOLD_SHA=5d8cba39fefb935c6feaf30ea1a57dfffa80273a
 STABLE_SHA=d2d05bcf4b4edf8d028fa420dee3c6644aa5b4ac
-VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
+VENDOR_SHA=f318506796eb57527c2a6404b35706b6649b242a
 
 ANDROID_ROOT="${RUNNER_TEMP}/android-root"
 KERNEL_WORKTREE="${ANDROID_ROOT}/kernel/msm-4.14"
@@ -100,7 +100,9 @@ rsync -a "${VENDOR_SOURCE}/vendor/" "${ANDROID_ROOT}/vendor/"
 
 test -L "${KERNEL_WORKTREE}/block/oplus_foreground_io_opt"
 test -f "${KERNEL_WORKTREE}/block/oplus_foreground_io_opt/Kconfig"
+test -f "${KERNEL_WORKTREE}/drivers/android/oplus_binder_stats.c"
 test -d "${ANDROID_ROOT}/vendor/oplus"
+test -f "${ANDROID_ROOT}/vendor/oplus/kernel/power/midas/binder_stats_dev.c"
 test -d "${ANDROID_ROOT}/vendor/qcom/opensource/audio-kernel"
 test -d "${ANDROID_ROOT}/vendor/qcom/opensource/wlan"
 

@@ -1533,6 +1533,10 @@ check sigkill-abi-document \
 check binder-stats-config \
   grep -Fxq 'CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE=y' "${config}"
 check binder-stats-consumer-source test -f "${midas_binder_c}"
+check binder-stats-builtin-wrapper \
+  grep -Fq '../../../../vendor/oplus/kernel/power/midas/binder_stats_dev.c' drivers/android/oplus_binder_stats.c
+check binder-stats-builtin-kbuild \
+  grep -Fq 'obj-$(CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE) += oplus_binder_stats.o' drivers/android/Makefile
 check binder-stats-notifier-register \
   grep -Fq 'register_binderevent_notifier(struct notifier_block *nb)' drivers/android/binder.c
 check binder-stats-notifier-export \
@@ -1545,6 +1549,16 @@ check binder-stats-device \
   grep -Fq 'NULL, g_binder_stats_driver.dev, NULL, "binder_stats")' "${midas_binder_c}"
 check binder-stats-dormant-until-open \
   grep -Fq 'register_binderevent_notifier(&binder_nb);' "${midas_binder_c}"
+check binder-stats-srvmgr-init-ioctl \
+  grep -Fq '#define BINDER_STATS_CTL_SRVMGR_INT 120' "${midas_binder_c}"
+check binder-stats-srvmgr-name-ioctl \
+  grep -Fq '#define BINDER_STATS_CTL_SRVMGR_SET_HANDLE_NAME 121' "${midas_binder_c}"
+check binder-stats-srvmgr-init-handler \
+  grep -Fq 'set_driver_binder_stats_srvmgr_init()' "${midas_binder_c}"
+check binder-stats-srvmgr-name-handler \
+  grep -Fq 'set_driver_binder_stats_srvmgr_handle_name(&handle_name)' "${midas_binder_c}"
+check_absent binder-stats-duplicate-dlkm \
+  grep -Fq 'oplus_binder_stats.ko' scripts/miru/build_external_modules_4.14.190.sh
 check binder-stats-abi-document \
   test -f Documentation/ABI/testing/dev-oplus-binder-stats
 
@@ -1559,7 +1573,7 @@ audio_small_task=donor-audio-tgid-camera-cadence-preference
 task_identity=donor-comm-classification-per-task-proc
 tpp_unity_policy=donor-default-off-lazy-msmnile-topology
 athena_sigkill_diagnosis=donor-ring-native-4.14-signal-hook
-binder_stats=donor-userspace-gated-transaction-accounting
+binder_stats=donor-builtin-a14-srvmgr-transaction-accounting
 cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
 cpu_jank_tasktrack_latency=on-demand-bounded-sched-events

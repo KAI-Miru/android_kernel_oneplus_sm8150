@@ -7,6 +7,10 @@ Description:
 		double-buffered records, and an mmap view of caller, destination,
 		service-name, and transaction-count fields.
 
+		Android 14 servicemanager additionally uses control 120 to register
+		its process and control 121 with an `int handle` plus a bounded
+		32-byte service name. Both controls return zero on success.
+
 		Opening the device registers the Binder transaction notifier, but
 		collection remains disabled until userspace issues control 101 with
 		value 1. Closing the final client unregisters the notifier. This keeps

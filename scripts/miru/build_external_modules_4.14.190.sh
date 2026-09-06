@@ -15,7 +15,6 @@ PACKAGE_DIR="${MODULE_WORK}/dropin"
 REPORT_DIR="${GITHUB_WORKSPACE}/external-module-diagnostics"
 AUDIO_ROOT="${VENDOR_ROOT}/qcom/opensource/audio-kernel"
 WLAN_PARENT="${VENDOR_ROOT}/qcom/opensource/wlan"
-MIDAS_ROOT="${VENDOR_ROOT}/oplus/kernel/power/midas"
 AUDIO_ANDROID_OUT="${MODULE_WORK}/android-out"
 CUMULATIVE_SYMVERS="${MODULE_WORK}/all-external.symvers"
 
@@ -72,30 +71,6 @@ for public in "${!IN_TREE_MODULES[@]}"; do
   test -s "${source_path}"
   cp -f "${source_path}" "${PACKAGE_DIR}/${public}"
 done
-
-# Android 14 MIDAS consumes /dev/binder_stats.  The main kernel supplies the
-# donor notifier hooks while this source-owned consumer remains a DLKM, as on
-# the 9R.  Override the Kbuild selector to m only for this external invocation;
-# the kernel configuration intentionally keeps it y so binder.c exposes the
-# notifier call sites and their CRCs.
-test -f "${MIDAS_ROOT}/binder_stats_dev.c"
-# The donor file is SPDX GPL-2.0-only but omits MODULE_LICENSE(), which makes
-# the loader classify the resulting DLKM as proprietary and reject every
-# EXPORT_SYMBOL_GPL dependency at runtime. Preserve the donor license in the
-# module metadata before building it.
-if ! grep -Fq 'MODULE_LICENSE(' "${MIDAS_ROOT}/binder_stats_dev.c"; then
-  printf '\nMODULE_LICENSE("GPL v2");\n' >> "${MIDAS_ROOT}/binder_stats_dev.c"
-fi
-rm -f "${MIDAS_ROOT}"/*.o "${MIDAS_ROOT}"/*.ko \
-  "${MIDAS_ROOT}"/Module.symvers "${MIDAS_ROOT}"/modules.order
-make -j4 -C "${KERNEL_DIR}" O="${OUT_DIR}" M="${MIDAS_ROOT}" \
-  CONFIG_OPLUS_FEATURE_MIDAS=n \
-  CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE=m \
-  modules 2>&1 | tee "${REPORT_DIR}/oplus_binder_stats.log"
-test -s "${MIDAS_ROOT}/oplus_binder_stats.ko"
-test "$(modinfo -F license "${MIDAS_ROOT}/oplus_binder_stats.ko")" = "GPL v2"
-cp -f "${MIDAS_ROOT}/oplus_binder_stats.ko" \
-  "${PACKAGE_DIR}/oplus_binder_stats.ko"
 
 # External audio module builder.  The proprietary AndroidKernelModule.mk helper
 # built each LOCAL_MODULE in a separate object directory.  Recreate that model:
@@ -246,8 +221,8 @@ make -j4 -C "${KERNEL_DIR}" O="${OUT_DIR}" M="${WLAN_ROOT}" \
 test -s "${WLAN_ROOT}/wlan.ko"
 cp -f "${WLAN_ROOT}/wlan.ko" "${PACKAGE_DIR}/qca_cld3_wlan.ko"
 
-# Runtime manifest: the existing 32-module set plus the Wave 23 MIDAS Binder
-# accounting consumer.
+# Runtime manifest: BinderStats now lives in vmlinux, leaving the existing
+# 32-module runtime set in the DLKM payload.
 cat > "${MODULE_WORK}/expected-modules.txt" <<'EOF'
 audio_adsp_loader.ko
 audio_apr.ko
@@ -274,7 +249,6 @@ audio_wcd_core.ko
 audio_wcd_spi.ko
 audio_wglink.ko
 audio_wsa881x.ko
-oplus_binder_stats.ko
 mpq-adapter.ko
 mpq-dmx-hw-plugin.ko
 msm_11ad_proxy.ko
@@ -286,7 +260,7 @@ EOF
 find "${PACKAGE_DIR}" -maxdepth 1 -type f -name '*.ko' -printf '%f\n' | sort > "${MODULE_WORK}/actual-modules.txt"
 sort "${MODULE_WORK}/expected-modules.txt" -o "${MODULE_WORK}/expected-modules.txt"
 diff -u "${MODULE_WORK}/expected-modules.txt" "${MODULE_WORK}/actual-modules.txt"
-test "$(wc -l < "${MODULE_WORK}/actual-modules.txt")" = 33
+test "$(wc -l < "${MODULE_WORK}/actual-modules.txt")" = 32
 
 # Keep modules uncompressed and strip only non-runtime debug information.
 for module in "${PACKAGE_DIR}"/*.ko; do
@@ -314,7 +288,6 @@ done
 
 # Preserve the known-good load order while pointing at the newly rebuilt files.
 cat > "${PACKAGE_DIR}/modules.load" <<'EOF'
-oplus_binder_stats.ko
 audio_apr.ko
 audio_wglink.ko
 audio_q6_pdr.ko
@@ -539,7 +512,7 @@ cp "${AUDIT_ARCHIVE}" "${PACKAGE_DIR}/../miru-v3-modules-dropin-4.14.190-audit.z
 {
   echo "result=SUCCESS"
   echo "kernel_release=${KERNEL_RELEASE}"
-  echo "module_count=33"
+  echo "module_count=32"
   echo "metadata_count=4"
   echo "runtime_archive_sha256=$(sha256sum "${RUNTIME_ARCHIVE}" | awk '{print $1}')"
   echo "audit_archive_sha256=$(sha256sum "${AUDIT_ARCHIVE}" | awk '{print $1}')"
@@ -547,4 +520,4 @@ cp "${AUDIT_ARCHIVE}" "${PACKAGE_DIR}/../miru-v3-modules-dropin-4.14.190-audit.z
   echo "audit_archive_size=$(stat -c %s "${AUDIT_ARCHIVE}")"
 } | tee "${REPORT_DIR}/PACKAGE-SUMMARY.txt"
 
-echo "All 33 Wave 23 external modules rebuilt and packaged successfully."
+echo "All 32 external modules rebuilt and packaged successfully."
