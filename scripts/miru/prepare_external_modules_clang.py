@@ -39,6 +39,8 @@ text = text.replace(anchor, insert, 1)
 replacements = {
     'KERNEL_RELEASE="$(make -s -C "${KERNEL_DIR}" O="${OUT_DIR}" kernelrelease)"':
         'KERNEL_RELEASE="$(make -s -C "${KERNEL_DIR}" O="${OUT_DIR}" "${MODULE_MAKE_ARGS[@]}" kernelrelease)"',
+    'make -j4 -C "${KERNEL_DIR}" O="${OUT_DIR}" M="${MIDAS_ROOT}" \\\n  CONFIG_OPLUS_FEATURE_MIDAS=n':
+        'make -j4 -C "${KERNEL_DIR}" O="${OUT_DIR}" M="${MIDAS_ROOT}" \\\n  "${MODULE_MAKE_ARGS[@]}" \\\n  CONFIG_OPLUS_FEATURE_MIDAS=n',
     'make -j4 -C "${KERNEL_DIR}" O="${OUT_DIR}" M="${work}" \\\n    AUDIO_ROOT="${AUDIO_ROOT}"':
         'make -j4 -C "${KERNEL_DIR}" O="${OUT_DIR}" M="${work}" \\\n    "${MODULE_MAKE_ARGS[@]}" \\\n    AUDIO_ROOT="${AUDIO_ROOT}"',
     'make -j4 -C "${KERNEL_DIR}" O="${OUT_DIR}" M="${work}" \\\n    MODNAME=audio_extend_dlkm BOARD_PLATFORM=msmnile':
@@ -56,8 +58,8 @@ for old, new in replacements.items():
 SCRIPT.write_text(text)
 
 updated = SCRIPT.read_text()
-if updated.count('"${MODULE_MAKE_ARGS[@]}"') != 4:
-    raise SystemExit("not all four make invocations received the pinned toolchain arguments")
+if updated.count('"${MODULE_MAKE_ARGS[@]}"') != 5:
+    raise SystemExit("not all five make invocations received the pinned toolchain arguments")
 if 'REAL_CC=${CLANG_DIR}/bin/clang' not in updated:
     raise SystemExit("pinned Clang REAL_CC assignment is missing")
 print("External module make invocations now use the pinned kernel Clang toolchain.")
