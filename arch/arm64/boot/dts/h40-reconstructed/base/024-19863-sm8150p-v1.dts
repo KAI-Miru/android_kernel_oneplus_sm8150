@@ -415,6 +415,10 @@
 		};
 	};
 
+	midas_pdev {
+		compatible = "oplus,midas-pdev";
+	};
+
 	soc {
 		#address-cells = <0x01>;
 		#size-cells = <0x01>;

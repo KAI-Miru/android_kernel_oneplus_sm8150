@@ -50,19 +50,19 @@ compiles, validates, concatenates, and packs them into `h40-dtb.img` and
 ## Miru active delta
 
 Commit `4f857d7` records the stock-exact source reconstruction and its hashes.
-The active sources then add the Wave 16 `qcom,ddr-stats@c3f0000` node to all
-24 base variants. The RTIC FDT and all 15 overlays remain stock-exact. The
-manifest keeps both the stock baseline hash and the expected active hash for
-every compiled entry, so the intended delta is checked on every production
-device-tree build.
+The active sources add the Wave 16 `qcom,ddr-stats@c3f0000` node and the
+Wave 25 `oplus,midas-pdev` platform device to all 24 base variants. The RTIC
+FDT and all 15 overlays remain stock-exact. The manifest keeps both the stock
+baseline hash and the expected active hash for every compiled entry, so the
+intended delta is checked on every production device-tree build.
 
 The node uses the root tree's two-cell address and size encoding, and its two
 `reg-names` entries are separate strings. These details are runtime-critical:
 otherwise Linux creates one malformed resource and the DDR-stats driver cannot
 bind even though the compatible node is visible.
 
-The resulting active `h40-dtb.img` SHA-256 is
-`463c66dab7ba083ed45eb10edca235d3f557b371ebd40187b82f8a1dbe0aedcc`.
+The resulting Wave 25 active `h40-dtb.img` SHA-256 is
+`af32d362df25d7be0b822c43b521ff835418c0b08d6cd62f24fcc917a05dc4f4`.
 The active `h40-dtbo.img` remains stock-identical at
 `ddf316ecd06a35b554cf66d0f217063490eccb9e297c4c51302ae03cb6cdafef`.
 

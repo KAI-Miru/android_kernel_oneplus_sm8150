@@ -1377,6 +1377,23 @@ static ssize_t kgsl_pwrctrl_gpu_busy_percentage_show(struct device *dev,
 	return ret;
 }
 
+#ifdef CONFIG_OPLUS_FEATURE_MIDAS
+static ssize_t kgsl_pwrctrl_gpu_status_time_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct kgsl_device *device = kgsl_device_from_dev(dev);
+	struct kgsl_pwrctrl *pwr;
+
+	if (device == NULL)
+		return 0;
+
+	pwr = &device->pwrctrl;
+	return scnprintf(buf, PAGE_SIZE, "%llu\n",
+		pwr->gpu_stats.gpu_pwr_stats[PWR_STAT_SLUMBER].total);
+}
+#endif
+
 static ssize_t kgsl_pwrctrl_min_clock_mhz_show(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -1618,6 +1635,10 @@ static DEVICE_ATTR(force_no_nap, 0644,
 static DEVICE_ATTR(gpu_model, 0444, kgsl_pwrctrl_gpu_model_show, NULL);
 static DEVICE_ATTR(gpu_busy_percentage, 0444,
 	kgsl_pwrctrl_gpu_busy_percentage_show, NULL);
+#ifdef CONFIG_OPLUS_FEATURE_MIDAS
+static DEVICE_ATTR(gpu_status_time, 0444,
+	kgsl_pwrctrl_gpu_status_time_show, NULL);
+#endif
 static DEVICE_ATTR(min_clock_mhz, 0644, kgsl_pwrctrl_min_clock_mhz_show,
 	kgsl_pwrctrl_min_clock_mhz_store);
 static DEVICE_ATTR(max_clock_mhz, 0644, kgsl_pwrctrl_max_clock_mhz_show,
@@ -1651,6 +1672,9 @@ static const struct device_attribute *pwrctrl_attr_list[] = {
 	&dev_attr_popp,
 	&dev_attr_gpu_model,
 	&dev_attr_gpu_busy_percentage,
+#ifdef CONFIG_OPLUS_FEATURE_MIDAS
+	&dev_attr_gpu_status_time,
+#endif
 	&dev_attr_min_clock_mhz,
 	&dev_attr_max_clock_mhz,
 	&dev_attr_clock_mhz,
@@ -3152,6 +3176,9 @@ int kgsl_pwrctrl_change_state(struct kgsl_device *device, int state)
 
 		_record_pwrevent(device, t, KGSL_PWREVENT_STATE);
 	}
+#ifdef CONFIG_OPLUS_FEATURE_MIDAS
+	oplus_pwrctrl_update_stats_info(device);
+#endif
 	return status;
 }
 EXPORT_SYMBOL(kgsl_pwrctrl_change_state);
@@ -3507,3 +3534,22 @@ void kgsl_pwrctrl_set_default_gpu_pwrlevel(struct kgsl_device *device)
 	/* Request adjusted DCVS level */
 	kgsl_clk_set_rate(device, pwr->active_pwrlevel);
 }
+
+#ifdef CONFIG_OPLUS_FEATURE_MIDAS
+void oplus_pwrctrl_update_stats_info(struct kgsl_device *device)
+{
+	struct kgsl_pwrctrl *pwr = &device->pwrctrl;
+	u64 total;
+	ktime_t now;
+
+	now = ktime_get();
+	total = ktime_us_delta(now, pwr->gpu_stats.timestamp);
+
+	if (pwr->gpu_stats.last_state != KGSL_STATE_NONE &&
+	    pwr->gpu_stats.last_state == KGSL_STATE_SLUMBER)
+		pwr->gpu_stats.gpu_pwr_stats[PWR_STAT_SLUMBER].total += total;
+
+	pwr->gpu_stats.timestamp = now;
+	pwr->gpu_stats.last_state = device->state;
+}
+#endif

@@ -2,6 +2,8 @@
 obj-$(CONFIG_OPLUS_SYSTEM_KERNEL)    += system/
 #endif /* VENDOR_EDIT */
 
+obj-$(CONFIG_OPLUS_FEATURE_MIDAS)    += midas/
+
 #ifdef OPLUS_FEATURE_LOWMEM_DBG
 obj-$(CONFIG_OPLUS_FEATURE_LOWMEM_DBG) += lowmem_dbg/
 #endif /* OPLUS_FEATURE_LOWMEM_DBG */

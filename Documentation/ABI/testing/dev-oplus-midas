@@ -1,0 +1,19 @@
+What:		/dev/midas_dev
+Date:		September 2026
+Contact:	OnePlus/Oplus kernel maintainers
+Description:
+		Character device used by the Oplus MIDAS/PowerStats service for
+		per-UID and per-process CPU time-in-state accounting. Opening the
+		device allocates a private mmap buffer. The Android 14 donor ABI
+		exposes ioctl numbers 0x01 through 0x04 for snapshot and tracked-UID
+		control, plus 0x10 for energy-model data. The 4.14 implementation
+		preserves ioctl 0x10 but returns -EINVAL because the donor only
+		implements energy-model export on kernels 5.4 and newer.
+
+What:		/sys/class/kgsl/kgsl-3d0/gpu_status_time
+Date:		September 2026
+Contact:	OnePlus/Oplus kernel maintainers
+Description:
+		Read-only cumulative time, in microseconds, that KGSL has spent in
+		the SLUMBER state. This is the Android 14 donor's MIDAS GPU residency
+		input.

@@ -87,6 +87,26 @@ enum kgsl_pwrctrl_timer_type {
 
 struct platform_device;
 
+#ifdef CONFIG_OPLUS_FEATURE_MIDAS
+/* KGSL power levels plus the synthetic slumber state. */
+#define MAX_GPU_PWR_STAT (KGSL_MAX_PWRLEVELS + 1)
+#define PWR_STAT_SLUMBER KGSL_MAX_PWRLEVELS
+
+struct gpu_pwr_stats {
+	u64 total;
+	u64 busy;
+	u64 ram_time;
+	u64 ram_wait;
+};
+
+struct gpu_info {
+	struct gpu_pwr_stats gpu_pwr_stats[MAX_GPU_PWR_STAT];
+	u64 gpu_total;
+	ktime_t timestamp;
+	int last_state;
+};
+#endif
+
 struct kgsl_clk_stats {
 	unsigned int busy;
 	unsigned int total;
@@ -242,6 +262,9 @@ struct kgsl_pwrctrl {
 	const char *tzone_names[KGSL_MAX_TZONE_NAMES];
 	struct cx_ipeak_client *gpu_cx_ipeak;
 	unsigned int cx_ipeak_gpu_freq;
+#ifdef CONFIG_OPLUS_FEATURE_MIDAS
+	struct gpu_info gpu_stats;
+#endif
 };
 
 int kgsl_pwrctrl_init(struct kgsl_device *device);
@@ -289,4 +312,7 @@ void kgsl_pwrctrl_set_constraint(struct kgsl_device *device,
 void kgsl_pwrctrl_update_l2pc(struct kgsl_device *device,
 			unsigned long timeout_us);
 void kgsl_pwrctrl_set_default_gpu_pwrlevel(struct kgsl_device *device);
+#ifdef CONFIG_OPLUS_FEATURE_MIDAS
+void oplus_pwrctrl_update_stats_info(struct kgsl_device *device);
+#endif
 #endif /* __KGSL_PWRCTRL_H */

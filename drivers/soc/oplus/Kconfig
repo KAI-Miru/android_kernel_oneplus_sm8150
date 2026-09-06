@@ -27,6 +27,10 @@ source "drivers/soc/oplus/oplus_kevent_feedback/Kconfig"
 source "drivers/soc/oplus/system/Kconfig"
 #endif /* VENDOR_EDIT */
 
+#ifdef OPLUS_FEATURE_MIDAS
+source "drivers/soc/oplus/midas/Kconfig"
+#endif
+
 #ifdef OPLUS_FEATURE_LOWMEM_DBG
 source "drivers/soc/oplus/lowmem_dbg/Kconfig"
 ##endif /* OPLUS_FEATURE_LOWMEM_DBG */
