@@ -30,6 +30,7 @@ endif
 # order from the filesystem (or accidentally include stale project outputs).
 include $(srctree)/arch/arm64/boot/dts/h40-reconstructed/dtb-order.mk
 DTB_OBJS := $(addprefix $(obj)/dts/h40-reconstructed/base/,$(H40_DTB_NAMES))
+DTC_FLAGS_025-rtic := -b 1
 
 # Add RTIC DTB to the DTB list if RTIC MPGen is enabled
 # Note, we keep this for compatibility with

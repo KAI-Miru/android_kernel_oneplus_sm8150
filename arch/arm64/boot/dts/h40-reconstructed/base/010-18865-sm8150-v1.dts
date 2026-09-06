@@ -13,6 +13,12 @@
 	oplus,dtsi_no = <0x49b1>;
 	oplus,pcb_range = <0x00 0x37>;
 
+	qcom,ddr-stats@c3f0000 {
+		compatible = "qcom,ddr-stats";
+		reg = <0xc300000 0x1000 0xc3f001c 0x04>;
+		reg-names = "phys_addr_base\\0offset_addr";
+	};
+
 	cpus {
 		#address-cells = <0x02>;
 		#size-cells = <0x00>;

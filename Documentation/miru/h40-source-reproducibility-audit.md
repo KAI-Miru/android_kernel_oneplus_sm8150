@@ -24,6 +24,12 @@ The historical missing-source verdict is therefore still true of the
 published OnePlus source baseline, but no longer describes Miru's active H.40
 device-tree inputs.
 
+Miru's active reconstruction applies the Wave 16 `qcom,ddr-stats` node to all
+24 hardware base variants. The separate RTIC FDT and all overlays remain
+stock-identical. Production packaging must place the resulting ordered
+`h40-dtb.img` in the Android boot-v2 header DTB field; an appended
+`Image.gz-dtb` alone does not replace the bootloader-selected tree.
+
 ## Result
 
 The official H.40 kernel source compiles after one narrowly scoped Kconfig

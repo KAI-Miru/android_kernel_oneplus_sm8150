@@ -194,7 +194,8 @@ if [[ "${SKIP_PRODUCTION_DTS:-0}" != 1 ]]; then
 	"${PYTHON3}" "${SCRIPT_DIR}/build-reconstructed-device-trees.py" \
 		--dtc "${EXTERNAL_DTC}" \
 		--out-dir "${DTS_OUT_DIR}/h40-images" \
-		--mode active 2>&1 | tee -a "${BUILD_LOG}"
+		--mode active \
+		--require-wave16-ddr-stats 2>&1 | tee -a "${BUILD_LOG}"
 fi
 
 rm -rf "${ARTIFACT_DIR}"

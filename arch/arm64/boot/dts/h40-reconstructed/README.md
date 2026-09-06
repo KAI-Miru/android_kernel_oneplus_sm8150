@@ -42,10 +42,24 @@ Two shipped overlay `model` strings contain `18961`, but their actual
 `oplus,dtsi_no` selector is `19861`. They are preserved verbatim and remain
 part of selector family 19861; no separate project mapping is inferred.
 
-`base-manifest.tsv`, `overlay-manifest.tsv`, and `dtb-order.mk` are the
+`boot-fdt-manifest.tsv`, `overlay-manifest.tsv`, and `dtb-order.mk` are the
 authoritative order and identity ledgers. `h40-repro/build-reconstructed-device-trees.py`
 compiles, validates, concatenates, and packs them into `h40-dtb.img` and
 `h40-dtbo.img`.
+
+## Miru active delta
+
+Commit `4f857d7` records the stock-exact source reconstruction and its hashes.
+The active sources then add the Wave 16 `qcom,ddr-stats@c3f0000` node to all
+24 base variants. The RTIC FDT and all 15 overlays remain stock-exact. The
+manifest keeps both the stock baseline hash and the expected active hash for
+every compiled entry, so the intended delta is checked on every production
+device-tree build.
+
+The resulting active `h40-dtb.img` SHA-256 is
+`6f2c50573cb31f7cb6ff47a2279077ab7a9b5ffc786eacef904b48cc862a13f2`.
+The active `h40-dtbo.img` remains stock-identical at
+`ddf316ecd06a35b554cf66d0f217063490eccb9e297c4c51302ae03cb6cdafef`.
 
 ## Packaging rule
 

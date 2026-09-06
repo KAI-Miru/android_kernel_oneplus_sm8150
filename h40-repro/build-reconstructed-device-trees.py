@@ -149,10 +149,10 @@ def main():
     source_root = args.source_root or (
         repo_root / "arch" / "arm64" / "boot" / "dts" / "h40-reconstructed"
     )
-    base_rows = read_manifest(source_root / "base-manifest.tsv")
+    base_rows = read_manifest(source_root / "boot-fdt-manifest.tsv")
     overlay_rows = read_manifest(source_root / "overlay-manifest.tsv")
     if [int(row["index"]) for row in base_rows] != list(range(1, 26)):
-        raise SystemExit("base manifest must contain ordered indices 1..25")
+        raise SystemExit("boot-FDT manifest must contain ordered indices 1..25")
     if [int(row["index"]) for row in overlay_rows] != list(range(15)):
         raise SystemExit("overlay manifest must contain ordered indices 0..14")
     if args.require_wave16_ddr_stats:
@@ -184,7 +184,8 @@ def main():
         "mode": args.mode,
         "dtc": str(args.dtc),
         "source_root": str(source_root),
-        "base_entry_count": len(base),
+        "boot_fdt_entry_count": len(base),
+        "hardware_base_variant_count": len(base) - 1,
         "overlay_entry_count": len(overlays),
         "wave16_ddr_stats_required": args.require_wave16_ddr_stats,
         "dtb_image": {
@@ -197,7 +198,7 @@ def main():
             "size": len(dtbo_image),
             "sha256": dtbo_digest,
         },
-        "base_entries": [
+        "boot_fdt_entries": [
             {
                 "index": int(row["index"]),
                 "file": str(output),
@@ -219,8 +220,8 @@ def main():
     report_path = args.out_dir / "reconstruction-report.json"
     report_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(
-        "H.40 device trees: PASS ({} base, {} overlays, mode={})".format(
-            len(base), len(overlays), args.mode
+        "H.40 device trees: PASS ({} boot FDTs: {} base + RTIC; {} overlays; mode={})".format(
+            len(base), len(base) - 1, len(overlays), args.mode
         )
     )
     print("DTB  {}  {}".format(dtb_digest, dtb_path))
