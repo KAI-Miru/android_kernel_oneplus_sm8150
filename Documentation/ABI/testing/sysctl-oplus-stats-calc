@@ -1,0 +1,22 @@
+What:		/proc/sys/net/oplus_stats_calc/debug
+Date:		September 2026
+Contact:	Miru H.40 kernel maintainers
+Description:
+		Read/write diagnostic logging gate for the OnePlus interface/UID
+		network-accounting service. The Android 14 9R default is 0.
+
+What:		/proc/sys/net/oplus_stats_calc/count
+Date:		September 2026
+Contact:	Miru H.40 kernel maintainers
+Description:
+		Number of interface/UID accounting records currently retained by the
+		service. This reproduces the donor ABI; consumers should treat it as
+		diagnostic state rather than a control.
+
+What:		/proc/sys/net/oplus_stats_calc/upload_size
+Date:		September 2026
+Contact:	Miru H.40 kernel maintainers
+Description:
+		Maximum payload size used when the `oplus_stats` generic-netlink
+		family returns chunked interface/UID accounting records. The donor
+		default is 3000 bytes.
