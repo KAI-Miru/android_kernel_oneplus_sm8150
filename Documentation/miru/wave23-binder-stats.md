@@ -26,7 +26,7 @@ is retained as compatibility state while the existing Binder-node notifier
 remains the sole transaction-accounting path.
 
 The matching companion-source revision is
-`f318506796eb57527c2a6404b35706b6649b242a`.
+`a21f9352e70a8685556582465309f8eb3fe401cb`.
 
 Runtime cost is gated. With no open `/dev/binder_stats` client the atomic
 notifier chain is empty. Opening the device registers the consumer, and record
