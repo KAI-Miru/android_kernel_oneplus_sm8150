@@ -1440,6 +1440,10 @@ struct task_struct {
 	int ux_depth;
 	u64 enqueue_time;
 	u64 inherit_ux_start;
+#ifdef CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY
+	u64 sum_exec_baseline;
+	u64 total_exec;
+#endif
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
 
 #ifdef CONFIG_OPLUS_FEATURE_AUDIO_OPT

@@ -959,6 +959,9 @@ struct rq {
 #endif
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 	struct list_head ux_thread_list;
+#ifdef CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY
+	raw_spinlock_t ux_list_lock;
+#endif
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
 };
 

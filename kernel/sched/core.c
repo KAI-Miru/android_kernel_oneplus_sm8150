@@ -3336,6 +3336,10 @@ void scheduler_tick(void)
 
 	/* OP9R ux_throttle producer, bounded by task_track's opt-in PID set. */
 	jankinfo_ux_throttle_tick(curr);
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && \
+	defined(CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY)
+	android_vh_scheduler_tick_handler(rq);
+#endif
 }
 
 #ifdef CONFIG_NO_HZ_FULL
@@ -3723,6 +3727,10 @@ static void __sched notrace __schedule(bool preempt)
 		++*switch_count;
 
 		trace_sched_switch(preempt, prev, next);
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && \
+	defined(CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY)
+		ux_priority_systrace_c(cpu_of(rq), next);
+#endif
 
 #if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
 		update_wake_tid(prev, next, running_runnable);

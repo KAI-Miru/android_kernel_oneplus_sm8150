@@ -4115,7 +4115,9 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 	oplus_eas_place_entity(cfs_rq, se, initial);
 #endif
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
+#ifndef CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY
 	place_entity_adjust_ux_task(cfs_rq, se, initial);
+#endif
 #endif
 }
 
@@ -4434,8 +4436,10 @@ pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 
 	se = left; /* ideally we run the leftmost entity */
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
+#ifndef CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY
 	if (should_ux_task_skip_further_check(se))
 		return se;
+#endif
 #ifdef CONFIG_OPLUS_FEATURE_AUDIO_OPT
 	if (sched_assist_pick_next_entity(cfs_rq, &se))
 		goto oplus_pick;
@@ -5504,8 +5508,12 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		flags = ENQUEUE_WAKEUP;
 	}
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
+#ifdef CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY
+	enqueue_ux_thread_to_list(rq, p);
+#else
 	enqueue_ux_thread(rq, p);
 	oplus_sched_assist_audio_enqueue_hook(p);
+#endif
 #endif
 
 	for_each_sched_entity(se) {
@@ -5584,7 +5592,11 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		flags |= DEQUEUE_SLEEP;
 	}
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
+#ifdef CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY
+	dequeue_ux_thread_from_list(rq, p);
+#else
 	dequeue_ux_thread(rq, p);
+#endif
 #endif
 
 	for_each_sched_entity(se) {
@@ -8855,6 +8867,10 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
 	int scale = cfs_rq->nr_running >= sched_nr_latency;
 	int next_buddy_marked = 0;
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && \
+	defined(CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY)
+	bool preempt = false, nopreempt = false;
+#endif
 
 	if (unlikely(se == pse))
 		return;
@@ -8913,10 +8929,18 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 	}
 #endif
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
+#ifdef CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY
+	oplus_check_preempt_wakeup_in_list(rq, p, curr, &preempt, &nopreempt);
+	if (preempt)
+		goto preempt;
+	if (nopreempt)
+		return;
+#else
 	if (should_ux_preempt_wakeup(p, curr))
 		goto preempt;
 	else if (test_task_ux(curr))
 		return;
+#endif
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
 	if (wakeup_preempt_entity(se, pse) == 1) {
 		/*
@@ -8952,11 +8976,20 @@ static struct task_struct *
 pick_next_task_fair(struct rq *rq, struct task_struct *prev, struct rq_flags *rf)
 {
 	struct cfs_rq *cfs_rq = &rq->cfs;
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && \
+	defined(CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY)
+	struct sched_entity *se = NULL;
+	struct task_struct *p = NULL;
+	bool repick = false;
+#else
 	struct sched_entity *se;
 	struct task_struct *p;
+#endif
 	int new_tasks;
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
+#ifndef CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY
 	struct task_struct *pos;
+#endif
 #endif
 
 again:
@@ -9012,7 +9045,12 @@ again:
 
 	p = task_of(se);
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
+#ifdef CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY
+	android_rvh_replace_next_task_fair_handler(rq, &p, &se,
+			&repick, false);
+#else
 	pick_ux_thread(rq, &p, &se);
+#endif
 #endif
 
 	/*
@@ -9052,9 +9090,22 @@ simple:
 
 	put_prev_task(rq, prev);
 
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && \
+	defined(CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY)
+	android_rvh_replace_next_task_fair_handler(rq, &p, &se,
+			&repick, true);
+	if (repick) {
+		for_each_sched_entity(se)
+			set_next_entity(cfs_rq_of(se), se);
+		goto done;
+	}
+#endif
+
 	do {
 		se = pick_next_entity(cfs_rq, NULL);
 #ifndef OPLUS_FEATURE_SCHED_ASSIST
+		set_next_entity(cfs_rq, se);
+#elif defined(CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY)
 		set_next_entity(cfs_rq, se);
 #endif
 		cfs_rq = group_cfs_rq(se);
@@ -9062,6 +9113,7 @@ simple:
 
 	p = task_of(se);
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
+#ifndef CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY
 	pos = list_first_entry(&rq->cfs_tasks, typeof(*pos), se.group_node);
 	if (sysctl_cpu_multi_thread && is_heavy_load_task(pos) && p != pos) {
 		p = pos;
@@ -9071,8 +9123,12 @@ simple:
 		set_next_entity(cfs_rq_of(se), se);
 	}
 #endif
+#endif
 
-
+#if defined(OPLUS_FEATURE_SCHED_ASSIST) && \
+	defined(CONFIG_OPLUS_FEATURE_SCHED_UX_PRIORITY)
+done:
+#endif
 	if (hrtick_enabled(rq))
 		hrtick_start_fair(rq, p);
 
