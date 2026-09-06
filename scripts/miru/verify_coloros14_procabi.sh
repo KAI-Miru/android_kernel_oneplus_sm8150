@@ -492,8 +492,8 @@ check audio-small-three-of-four \
   grep -Fq '#define AUDIO_SMALL_MATCHES' "${sched_assist_c}"
 check audio-small-exec-threshold \
   grep -Fq '#define AUDIO_SMALL_EXEC_NS' "${sched_assist_c}"
-check audio-small-three-stat-hooks \
-  test "$(grep -Fc 'sched_assist_update_record(' kernel/sched/fair.c)" -eq 3
+check audio-small-four-stat-hooks \
+  test "$(grep -Fc 'sched_assist_update_record(' kernel/sched/fair.c)" -eq 4
 check audio-small-next-buddy-hook \
   grep -Fq 'sched_assist_pick_next_entity(cfs_rq, &se)' kernel/sched/fair.c
 check audio-small-preempt-hook \
