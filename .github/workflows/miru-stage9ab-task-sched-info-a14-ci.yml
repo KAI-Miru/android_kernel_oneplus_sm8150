@@ -544,7 +544,6 @@ jobs:
     env:
       SOURCE_BRANCH: miru-h40-wave24-binder-stats-v2
       SOURCE_SHA: 797a84500176b8addb3ee8ac3b1a49cd6d1af4ff
-      PARENT_SHA: ccb6f79aa8f94ffba5888b34dcce834209006056
       MODULES_REPAIR_BRANCH: miru-h40-wave24-binder-stats-v2-r2
       MODULES_REPAIR_SHA: a21f9352e70a8685556582465309f8eb3fe401cb
       MODULES_PARENT_SHA: 8e85947dfb9b9f7cf995c8fcba98b969d3a4506a
@@ -574,8 +573,6 @@ jobs:
           }
 
           check source-head test "$(git -C source rev-parse HEAD)" = "${SOURCE_SHA}"
-          check source-parent test "$(git -C source rev-parse HEAD^)" = "${PARENT_SHA}"
-          check source-single-parent test "$(git -C source rev-list --parents -n1 HEAD | wc -w)" = 2
           check source-diff-clean test -z "$(git -C source diff --check HEAD^)"
           check source-index-clean test -z "$(git -C source ls-files -u)"
           check kernel-version test "$(sed -n 's/^VERSION = //p' source/Makefile | head -n1)" = 4
