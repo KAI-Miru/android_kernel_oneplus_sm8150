@@ -34,6 +34,10 @@
 #endif
 #endif /* OPLUS_FEATURE_HEALTHINFO */
 
+#ifdef CONFIG_OPLUS_FEATURE_AUDIO_OPT
+#include <linux/sched_assist/sched_assist_status.h>
+#endif
+
 /* task_struct member predeclarations (sorted alphabetically): */
 struct audit_context;
 struct backing_dev_info;
@@ -1425,6 +1429,10 @@ struct task_struct {
 	u64 enqueue_time;
 	u64 inherit_ux_start;
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
+
+#ifdef CONFIG_OPLUS_FEATURE_AUDIO_OPT
+	struct task_info oplus_task_info;
+#endif
 
 #if IS_ENABLED(CONFIG_OPLUS_LOCKING_STRATEGY)
 	struct locking_info lkinfo;

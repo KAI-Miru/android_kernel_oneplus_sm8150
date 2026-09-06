@@ -22,6 +22,8 @@ sched_assist_c="${sched_assist_dir}/sched_assist_common.c"
 sched_assist_slide_c="${sched_assist_dir}/sched_assist_slide.c"
 sched_assist_audio_c="${sched_assist_dir}/sched_assist_audio.c"
 sched_assist_audio_h="${sched_assist_dir}/sched_assist_audio.h"
+sched_assist_status_h="${sched_assist_dir}/sched_assist_status.h"
+sched_assist_fork_h="${sched_assist_dir}/sched_assist_fork.h"
 eas_opt_dir="${sched_assist_dir}/eas_opt"
 eas_opt_c="${eas_opt_dir}/eas_opt.c"
 eas_cap_c="${eas_opt_dir}/oplus_cap.c"
@@ -466,6 +468,36 @@ check audio-rt-donor-threshold \
   grep -Fq '#define AUDIO_TASK_IDLE_EXIT_LATENCY 60' "${sched_assist_audio_c}"
 check audio-rt-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-sched-assist-audio
+
+# Wave 20 completes the donor-enabled small-task audio policy. It samples the
+# runnable/sleep/execute cadence only for the userspace-selected audio TGID in
+# the camera scene, then gives matching short tasks donor-equivalent buddy and
+# wakeup preference.
+check audio-small-config \
+  grep -Fxq 'CONFIG_OPLUS_FEATURE_AUDIO_OPT=y' "${config}"
+check audio-small-kconfig \
+  grep -Fq 'config OPLUS_FEATURE_AUDIO_OPT' "${sched_assist_dir}/Kconfig"
+check audio-small-status-header test -f "${sched_assist_status_h}"
+check audio-small-sample-count \
+  grep -Fq '#define TASK_INFO_SAMPLE 4' "${sched_assist_status_h}"
+check audio-small-task-field \
+  grep -Fq 'struct task_info oplus_task_info;' include/linux/sched.h
+check audio-small-fork-reset \
+  grep -Fq 'memset(&p->oplus_task_info, 0, sizeof(struct task_info));' "${sched_assist_fork_h}"
+check audio-small-tgid-gate \
+  grep -Fq 'task->tgid == READ_ONCE(save_audio_tgid)' "${sched_assist_c}"
+check audio-small-camera-gate \
+  grep -Fq '!sched_assist_scene(SA_CAMERA) || !audio_trace_group(task)' "${sched_assist_c}"
+check audio-small-three-of-four \
+  grep -Fq '#define AUDIO_SMALL_MATCHES' "${sched_assist_c}"
+check audio-small-exec-threshold \
+  grep -Fq '#define AUDIO_SMALL_EXEC_NS' "${sched_assist_c}"
+check audio-small-three-stat-hooks \
+  test "$(grep -Fc 'sched_assist_update_record(' kernel/sched/fair.c)" -eq 3
+check audio-small-next-buddy-hook \
+  grep -Fq 'sched_assist_pick_next_entity(cfs_rq, &se)' kernel/sched/fair.c
+check audio-small-preempt-hook \
+  grep -Fq 'if (unlikely(is_small_task(p)))' kernel/sched/fair.c
 
 # CPU-jank control plane: preserve the reference hierarchy and mux command
 # semantics while making unsupported SM8250 telemetry explicit in code.
@@ -1436,6 +1468,7 @@ sched_assist_im_flag=task-backed
 task_ux_state=per-thread-registered
 audio_sched_assist=task-boost-and-enqueue-hook
 audio_rt_placement=donor-status-gated-deep-idle-avoidance
+audio_small_task=donor-audio-tgid-camera-cadence-preference
 cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
 cpu_jank_tasktrack_latency=on-demand-bounded-sched-events

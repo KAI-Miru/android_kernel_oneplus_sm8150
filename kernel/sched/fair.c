@@ -1039,6 +1039,9 @@ update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 		update_jank_trace_info(p, JANK_TRACE_RUNNABLE, 0, delta);
 #endif
 #endif /* OPLUS_FEATURE_HEALTHINFO */
+#ifdef CONFIG_OPLUS_FEATURE_AUDIO_OPT
+		sched_assist_update_record(p, delta, TST_RUNNABLE);
+#endif
 	}
 
 	schedstat_set(se->statistics.wait_max,
@@ -1087,6 +1090,9 @@ update_stats_enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 			update_jank_trace_info(tsk, JANK_TRACE_SSTATE, 0, delta);
 #endif
 #endif /* OPLUS_FEATURE_HEALTHINFO */
+#ifdef CONFIG_OPLUS_FEATURE_AUDIO_OPT
+			sched_assist_update_record(tsk, delta, TST_SLEEP);
+#endif
 		}
 	}
 	if (block_start) {
@@ -1139,6 +1145,9 @@ update_stats_enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 			update_jank_trace_info(tsk, JANK_TRACE_DSTATE, 0, delta);
 #endif
 #endif /* OPLUS_FEATURE_HEALTHINFO */
+#ifdef CONFIG_OPLUS_FEATURE_AUDIO_OPT
+			sched_assist_update_record(tsk, delta, TST_SLEEP);
+#endif
 			trace_sched_stat_blocked(tsk, delta);
 			trace_sched_blocked_reason(tsk);
 
@@ -4423,6 +4432,10 @@ pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 	if (should_ux_task_skip_further_check(se))
 		return se;
+#ifdef CONFIG_OPLUS_FEATURE_AUDIO_OPT
+	if (sched_assist_pick_next_entity(cfs_rq, &se))
+		goto oplus_pick;
+#endif
 #endif
 
 	/*
@@ -4459,6 +4472,9 @@ pick_next_entity(struct cfs_rq *cfs_rq, struct sched_entity *curr)
 	if (cfs_rq->next && wakeup_preempt_entity(cfs_rq->next, left) < 1)
 		se = cfs_rq->next;
 
+#ifdef CONFIG_OPLUS_FEATURE_AUDIO_OPT
+oplus_pick:
+#endif
 	clear_buddies(cfs_rq, se);
 
 	return se;
@@ -5579,6 +5595,12 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	if (!se) {
 		sub_nr_running(rq, 1);
 		dec_rq_walt_stats(rq, p);
+#ifdef CONFIG_OPLUS_FEATURE_AUDIO_OPT
+		if (task_sleep)
+			sched_assist_update_record(p,
+				p->se.sum_exec_runtime - p->se.prev_sum_exec_runtime,
+				TST_EXEC);
+#endif
 	}
 
 	util_est_dequeue(&rq->cfs, p, task_sleep);
@@ -8868,6 +8890,13 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 	find_matching_se(&se, &pse);
 	update_curr(cfs_rq_of(se));
 	BUG_ON(!pse);
+#ifdef CONFIG_OPLUS_FEATURE_AUDIO_OPT
+	if (unlikely(is_small_task(p))) {
+		if (!next_buddy_marked)
+			set_next_buddy(pse);
+		goto preempt;
+	}
+#endif
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 	if (should_ux_preempt_wakeup(p, curr))
 		goto preempt;
