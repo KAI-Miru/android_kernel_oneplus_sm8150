@@ -546,7 +546,7 @@ jobs:
       SOURCE_SHA: 8b2e8f768fa5d910f94f0d02302d1b119ed4c04f
       PARENT_SHA: cca96b1fe9f88f12bdc568f5c8a66e6a640cd817
       MODULES_REPAIR_BRANCH: miru-h40-wave19-audio-rt
-      MODULES_REPAIR_SHA: 1c9653ce78afaa97ffbad575245520198e5785f3
+      MODULES_REPAIR_SHA: a4d0d05f3b81024ea92c03dc697d7e2bf03c8cb9
       MODULES_PARENT_SHA: e6451f4a563b3976f9b4b79496481935c425e71e
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave19-audio-rt-ci1+
       PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave19-audio-rt-ci1
@@ -1062,7 +1062,7 @@ jobs:
           ])
 
           replacements = {
-              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=1c9653ce78afaa97ffbad575245520198e5785f3',
+              'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=a4d0d05f3b81024ea92c03dc697d7e2bf03c8cb9',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Wave 19 audio RT placement stable build ==',
               'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-wave19-audio-rt-ci1',
               'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-wave19-audio-rt-ci1"',
@@ -1078,7 +1078,7 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=1c9653ce78afaa97ffbad575245520198e5785f3' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=a4d0d05f3b81024ea92c03dc697d7e2bf03c8cb9' build-stage9b-task-sched-info-a14-stable.sh
           grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave19-audio-rt-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
       - name: Build Wave 19 audio RT placement kernel with stable builder
