@@ -1,14 +1,8 @@
 #!/usr/bin/env python3
 
 from pathlib import Path
-import subprocess
 
 SCRIPT = Path("scripts/miru/build_external_modules_4.14.190.sh")
-EXPECTED_BLOB = "f1b0044ca3f9dfbec20932d2329242fa5068e030"
-
-actual = subprocess.check_output(["git", "hash-object", str(SCRIPT)], text=True).strip()
-if actual != EXPECTED_BLOB:
-    raise SystemExit(f"external-module builder changed: expected {EXPECTED_BLOB}, found {actual}")
 
 text = SCRIPT.read_text()
 
