@@ -1,0 +1,11 @@
+What:		/proc/oplus_mem/sigkill_reason
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only view of the donor's twenty-entry SIGKILL diagnosis ring.
+		Each newest-first record is four comma-separated integers describing
+		the target TGID/UID and signal sender TGID/UID.  Wave 21 invokes the
+		recorder from the native Linux 4.14 do_send_sig_info path because
+		this kernel predates the Android 5.4 vendor signal hook used by 9R.
+
+Users:		OnePlus Android 14 Athena process-management service

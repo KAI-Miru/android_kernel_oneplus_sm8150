@@ -1434,6 +1434,14 @@ struct task_struct {
 	struct task_info oplus_task_info;
 #endif
 
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	int tpp_flag;
+#endif
+
+#ifdef CONFIG_OPLUS_FEATURE_IM
+	int im_flag;
+#endif
+
 #if IS_ENABLED(CONFIG_OPLUS_LOCKING_STRATEGY)
 	struct locking_info lkinfo;
 #endif

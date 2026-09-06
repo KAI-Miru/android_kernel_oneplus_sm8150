@@ -75,6 +75,14 @@
 
 #include <trace/events/sched.h>
 
+#ifdef CONFIG_OPLUS_FEATURE_IM
+#include <linux/im/im.h>
+#endif
+
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+#include <linux/tpp/tpp.h>
+#endif
+
 int suid_dumpable = 0;
 
 static LIST_HEAD(formats);
@@ -1256,6 +1264,13 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 	task_lock(tsk);
 	trace_task_rename(tsk, buf);
 	strlcpy(tsk->comm, buf, sizeof(tsk->comm));
+	/* Keep donor task classification and TPP tagging under task_lock. */
+#ifdef CONFIG_OPLUS_FEATURE_IM
+	im_wmi(tsk);
+#endif
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	tpp_tagging(tsk);
+#endif
 	task_unlock(tsk);
 #if defined(OPLUS_FEATURE_TASK_CPUSTATS) && defined(CONFIG_OPLUS_SCHED)
 	get_target_thread_pid(tsk);

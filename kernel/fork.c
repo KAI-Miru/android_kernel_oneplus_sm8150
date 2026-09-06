@@ -109,6 +109,9 @@
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 #include <linux/sched_assist/sched_assist_fork.h>
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
+#ifdef CONFIG_OPLUS_FEATURE_IM
+#include <linux/im/im.h>
+#endif
 #if IS_ENABLED(CONFIG_OPLUS_LOCKING_STRATEGY)
 #include <linux/sched_assist/sync/futex.h>
 #endif
@@ -2161,6 +2164,10 @@ static __latent_entropy struct task_struct *copy_process(
 	uprobe_copy_process(p, clone_flags);
 
 	copy_oom_score_adj(clone_flags, p);
+
+#ifdef CONFIG_OPLUS_FEATURE_IM
+	im_tsk_init_flag((void *)p);
+#endif
 
 	return p;
 

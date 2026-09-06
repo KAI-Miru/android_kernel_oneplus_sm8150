@@ -2092,3 +2092,6 @@ source "kernel/sched_info/Kconfig"
 
 # ColorOS 14 Frame Boost scheduler integration (external Oplus source via kernel/tuning).
 source "kernel/tuning/Kconfig"
+
+# Wave 21 Athena SIGKILL reason recorder (external Oplus source).
+source "kernel/sigkill_diagnosis/Kconfig"

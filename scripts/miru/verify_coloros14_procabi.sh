@@ -92,6 +92,15 @@ uxio_first_dir="${vendor_root}/oplus/kernel/oplus_performance/oplus_uxio_first"
 uxio_first_c="${uxio_first_dir}/oplus_uxio_first_opt.c"
 uxio_first_h="${uxio_first_dir}/oplus_uxio_first_opt.h"
 uxio_high_prio_c="${uxio_first_dir}/oplus_high_prio_task.c"
+im_dir="${vendor_root}/oplus/kernel/oplus_performance/im"
+im_c="${im_dir}/im.c"
+im_h="${im_dir}/im.h"
+tpp_dir="${vendor_root}/oplus/kernel/oplus_performance/tpp"
+tpp_c="${tpp_dir}/tpp.c"
+tpp_h="${tpp_dir}/tpp.h"
+sigkill_dir="${vendor_root}/oplus/kernel/oplus_performance/sigkill_diagnosis"
+sigkill_c="${sigkill_dir}/sigkill_diagnosis.c"
+sigkill_h="${sigkill_dir}/sigkill_diagnosis.h"
 
 check() {
   local label="$1"
@@ -1461,6 +1470,47 @@ check_absent locking-donor-futex-hooks-not-activated \
 check locking-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-locking-strategy
 
+# Wave 21 restores donor task identity, the default-off Unity TPP framework,
+# and Athena's bounded SIGKILL reason recorder.  TPD is deliberately a later
+# wave because it actively constrains CPU affinity in several scheduler paths.
+check im-config grep -Fxq 'CONFIG_OPLUS_FEATURE_IM=y' "${config}"
+check im-source test -f "${im_c}"
+check im-header test -f "${im_h}"
+check im-task-field grep -Fq 'int im_flag;' include/linux/sched.h
+check im-comm-hook grep -Fq 'im_wmi(tsk);' fs/exec.c
+check im-fork-hook grep -Fq 'im_tsk_init_flag((void *)p);' kernel/fork.c
+check im-per-task-proc-count \
+  test "$(grep -Fc 'ONE("im_flag", 0444, proc_im_flag)' fs/proc/base.c)" -eq 2
+check im-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-wave21-task-identity
+
+check tpp-config grep -Fxq 'CONFIG_OPLUS_FEATURE_TPP=y' "${config}"
+check tpp-source test -f "${tpp_c}"
+check tpp-header test -f "${tpp_h}"
+check tpp-task-field grep -Fq 'int tpp_flag;' include/linux/sched.h
+check tpp-default-off grep -Fq 'static int tpp_on = 0;' "${tpp_c}"
+check tpp-lazy-topology grep -Fq 'if (val && !tpp_topology_ready && !record_system_cpu_state())' "${tpp_c}"
+check tpp-late-init grep -Fq 'late_initcall(tpp_init);' "${tpp_c}"
+check tpp-enqueue-hook grep -Fq 'tpp_enqueue(cpu_of(rq), p);' kernel/sched/fair.c
+check tpp-dequeue-hook grep -Fq 'tpp_dequeue(cpu_of(rq), p);' kernel/sched/fair.c
+check tpp-select-hook grep -Fq 'tpp_find_cpu(&target_cpu, p);' kernel/sched/fair.c
+for node in tpp_task_report tpp_tagged_list tpp_cpu_select_report; do
+  check "tpp-proc-${node}" grep -Fq "proc_create(\"${node}\"" "${tpp_c}"
+done
+
+check sigkill-config \
+  grep -Fxq 'CONFIG_OPLUS_FEATURE_SIGKILL_DIAGNOSIS=y' "${config}"
+check sigkill-source test -f "${sigkill_c}"
+check sigkill-header test -f "${sigkill_h}"
+check sigkill-built-in grep -Fq 'bool "sigkill diagnosis driver"' "${sigkill_dir}/Kconfig"
+check sigkill-ring-size grep -Fq '#define SIGKILL_RECORD_SIZE 20' "${sigkill_c}"
+check sigkill-proc grep -Fq '"sigkill_reason" : "oplus_mem/sigkill_reason"' "${sigkill_c}"
+check sigkill-preinit-guard grep -Fq 'unlikely(!READ_ONCE(g_sigkill_records))' "${sigkill_c}"
+check sigkill-native-414-hook \
+  grep -Fq 'record_sigkill_reason(NULL, sig, current, p);' kernel/signal.c
+check sigkill-abi-document \
+  test -f Documentation/ABI/testing/procfs-oplus-sigkill-diagnosis
+
 cat <<EOF
 result=PASS
 proc_iomem=core-4.14
@@ -1469,6 +1519,9 @@ task_ux_state=per-thread-registered
 audio_sched_assist=task-boost-and-enqueue-hook
 audio_rt_placement=donor-status-gated-deep-idle-avoidance
 audio_small_task=donor-audio-tgid-camera-cadence-preference
+task_identity=donor-comm-classification-per-task-proc
+tpp_unity_policy=donor-default-off-lazy-msmnile-topology
+athena_sigkill_diagnosis=donor-ring-native-4.14-signal-hook
 cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
 cpu_jank_tasktrack_latency=on-demand-bounded-sched-events

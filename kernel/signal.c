@@ -62,6 +62,10 @@
 #include <linux/hans.h>
 #endif /*OPLUS_FEATURE_HANS_FREEZE*/
 
+#ifdef CONFIG_OPLUS_FEATURE_SIGKILL_DIAGNOSIS
+#include <linux/sigkill_diagnosis/sigkill_diagnosis.h>
+#endif
+
 /*
  * SLAB caches for signal bits.
  */
@@ -1224,6 +1228,11 @@ int do_send_sig_info(int sig, struct siginfo *info, struct task_struct *p,
 {
 	unsigned long flags;
 	int ret = -ESRCH;
+
+#ifdef CONFIG_OPLUS_FEATURE_SIGKILL_DIAGNOSIS
+	/* 4.14 has no Android vendor signal hook; call the donor recorder here. */
+	record_sigkill_reason(NULL, sig, current, p);
+#endif
 
 #ifdef OPLUS_FEATURE_HANS_FREEZE
 	if (is_frozen_tg(p)  /*signal receiver thread group is frozen?*/

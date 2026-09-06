@@ -133,6 +133,9 @@ obj-$(CONFIG_OPLUS_FEATURE_FRAME_BOOST) += tuning/
 # Android 14 ColorOS CPU-jank proc ABI, controlled through Kconfig.
 obj-$(CONFIG_OPLUS_FEATURE_CPU_JANKINFO) += sched_info/
 
+# Wave 21 Athena SIGKILL reason recorder.
+obj-$(CONFIG_OPLUS_FEATURE_SIGKILL_DIAGNOSIS) += sigkill_diagnosis/
+
 $(obj)/configs.o: $(obj)/config_data.h
 
 targets += config_data.gz

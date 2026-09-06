@@ -108,6 +108,10 @@ walt_dec_cfs_rq_stats(struct cfs_rq *cfs_rq, struct task_struct *p) {}
 
 #endif
 
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+#include <linux/tpp/tpp.h>
+#endif
+
 /*
  * Targeted preemption latency for CPU-bound tasks:
  *
@@ -5524,6 +5528,9 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	}
 
 	hrtick_update(rq);
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	tpp_enqueue(cpu_of(rq), p);
+#endif
 }
 
 static void set_next_buddy(struct sched_entity *se);
@@ -5605,6 +5612,9 @@ static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 
 	util_est_dequeue(&rq->cfs, p, task_sleep);
 	hrtick_update(rq);
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	tpp_dequeue(cpu_of(rq), p);
+#endif
 }
 
 #ifdef CONFIG_SMP
@@ -8514,6 +8524,11 @@ out:
 
 	if (target_cpu < 0)
 		target_cpu = prev_cpu;
+
+#ifdef CONFIG_OPLUS_FEATURE_TPP
+	if (tpp_task(p))
+		tpp_find_cpu(&target_cpu, p);
+#endif
 	trace_sched_task_util(p, next_cpu, backup_cpu, target_cpu, sync,
 			need_idle, fbt_env.fastpath, placement_boost,
 			rtg_target ? cpumask_first(rtg_target) : -1, start_t,

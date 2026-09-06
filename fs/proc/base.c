@@ -104,6 +104,10 @@
 
 #include "../../lib/kstrtox.h"
 
+#ifdef CONFIG_OPLUS_FEATURE_IM
+#include <linux/im/im.h>
+#endif
+
 #ifdef OPLUS_FEATURE_HEALTHINFO
 #ifdef CONFIG_OPLUS_JANK_INFO
 #include <linux/oplus_healthinfo/oplus_jank_monitor.h>
@@ -3276,6 +3280,20 @@ static int proc_pid_patch_state(struct seq_file *m, struct pid_namespace *ns,
 }
 #endif /* CONFIG_LIVEPATCH */
 
+#ifdef CONFIG_OPLUS_FEATURE_IM
+static int proc_im_flag(struct seq_file *m, struct pid_namespace *ns,
+			struct pid *pid, struct task_struct *task)
+{
+#define IM_TAG_DESC_LEN 128
+	char desc[IM_TAG_DESC_LEN] = { 0 };
+
+	im_to_str(task->im_flag, desc, sizeof(desc));
+	desc[IM_TAG_DESC_LEN - 1] = '\0';
+	seq_printf(m, "%d %s (0)", task->im_flag, desc);
+	return 0;
+}
+#endif
+
 /*
  * Thread groups
  */
@@ -3415,6 +3433,9 @@ static const struct pid_entry tgid_base_stuff[] = {
 	REG("jank_info", S_IRUGO | S_IWUGO, proc_jank_trace_operations),
 #endif
 #endif /* OPLUS_FEATURE_HEALTHINFO */
+#ifdef CONFIG_OPLUS_FEATURE_IM
+	ONE("im_flag", 0444, proc_im_flag),
+#endif
 };
 
 static int proc_tgid_base_readdir(struct file *file, struct dir_context *ctx)
@@ -3822,6 +3843,9 @@ static const struct pid_entry tid_base_stuff[] = {
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 	REG("ux_state", S_IRUGO | S_IWUGO, proc_ux_state_operations),
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
+#ifdef CONFIG_OPLUS_FEATURE_IM
+	ONE("im_flag", 0444, proc_im_flag),
+#endif
 };
 
 static int proc_tid_base_readdir(struct file *file, struct dir_context *ctx)

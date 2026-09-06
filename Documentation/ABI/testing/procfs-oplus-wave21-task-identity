@@ -1,0 +1,25 @@
+What:		/proc/<pid>/im_flag
+What:		/proc/<pid>/task/<tid>/im_flag
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only 9R-compatible task identity bitmask followed by its
+		human-readable tags.  The kernel refreshes the mask when a task's
+		comm changes, avoiding repeated string comparisons in scheduler
+		consumers.  This is separate from sched_assist's userspace-assigned
+		ux_im_flag field.
+
+What:		/proc/tpp_task_report
+What:		/proc/tpp_tagged_list
+What:		/proc/tpp_cpu_select_report
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		Read-only reports for the donor Task Placement Policy used by Unity
+		worker threads.  The policy itself remains donor-default-off through
+		/sys/module/tpp/parameters/tpp_on.  Enabling it first validates the
+		msmnile three-cluster cpufreq topology; failure leaves it disabled.
+		Optional large monitor buffers are allocated only when
+		tpp_task_record_on is enabled.
+
+Users:		OnePlus Android 14 game and performance services

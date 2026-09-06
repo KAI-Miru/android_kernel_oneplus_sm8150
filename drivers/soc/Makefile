@@ -55,3 +55,7 @@ obj-$(CONFIG_OPLUS_FEATURE_RT_INFO) += oplus/rt_info/
 obj-$(CONFIG_NANDSWAP)		+= oplus/oplus_nandswap/
 
 obj-$(CONFIG_OPLUS_FEATURE_GAME_OPT) += oplus/game_opt/
+
+# Wave 21: donor task identity and Unity worker-thread policy.
+obj-$(CONFIG_OPLUS_FEATURE_IM) += oplus/im/
+obj-$(CONFIG_OPLUS_FEATURE_TPP) += oplus/tpp/
