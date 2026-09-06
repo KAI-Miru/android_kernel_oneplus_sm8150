@@ -56,8 +56,13 @@ manifest keeps both the stock baseline hash and the expected active hash for
 every compiled entry, so the intended delta is checked on every production
 device-tree build.
 
+The node uses the root tree's two-cell address and size encoding, and its two
+`reg-names` entries are separate strings. These details are runtime-critical:
+otherwise Linux creates one malformed resource and the DDR-stats driver cannot
+bind even though the compatible node is visible.
+
 The resulting active `h40-dtb.img` SHA-256 is
-`6f2c50573cb31f7cb6ff47a2279077ab7a9b5ffc786eacef904b48cc862a13f2`.
+`463c66dab7ba083ed45eb10edca235d3f557b371ebd40187b82f8a1dbe0aedcc`.
 The active `h40-dtbo.img` remains stock-identical at
 `ddf316ecd06a35b554cf66d0f217063490eccb9e297c4c51302ae03cb6cdafef`.
 

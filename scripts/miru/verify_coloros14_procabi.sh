@@ -1321,6 +1321,21 @@ for project in 18821 18857 18865 19801 19863; do
   check "ddr-stats-dts-${project}" \
     grep -Fq 'qcom,ddr-stats@c3f0000' "arch/arm64/boot/dts/${project}/sm8150-pm.dtsi"
 done
+wave16_hardware_dts_count=0
+for reconstructed_dts in arch/arm64/boot/dts/h40-reconstructed/base/*.dts; do
+  case "${reconstructed_dts}" in
+    */025-rtic.dts) continue ;;
+  esac
+  wave16_hardware_dts_count=$((wave16_hardware_dts_count + 1))
+  check "ddr-stats-reconstructed-reg-${wave16_hardware_dts_count}" \
+    grep -Fq 'reg = <0x00 0xc300000 0x00 0x1000' "${reconstructed_dts}"
+  check "ddr-stats-reconstructed-offset-${wave16_hardware_dts_count}" \
+    grep -Fq '0x00 0xc3f001c 0x00 0x04>;' "${reconstructed_dts}"
+  check "ddr-stats-reconstructed-reg-names-${wave16_hardware_dts_count}" \
+    grep -Fq 'reg-names = "phys_addr_base", "offset_addr";' "${reconstructed_dts}"
+done
+check ddr-stats-reconstructed-hardware-count \
+  test "${wave16_hardware_dts_count}" -eq 24
 check ddr-stats-abi-document \
   test -f Documentation/ABI/testing/sysfs-power-ddr-residency
 

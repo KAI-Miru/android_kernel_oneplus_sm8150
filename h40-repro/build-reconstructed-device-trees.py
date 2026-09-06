@@ -119,8 +119,9 @@ def require_wave16_sources(source_root, rows):
     required = (
         'qcom,ddr-stats@c3f0000 {',
         'compatible = "qcom,ddr-stats";',
-        'reg = <0xc300000 0x1000 0xc3f001c 0x04>;',
-        'reg-names = "phys_addr_base\\0offset_addr";',
+        'reg = <0x00 0xc300000 0x00 0x1000',
+        '0x00 0xc3f001c 0x00 0x04>;',
+        'reg-names = "phys_addr_base", "offset_addr";',
     )
     for row in rows:
         source = source_root / row["source"]

@@ -30,6 +30,12 @@ stock-identical. Production packaging must place the resulting ordered
 `h40-dtb.img` in the Android boot-v2 header DTB field; an appended
 `Image.gz-dtb` alone does not replace the bootloader-selected tree.
 
+Runtime validation additionally requires the reconstructed root-level node to
+encode both resources using two address cells plus two size cells, with
+`phys_addr_base` and `offset_addr` as distinct `reg-names` strings. A compact
+one-cell encoding is only valid for the historical node below `&soc` and does
+not bind when copied directly under the reconstructed root.
+
 ## Result
 
 The official H.40 kernel source compiles after one narrowly scoped Kconfig
