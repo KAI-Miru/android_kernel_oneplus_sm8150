@@ -1,0 +1,22 @@
+What:		/sys/kernel/tracing/events/gpu_mem/gpu_mem_total
+Date:		September 2026
+Description:
+		Android GPU-memory accounting tracepoint consumed by GpuService's
+		gpuMem eBPF program. The tracepoint reports the current total rather
+		than an allocation delta.
+
+		The raw event fields, after the common trace header, are:
+
+		  u32 gpu_id
+		  u32 pid
+		  u64 size
+
+		A pid of zero reports the device-wide total. A positive pid reports
+		the total GPU-addressable virtual memory mapped by that process. A
+		size of zero causes the Android eBPF program to remove the associated
+		map entry.
+
+		KGSL emits process-total updates after successful pagetable map and
+		unmap operations. It emits device-total updates for allocations,
+		frees, sparse mappings, and imported dma-bufs. Multiple imports of
+		the same dma-buf count only once in the device total.

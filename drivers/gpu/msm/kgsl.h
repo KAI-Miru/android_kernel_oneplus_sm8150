@@ -107,6 +107,29 @@ struct kgsl_device;
 struct kgsl_context;
 
 /**
+ * struct gpu_work_period - per-UID GPU work-period accounting state
+ * @refcount: lifetime shared by processes and an active reporting period
+ * @list: node in the global UID work-period list
+ * @uid: Android application UID
+ * @active: accumulated CP_ALWAYS_ON_CONTEXT ticks
+ * @flags: active-period state
+ * @active_cmds: command objects currently owned by this UID
+ * @defer_ws: releases the active-period reference outside the list lock
+ */
+struct gpu_work_period {
+	struct kref refcount;
+	struct list_head list;
+	uid_t uid;
+	u64 active;
+	unsigned long flags;
+	atomic_t active_cmds;
+	struct work_struct defer_ws;
+};
+
+#define KGSL_WORK_PERIOD	0
+#define KGSL_WORK_PERIOD_MS	900
+
+/**
  * struct kgsl_driver - main container for global KGSL things
  * @cdev: Character device struct
  * @major: Major ID for the KGSL device
@@ -134,6 +157,8 @@ struct kgsl_driver {
 	struct kobject *prockobj;
 	struct kgsl_device *devp[KGSL_DEVICE_MAX];
 	struct list_head process_list;
+	struct list_head wp_list;
+	spinlock_t wp_list_lock;
 	struct list_head pagetable_list;
 	spinlock_t ptlock;
 	struct mutex process_mutex;
@@ -161,6 +186,11 @@ struct kgsl_driver {
 
 extern struct kgsl_driver kgsl_driver;
 extern struct mutex kgsl_mmu_sync;
+
+void kgsl_work_period_start(struct kgsl_device *device,
+		struct gpu_work_period *period);
+void kgsl_work_period_update(struct kgsl_device *device,
+		struct gpu_work_period *period, u64 active);
 
 struct kgsl_pagetable;
 struct kgsl_memdesc;

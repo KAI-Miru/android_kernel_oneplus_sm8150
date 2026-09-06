@@ -20,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task.h>
 #include <linux/sched/mm.h>
+#include <trace/events/gpu_mem.h>
 
 #include "kgsl.h"
 #include "kgsl_mmu.h"
@@ -279,6 +280,14 @@ struct kgsl_device {
 	const struct kgsl_functable *ftbl;
 	struct work_struct idle_check_ws;
 	struct timer_list idle_timer;
+	struct timer_list work_period_timer;
+	spinlock_t work_period_lock;
+	struct work_struct work_period_ws;
+	unsigned long work_period_flags;
+	struct {
+		u64 begin;
+		u64 end;
+	} gpu_period;
 	struct kgsl_pwrctrl pwrctrl;
 	int open_count;
 
@@ -292,6 +301,7 @@ struct kgsl_device {
 	uint32_t requested_state;
 
 	atomic_t active_cnt;
+	atomic64_t total_mapped;
 
 	wait_queue_head_t wait_queue;
 	wait_queue_head_t active_cnt_wq;
@@ -482,6 +492,7 @@ struct kgsl_process_private {
 		atomic64_t max;
 	} stats[KGSL_MEM_ENTRY_MAX];
 	atomic64_t gpumem_mapped;
+	struct gpu_work_period *period;
 	struct idr syncsource_idr;
 	spinlock_t syncsource_lock;
 	int fd_count;
@@ -1024,5 +1035,31 @@ struct kgsl_pwr_limit {
 	unsigned int level;
 	struct kgsl_device *device;
 };
+
+/**
+ * kgsl_trace_gpu_mem_total - update overall GPU-addressable memory usage
+ * @device: KGSL device handle
+ * @delta: signed change in mapped bytes
+ *
+ * The Android gpu_mem tracepoint carries the new total, not an allocation
+ * delta. Imported dma-bufs are accounted separately so multiple imports of
+ * the same buffer do not inflate this device-wide value.
+ */
+#ifdef CONFIG_TRACE_GPU_MEM
+static inline void kgsl_trace_gpu_mem_total(struct kgsl_device *device,
+						s64 delta)
+{
+	u64 total_size;
+
+	if (!device)
+		return;
+
+	total_size = atomic64_add_return(delta, &device->total_mapped);
+	trace_gpu_mem_total(0, 0, total_size);
+}
+#else
+static inline void kgsl_trace_gpu_mem_total(struct kgsl_device *device,
+						s64 delta) { }
+#endif
 
 #endif  /* __KGSL_DEVICE_H */

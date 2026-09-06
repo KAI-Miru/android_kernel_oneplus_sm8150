@@ -382,6 +382,13 @@ static inline int kgsl_mmu_is_perprocess(struct kgsl_mmu *mmu)
 	return MMU_FEATURE(mmu, KGSL_MMU_GLOBAL_PAGETABLE) ? 0 : 1;
 }
 
+/* Return true for a process pagetable, excluding global and secure tables. */
+static inline bool kgsl_mmu_is_perprocess_pt(struct kgsl_pagetable *pagetable)
+{
+	return pagetable->name != KGSL_MMU_GLOBAL_PT &&
+		pagetable->name != KGSL_MMU_SECURE_PT;
+}
+
 static inline int kgsl_mmu_use_cpu_map(struct kgsl_mmu *mmu)
 {
 	return kgsl_mmu_is_perprocess(mmu);

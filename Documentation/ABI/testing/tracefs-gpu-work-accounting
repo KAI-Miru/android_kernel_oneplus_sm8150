@@ -1,0 +1,22 @@
+What:		/sys/kernel/tracing/events/power/gpu_work_period
+Date:		September 2026
+Description:
+		Android per-UID GPU work accounting tracepoint consumed by
+		GpuService's gpuWork eBPF program.
+
+		The raw event fields, after the common trace header, are:
+
+		  u32 gpu_id
+		  u32 uid
+		  u64 start_time_ns
+		  u64 end_time_ns
+		  u64 total_active_duration_ns
+
+		The start and end timestamps use CLOCK_MONOTONIC_RAW. Each emitted
+		period is nonzero, no longer than one second, and does not overlap
+		the preceding period for the same UID. Protected GPU work is not
+		included.
+
+		KGSL accumulates A6xx CP_ALWAYS_ON_CONTEXT ticks by Android UID,
+		converts the 19.2 MHz counter to nanoseconds, clamps active time to
+		the reporting interval, and emits active periods every 900 ms.

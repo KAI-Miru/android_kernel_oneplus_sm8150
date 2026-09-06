@@ -339,6 +339,9 @@ static void drawobj_destroy_cmd(struct kgsl_drawobj *drawobj)
 
 	/* Destroy the memlist we created */
 	memobj_list_free(&cmdobj->memlist);
+
+	if (drawobj->type & CMDOBJ_TYPE)
+		atomic_dec(&drawobj->context->proc_priv->period->active_cmds);
 }
 
 /**
@@ -802,6 +805,10 @@ struct kgsl_drawobj_cmd *kgsl_drawobj_cmd_create(struct kgsl_device *device,
 
 		INIT_LIST_HEAD(&cmdobj->cmdlist);
 		INIT_LIST_HEAD(&cmdobj->memlist);
+
+		if (type & CMDOBJ_TYPE)
+			kgsl_work_period_start(device,
+				context->proc_priv->period);
 	}
 
 	return cmdobj;

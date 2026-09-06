@@ -203,6 +203,12 @@ static inline int kgsl_memdesc_is_global(const struct kgsl_memdesc *memdesc)
 	return (memdesc->priv & KGSL_MEMDESC_GLOBAL) != 0;
 }
 
+/* Return true when the memory descriptor represents an imported dma-buf. */
+static inline bool kgsl_memdesc_is_dmabuf(const struct kgsl_memdesc *memdesc)
+{
+	return memdesc->flags & KGSL_MEMFLAGS_USERMEM_ION;
+}
+
 /*
  * kgsl_memdesc_is_secured - is this a secure buffer?
  * @memdesc: the memdesc

@@ -29,6 +29,7 @@
 #include "adreno_trace.h"
 
 #include "a3xx_reg.h"
+#include "a6xx_reg.h"
 #include "adreno_a5xx.h"
 
 #define RB_HOSTPTR(_rb, _pos) \
@@ -930,6 +931,21 @@ static inline int _get_alwayson_counter(struct adreno_device *adreno_dev,
 	return (unsigned int)(p - cmds);
 }
 
+static inline int _get_alwayson_context(struct adreno_device *adreno_dev,
+		unsigned int *cmds, uint64_t gpuaddr)
+{
+	unsigned int *p = cmds;
+
+	if (!adreno_is_a6xx(adreno_dev))
+		return 0;
+
+	*p++ = cp_mem_packet(adreno_dev, CP_REG_TO_MEM, 2, 1);
+	*p++ = A6XX_CP_ALWAYS_ON_CONTEXT_LO | (1 << 30) | (2 << 18);
+	p += cp_gpuaddr(adreno_dev, p, gpuaddr);
+
+	return (unsigned int)(p - cmds);
+}
+
 /* This is the maximum possible size for 64 bit targets */
 #define PROFILE_IB_DWORDS 4
 #define PROFILE_IB_SLOTS (PAGE_SIZE / (PROFILE_IB_DWORDS << 2))
@@ -1086,6 +1102,8 @@ int adreno_ringbuffer_submitcmd(struct adreno_device *adreno_dev,
 		dwords += 6;
 		if (!ADRENO_LEGACY_PM4(adreno_dev))
 			dwords += 2;
+		if (adreno_is_a6xx(adreno_dev))
+			dwords += 8;
 	}
 
 	if (adreno_is_preemption_enabled(adreno_dev))
@@ -1122,6 +1140,10 @@ int adreno_ringbuffer_submitcmd(struct adreno_device *adreno_dev,
 			adreno_dev->profile_buffer.gpuaddr +
 			ADRENO_DRAWOBJ_PROFILE_OFFSET(cmdobj->profile_index,
 				started));
+		cmds += _get_alwayson_context(adreno_dev, cmds,
+			adreno_dev->profile_buffer.gpuaddr +
+			ADRENO_DRAWOBJ_PROFILE_OFFSET(cmdobj->profile_index,
+				ctx_start));
 	}
 
 	/*
@@ -1174,6 +1196,10 @@ int adreno_ringbuffer_submitcmd(struct adreno_device *adreno_dev,
 			adreno_dev->profile_buffer.gpuaddr +
 			ADRENO_DRAWOBJ_PROFILE_OFFSET(cmdobj->profile_index,
 				retired));
+		cmds += _get_alwayson_context(adreno_dev, cmds,
+			adreno_dev->profile_buffer.gpuaddr +
+			ADRENO_DRAWOBJ_PROFILE_OFFSET(cmdobj->profile_index,
+				ctx_end));
 	}
 
 	/*
