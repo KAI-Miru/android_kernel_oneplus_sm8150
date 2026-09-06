@@ -543,7 +543,7 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-wave23-binder-stats
-      SOURCE_SHA: 8a88f1369d6be1cf040120a4a9f9156604f5f6d5
+      SOURCE_SHA: 9f15ad3759f5128a3a6543d70672ee6ba2d824db
       PARENT_SHA: b54e81dad7cef1417bcea6ae755567b9b321ca24
       MODULES_REPAIR_BRANCH: miru-h40-wave21-task-identity-diagnostics
       MODULES_REPAIR_SHA: 8e85947dfb9b9f7cf995c8fcba98b969d3a4506a
@@ -2040,6 +2040,7 @@ jobs:
           binder_stats_module="${module_dir}/oplus_binder_stats.ko"
           test -s "${binder_stats_module}"
           test "$(modinfo -F name "${binder_stats_module}")" = oplus_binder_stats
+          test "$(modinfo -F license "${binder_stats_module}")" = "GPL v2"
           test "$(modinfo -F vermagic "${binder_stats_module}")" = "${EXPECTED_RELEASE} SMP preempt mod_unload modversions aarch64"
           binder_stats_symbols="${RUNNER_TEMP}/wave23-binder-stats.symbols"
           binder_stats_strings="${RUNNER_TEMP}/wave23-binder-stats.strings"
