@@ -13,6 +13,10 @@
 #include <linux/types.h>
 #include <linux/uidgid.h>
 
+#ifdef CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE
+#define OPLUS_MAX_SERVICE_NAME_LEN 32
+#endif
+
 struct binder_context {
 	struct binder_node *binder_context_mgr_node;
 	struct mutex context_mgr_node_lock;

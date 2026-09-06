@@ -60,6 +60,7 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/notifier.h>
 #include <linux/nsproxy.h>
 #include <linux/poll.h>
 #include <linux/debugfs.h>
@@ -143,6 +144,36 @@ module_param_named(devices, binder_devices_param, charp, 0444);
 
 static DECLARE_WAIT_QUEUE_HEAD(binder_user_error_wait);
 static int binder_stop_on_user_error;
+
+#ifdef CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE
+#define OPLUS_MAGIC_SERVICE_NAME_OFFSET 76
+
+struct binder_notify {
+	struct task_struct *caller_task;
+	struct task_struct *binder_task;
+	char service_name[OPLUS_MAX_SERVICE_NAME_LEN];
+	bool pending_async;
+};
+
+static ATOMIC_NOTIFIER_HEAD(binderevent_notif_chain);
+
+int register_binderevent_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_register(&binderevent_notif_chain, nb);
+}
+EXPORT_SYMBOL_GPL(register_binderevent_notifier);
+
+int unregister_binderevent_notifier(struct notifier_block *nb)
+{
+	return atomic_notifier_chain_unregister(&binderevent_notif_chain, nb);
+}
+EXPORT_SYMBOL_GPL(unregister_binderevent_notifier);
+
+static int call_binderevent_notifiers(struct binder_notify *notify)
+{
+	return atomic_notifier_call_chain(&binderevent_notif_chain, 0, notify);
+}
+#endif
 
 static int binder_set_stop_on_user_error(const char *val,
 					 const struct kernel_param *kp)
@@ -362,6 +393,9 @@ struct binder_node {
 	};
 	bool has_async_transaction;
 	struct list_head async_todo;
+#ifdef CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE
+	char service_name[OPLUS_MAX_SERVICE_NAME_LEN];
+#endif
 };
 
 struct binder_ref_death {
@@ -653,6 +687,47 @@ struct binder_object {
 		struct binder_fd_array_object fdao;
 	};
 };
+
+#ifdef CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE
+static void oplus_parse_service_name(struct binder_transaction_data *tr,
+				     struct binder_proc *proc, char *name)
+{
+	char service_name[OPLUS_MAX_SERVICE_NAME_LEN] = "unknown";
+	unsigned int i, len = 0;
+
+	if (tr && tr->target.handle == 0 && proc && proc->context) {
+		if (!strcmp(proc->context->name, "hwbinder")) {
+			strscpy(service_name, "hwbinderService",
+				sizeof(service_name));
+		} else {
+			service_name[0] = '\0';
+			for (i = OPLUS_MAGIC_SERVICE_NAME_OFFSET / 2;
+			     (2 * i) < tr->data_size; i++) {
+				char __user *src = (char __user *)(uintptr_t)
+					(tr->data.ptr.buffer + (2 * i));
+				char c;
+
+				if (len >= sizeof(service_name) - 1 ||
+				    get_user(c, src))
+					break;
+				if (c == '\0')
+					break;
+				if (c >= 32 && c <= 126)
+					service_name[len++] = c;
+			}
+			service_name[len] = '\0';
+			if (!len)
+				strscpy(service_name, "unknown",
+					sizeof(service_name));
+		}
+	} else if (tr && tr->target.handle != 0) {
+		strscpy(service_name, "AnonymousCallback",
+			sizeof(service_name));
+	}
+
+	strscpy(name, service_name, OPLUS_MAX_SERVICE_NAME_LEN);
+}
+#endif
 
 /**
  * binder_proc_lock() - Acquire outer lock for given binder_proc
@@ -2554,9 +2629,16 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 	}
 }
 
+#ifdef CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE
+static int binder_translate_binder(struct binder_transaction_data *tr,
+				   struct flat_binder_object *fp,
+				   struct binder_transaction *t,
+				   struct binder_thread *thread)
+#else
 static int binder_translate_binder(struct flat_binder_object *fp,
 				   struct binder_transaction *t,
 				   struct binder_thread *thread)
+#endif
 {
 	struct binder_node *node;
 	struct binder_proc *proc = thread->proc;
@@ -2569,6 +2651,9 @@ static int binder_translate_binder(struct flat_binder_object *fp,
 		node = binder_new_node(proc, fp);
 		if (!node)
 			return -ENOMEM;
+#ifdef CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE
+		oplus_parse_service_name(tr, proc, node->service_name);
+#endif
 	}
 	if (fp->cookie != node->cookie) {
 		binder_user_error("%d:%d sending u%016llx node %d, cookie mismatch %016llx != %016llx\n",
@@ -2891,6 +2976,9 @@ static bool binder_proc_transaction(struct binder_transaction *t,
 	struct binder_priority node_prio;
 	bool oneway = !!(t->flags & TF_ONE_WAY);
 	bool pending_async = false;
+#ifdef CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE
+	struct binder_notify notify = { };
+#endif
 
 	BUG_ON(!node);
 	binder_node_lock(node);
@@ -2917,7 +3005,18 @@ static bool binder_proc_transaction(struct binder_transaction *t,
 	if (!thread && !pending_async)
 		thread = binder_select_thread_ilocked(proc);
 
+#ifdef CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE
+	notify.caller_task = current;
+	notify.pending_async = pending_async;
+	strscpy(notify.service_name, node->service_name,
+		sizeof(notify.service_name));
+#endif
+
 	if (thread) {
+#ifdef CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE
+		notify.binder_task = thread->task;
+		call_binderevent_notifiers(&notify);
+#endif
 #ifdef OPLUS_FEATURE_SCHED_ASSIST
 		binder_transaction_priority(thread, thread->task, t, node_prio,
 					    node->inherit_rt);
@@ -2933,8 +3032,16 @@ static bool binder_proc_transaction(struct binder_transaction *t,
 		}
 #endif /* OPLUS_FEATURE_SCHED_ASSIST */
 	} else if (!pending_async) {
+#ifdef CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE
+		notify.binder_task = proc->tsk;
+		call_binderevent_notifiers(&notify);
+#endif
 		binder_enqueue_work_ilocked(&t->work, &proc->todo);
 	} else {
+#ifdef CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE
+		notify.binder_task = proc->tsk;
+		call_binderevent_notifiers(&notify);
+#endif
 		binder_enqueue_work_ilocked(&t->work, &node->async_todo);
 	}
 
@@ -3437,7 +3544,11 @@ static void binder_transaction(struct binder_proc *proc,
 			struct flat_binder_object *fp;
 
 			fp = to_flat_binder_object(hdr);
+#ifdef CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE
+			ret = binder_translate_binder(tr, fp, t, thread);
+#else
 			ret = binder_translate_binder(fp, t, thread);
+#endif
 			if (ret < 0) {
 				return_error = BR_FAILED_REPLY;
 				return_error_param = ret;
@@ -5045,6 +5156,10 @@ static int binder_ioctl_set_ctx_mgr(struct file *filp,
 	new_node->has_strong_ref = 1;
 	new_node->has_weak_ref = 1;
 	context->binder_context_mgr_node = new_node;
+#ifdef CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE
+	strscpy(new_node->service_name, proc->tsk->comm,
+		sizeof(new_node->service_name));
+#endif
 	binder_node_unlock(new_node);
 	binder_put_node(new_node);
 out:

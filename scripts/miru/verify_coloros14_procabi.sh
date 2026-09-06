@@ -101,6 +101,7 @@ tpp_h="${tpp_dir}/tpp.h"
 sigkill_dir="${vendor_root}/oplus/kernel/oplus_performance/sigkill_diagnosis"
 sigkill_c="${sigkill_dir}/sigkill_diagnosis.c"
 sigkill_h="${sigkill_dir}/sigkill_diagnosis.h"
+midas_binder_c="${vendor_root}/oplus/kernel/power/midas/binder_stats_dev.c"
 
 check() {
   local label="$1"
@@ -1511,6 +1512,27 @@ check sigkill-native-414-hook \
 check sigkill-abi-document \
   test -f Documentation/ABI/testing/procfs-oplus-sigkill-diagnosis
 
+# Wave 23 restores the production 9R Binder transaction accounting transport
+# used by the ported PowerStats/MIDAS stack. The char device is always present,
+# while transaction collection and its bounded buffers remain userspace-gated.
+check binder-stats-config \
+  grep -Fxq 'CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE=y' "${config}"
+check binder-stats-consumer-source test -f "${midas_binder_c}"
+check binder-stats-notifier-register \
+  grep -Fq 'register_binderevent_notifier(struct notifier_block *nb)' drivers/android/binder.c
+check binder-stats-notifier-export \
+  grep -Fq 'EXPORT_SYMBOL_GPL(register_binderevent_notifier);' drivers/android/binder.c
+check binder-stats-service-name \
+  grep -Fq 'char service_name[OPLUS_MAX_SERVICE_NAME_LEN];' drivers/android/binder.c
+check binder-stats-transaction-notify \
+  grep -Fq 'call_binderevent_notifiers(&notify);' drivers/android/binder.c
+check binder-stats-device \
+  grep -Fq 'NULL, g_binder_stats_driver.dev, NULL, "binder_stats")' "${midas_binder_c}"
+check binder-stats-dormant-until-open \
+  grep -Fq 'register_binderevent_notifier(&binder_nb);' "${midas_binder_c}"
+check binder-stats-abi-document \
+  test -f Documentation/ABI/testing/dev-oplus-binder-stats
+
 cat <<EOF
 result=PASS
 proc_iomem=core-4.14
@@ -1522,6 +1544,7 @@ audio_small_task=donor-audio-tgid-camera-cadence-preference
 task_identity=donor-comm-classification-per-task-proc
 tpp_unity_policy=donor-default-off-lazy-msmnile-topology
 athena_sigkill_diagnosis=donor-ring-native-4.14-signal-hook
+binder_stats=donor-userspace-gated-transaction-accounting
 cpu_jank_control_plane=h40-live-sampling
 cpu_jank_tasktrack=on-demand-sched-tracepoint
 cpu_jank_tasktrack_latency=on-demand-bounded-sched-events

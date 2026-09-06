@@ -1,0 +1,15 @@
+What:		/dev/binder_stats
+Date:		September 2026
+Contact:	KAI-Miru kernel maintainers
+Description:
+		OnePlus MIDAS Binder transaction accounting device. The Android 14
+		9R ioctl protocol exposes version 1, per-client filters, bounded
+		double-buffered records, and an mmap view of caller, destination,
+		service-name, and transaction-count fields.
+
+		Opening the device registers the Binder transaction notifier, but
+		collection remains disabled until userspace issues control 101 with
+		value 1. Closing the final client unregisters the notifier. This keeps
+		the production-enabled kernel interface dormant when MIDAS is idle.
+
+Users:		OnePlus Android 14 PowerStats and MIDAS services

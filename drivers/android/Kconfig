@@ -54,6 +54,17 @@ config ANDROID_BINDER_IPC_SELFTEST
 	  exhaustively with combinations of various buffer sizes and
 	  alignments.
 
+config OPLUS_FEATURE_BINDER_STATS_ENABLE
+	bool "OnePlus Binder transaction accounting"
+	depends on ANDROID_BINDER_IPC
+	default n
+	---help---
+	  Enable the notifier interface used by the OnePlus MIDAS binder_stats
+	  driver. Collection remains dormant until userspace opens and enables
+	  /dev/binder_stats. This provides per-service transaction counts used
+	  by the Android 14 PowerStats implementation without changing Binder's
+	  userspace protocol.
+
 endif # if ANDROID
 
 endmenu
