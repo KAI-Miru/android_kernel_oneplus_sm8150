@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 
 SCRIPT = Path("scripts/miru/build_external_modules_4.14.190.sh")
-EXPECTED_BLOB = "13514f494732160254a50c60be06b4d4b08a17f2"
+EXPECTED_BLOB = "540870cd4c8cb99c82e59bc72db8a9ed18c7cf3e"
 
 actual = subprocess.check_output(["git", "hash-object", str(SCRIPT)], text=True).strip()
 if actual != EXPECTED_BLOB:
