@@ -80,16 +80,6 @@ if text.count(old_isolated_kbuild) != 1:
     raise SystemExit("isolated audio Kbuild rewrite block missing or duplicated")
 text = text.replace(old_isolated_kbuild, new_isolated_kbuild, 1)
 
-old_midas = '''make -j4 -C "${KERNEL_DIR}" O="${OUT_DIR}" M="${MIDAS_ROOT}" \\
-  CONFIG_OPLUS_FEATURE_MIDAS=n \\
-'''
-new_midas = '''make -j4 -C "${KERNEL_DIR}" "${MAKE_COMMON[@]}" M="${MIDAS_ROOT}" \\
-  CONFIG_OPLUS_FEATURE_MIDAS=n \\
-'''
-if text.count(old_midas) != 1:
-    raise SystemExit("MIDAS Binder module make invocation missing or duplicated")
-text = text.replace(old_midas, new_midas, 1)
-
 old_audio = '''  make -j4 -C "${KERNEL_DIR}" O="${OUT_DIR}" M="${work}" \\
     AUDIO_ROOT="${AUDIO_ROOT}" \\
 '''
