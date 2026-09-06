@@ -543,8 +543,8 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-wave20-audio-small-task
-      SOURCE_SHA: caccc0e9e31224cce854ad677306f9a4273c1c70
-      PARENT_SHA: 8b2e8f768fa5d910f94f0d02302d1b119ed4c04f
+      SOURCE_SHA: 41ebec42c8ae70c4a8e5af7b48923d6f73e71741
+      PARENT_SHA: caccc0e9e31224cce854ad677306f9a4273c1c70
       MODULES_REPAIR_BRANCH: miru-h40-wave20-audio-small-task
       MODULES_REPAIR_SHA: f0679cb337b85e2e0b992d9b16e356b1839945bd
       MODULES_PARENT_SHA: a4d0d05f3b81024ea92c03dc697d7e2bf03c8cb9
@@ -806,7 +806,7 @@ jobs:
           check audio-small-config grep -Fxq 'CONFIG_OPLUS_FEATURE_AUDIO_OPT=y' source/h40-repro/config/GM1911_11_H.40.config
           check audio-small-status-include grep -Fq '#include <linux/sched_assist/sched_assist_status.h>' source/include/linux/sched.h
           check audio-small-task-field grep -Fq 'struct task_info oplus_task_info;' source/include/linux/sched.h
-          check audio-small-stat-hooks test "$(grep -Fc 'sched_assist_update_record(' source/kernel/sched/fair.c)" -eq 3
+          check audio-small-stat-hooks test "$(grep -Fc 'sched_assist_update_record(' source/kernel/sched/fair.c)" -eq 4
           check audio-small-pick-hook grep -Fq 'sched_assist_pick_next_entity(cfs_rq, &se)' source/kernel/sched/fair.c
           check audio-small-preempt-hook grep -Fq 'if (unlikely(is_small_task(p)))' source/kernel/sched/fair.c
           check audio-small-summary grep -Fq 'audio_small_task=donor-audio-tgid-camera-cadence-preference' source/scripts/miru/verify_coloros14_procabi.sh
@@ -1046,7 +1046,7 @@ jobs:
           grep -Fxq 'CONFIG_OPLUS_FEATURE_AUDIO_OPT=y' h40-repro/config/GM1911_11_H.40.config
           grep -Fq '#include <linux/sched_assist/sched_assist_status.h>' include/linux/sched.h
           grep -Fq 'struct task_info oplus_task_info;' include/linux/sched.h
-          test "$(grep -Fc 'sched_assist_update_record(' kernel/sched/fair.c)" -eq 3
+          test "$(grep -Fc 'sched_assist_update_record(' kernel/sched/fair.c)" -eq 4
           grep -Fq 'sched_assist_pick_next_entity(cfs_rq, &se)' kernel/sched/fair.c
           grep -Fq 'if (unlikely(is_small_task(p)))' kernel/sched/fair.c
           grep -Fq 'audio_small_task=donor-audio-tgid-camera-cadence-preference' scripts/miru/verify_coloros14_procabi.sh
