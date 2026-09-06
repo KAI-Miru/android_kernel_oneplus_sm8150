@@ -79,6 +79,13 @@ done
 # the kernel configuration intentionally keeps it y so binder.c exposes the
 # notifier call sites and their CRCs.
 test -f "${MIDAS_ROOT}/binder_stats_dev.c"
+# The donor file is SPDX GPL-2.0-only but omits MODULE_LICENSE(), which makes
+# the loader classify the resulting DLKM as proprietary and reject every
+# EXPORT_SYMBOL_GPL dependency at runtime. Preserve the donor license in the
+# module metadata before building it.
+if ! grep -Fq 'MODULE_LICENSE(' "${MIDAS_ROOT}/binder_stats_dev.c"; then
+  printf '\nMODULE_LICENSE("GPL v2");\n' >> "${MIDAS_ROOT}/binder_stats_dev.c"
+fi
 rm -f "${MIDAS_ROOT}"/*.o "${MIDAS_ROOT}"/*.ko \
   "${MIDAS_ROOT}"/Module.symvers "${MIDAS_ROOT}"/modules.order
 make -j4 -C "${KERNEL_DIR}" O="${OUT_DIR}" M="${MIDAS_ROOT}" \
@@ -86,6 +93,7 @@ make -j4 -C "${KERNEL_DIR}" O="${OUT_DIR}" M="${MIDAS_ROOT}" \
   CONFIG_OPLUS_FEATURE_BINDER_STATS_ENABLE=m \
   modules 2>&1 | tee "${REPORT_DIR}/oplus_binder_stats.log"
 test -s "${MIDAS_ROOT}/oplus_binder_stats.ko"
+test "$(modinfo -F license "${MIDAS_ROOT}/oplus_binder_stats.ko")" = "GPL v2"
 cp -f "${MIDAS_ROOT}/oplus_binder_stats.ko" \
   "${PACKAGE_DIR}/oplus_binder_stats.ko"
 
