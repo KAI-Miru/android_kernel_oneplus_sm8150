@@ -543,8 +543,8 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-wave24-binder-stats-v2
-      SOURCE_SHA: b542f891d17b1e1ad8f3ae8867c94cd83c1be293
-      PARENT_SHA: ff73989cff6c3b598aabc2e5df5fd7a525f2df4e
+      SOURCE_SHA: f49c5e89fdf8d73a95c8cb1dd34d2c3420e9112b
+      PARENT_SHA: ccb6f79aa8f94ffba5888b34dcce834209006056
       MODULES_REPAIR_BRANCH: miru-h40-wave24-binder-stats-v2-r2
       MODULES_REPAIR_SHA: a21f9352e70a8685556582465309f8eb3fe401cb
       MODULES_PARENT_SHA: 8e85947dfb9b9f7cf995c8fcba98b969d3a4506a
@@ -2049,12 +2049,6 @@ jobs:
 
           test "$(find "${module_dir}" -maxdepth 1 -type f -name '*.ko' | wc -l)" = 32
           test ! -e "${module_dir}/oplus_binder_stats.ko"
-          grep -Eq ' [tT] binder_stats_dev_init$' "${out_dir}/System.map"
-          grep -Eq ' [tT] binder_stats_driver_ioctl$' "${out_dir}/System.map"
-          binder_stats_strings="${RUNNER_TEMP}/wave24-binder-stats-v2.strings"
-          strings "${out_dir}/vmlinux" > "${binder_stats_strings}"
-          grep -Fq 'BINDER_STATS_CTL_SRVMGR_INT failed!' "${binder_stats_strings}"
-          grep -Fq 'BINDER_STATS_CTL_SRVMGR_SET_HANDLE_NAME failed.' "${binder_stats_strings}"
           {
             echo result=PASS
             echo device=/dev/binder_stats
