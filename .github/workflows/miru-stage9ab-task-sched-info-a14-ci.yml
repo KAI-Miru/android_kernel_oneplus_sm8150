@@ -543,13 +543,13 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-wave22-gpu-ebpf-accounting
-      SOURCE_SHA: 964aaa646f24e9211afb9c713951e25c38f4c12d
-      PARENT_SHA: bfe7889feab0828df202a2a1cbeea9f431770daa
+      SOURCE_SHA: 770faebcc22db3d3e413f56b57e3bc7956e78f68
+      PARENT_SHA: 964aaa646f24e9211afb9c713951e25c38f4c12d
       MODULES_REPAIR_BRANCH: miru-h40-wave21-task-identity-diagnostics
       MODULES_REPAIR_SHA: 8e85947dfb9b9f7cf995c8fcba98b969d3a4506a
       MODULES_PARENT_SHA: f0679cb337b85e2e0b992d9b16e356b1839945bd
-      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave22-gpu-ebpf-accounting-ci1+
-      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave22-gpu-ebpf-accounting-ci1
+      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave22-gpu-ebpf-accounting-ci2+
+      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave22-gpu-ebpf-accounting-ci2
 
     steps:
       - name: Checkout Wave 22 GPU eBPF accounting source
@@ -837,6 +837,7 @@ jobs:
           check wave22-gpu-mem-trace test -f source/include/trace/events/gpu_mem.h
           check wave22-gpu-mem-callsite grep -Fq 'trace_gpu_mem_total(0, 0, total_size);' source/drivers/gpu/msm/kgsl_device.h
           check wave22-gpu-work-trace test -f source/drivers/gpu/msm/kgsl_power_trace.h
+          check wave22-gpu-work-trace-object grep -Fq 'kgsl_power_trace.o' source/drivers/gpu/msm/Makefile
           check wave22-gpu-work-clock grep -Fq 'ktime_get_raw_ns()' source/drivers/gpu/msm/kgsl.c
           check wave22-gpu-work-counter grep -Fq 'A6XX_CP_ALWAYS_ON_CONTEXT_LO' source/drivers/gpu/msm/adreno_ringbuffer.c
           check wave22-gpu-work-retire grep -Fq 'kgsl_work_period_update(KGSL_DEVICE(adreno_dev),' source/drivers/gpu/msm/adreno_dispatch.c
@@ -1108,6 +1109,7 @@ jobs:
           test -f include/trace/events/gpu_mem.h
           grep -Fq 'trace_gpu_mem_total(0, 0, total_size);' drivers/gpu/msm/kgsl_device.h
           test -f drivers/gpu/msm/kgsl_power_trace.h
+          grep -Fq 'kgsl_power_trace.o' drivers/gpu/msm/Makefile
           grep -Fq 'ktime_get_raw_ns()' drivers/gpu/msm/kgsl.c
           grep -Fq 'A6XX_CP_ALWAYS_ON_CONTEXT_LO' drivers/gpu/msm/adreno_ringbuffer.c
           grep -Fq 'kgsl_work_period_update(KGSL_DEVICE(adreno_dev),' drivers/gpu/msm/adreno_dispatch.c
@@ -1140,9 +1142,9 @@ jobs:
           replacements = {
               'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=8e85947dfb9b9f7cf995c8fcba98b969d3a4506a',
               '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Wave 22 GPU eBPF accounting stable build ==',
-              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-wave22-gpu-ebpf-accounting-ci1',
-              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-wave22-gpu-ebpf-accounting-ci1"',
-              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-wave22-gpu-ebpf-accounting-ci1+' || true)\"",
+              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-wave22-gpu-ebpf-accounting-ci2',
+              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-wave22-gpu-ebpf-accounting-ci2"',
+              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-wave22-gpu-ebpf-accounting-ci2+' || true)\"",
               'echo "Clean kernel build and output validation: PASS"': final,
           }
           for old, new in replacements.items():
@@ -1155,7 +1157,7 @@ jobs:
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
           grep -Fq 'VENDOR_SHA=8e85947dfb9b9f7cf995c8fcba98b969d3a4506a' build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave22-gpu-ebpf-accounting-ci1' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave22-gpu-ebpf-accounting-ci2' build-stage9b-task-sched-info-a14-stable.sh
 
       - name: Build Wave 22 GPU eBPF accounting kernel with stable builder
         shell: bash
@@ -1770,10 +1772,12 @@ jobs:
 
           kgsl_obj="${out_dir}/drivers/gpu/msm/kgsl.o"
           kgsl_trace_obj="${out_dir}/drivers/gpu/msm/kgsl_trace.o"
+          kgsl_power_trace_obj="${out_dir}/drivers/gpu/msm/kgsl_power_trace.o"
           adreno_dispatch_obj="${out_dir}/drivers/gpu/msm/adreno_dispatch.o"
           adreno_ringbuffer_obj="${out_dir}/drivers/gpu/msm/adreno_ringbuffer.o"
           gpu_mem_trace_obj="${out_dir}/drivers/gpu/trace/trace_gpu_mem.o"
           for object in "${kgsl_obj}" "${kgsl_trace_obj}" \
+            "${kgsl_power_trace_obj}" \
             "${adreno_dispatch_obj}" "${adreno_ringbuffer_obj}" \
             "${gpu_mem_trace_obj}"; do
             test -s "${object}"
