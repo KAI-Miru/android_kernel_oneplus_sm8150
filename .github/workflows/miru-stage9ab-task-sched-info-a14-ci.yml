@@ -543,11 +543,11 @@ jobs:
     timeout-minutes: 180
     env:
       SOURCE_BRANCH: miru-h40-wave24-binder-stats-v2
-      SOURCE_SHA: ff73989cff6c3b598aabc2e5df5fd7a525f2df4e
-      PARENT_SHA: 3e3b551f715f4526e578997207d6f7c1ce1b6d52
-      MODULES_REPAIR_BRANCH: miru-h40-wave24-binder-stats-v2
-      MODULES_REPAIR_SHA: f318506796eb57527c2a6404b35706b6649b242a
-      MODULES_PARENT_SHA: 125ff7d0153cbb3aaa8f9fd618c33b7f728d7798
+      SOURCE_SHA: b542f891d17b1e1ad8f3ae8867c94cd83c1be293
+      PARENT_SHA: ff73989cff6c3b598aabc2e5df5fd7a525f2df4e
+      MODULES_REPAIR_BRANCH: miru-h40-wave24-binder-stats-v2-r2
+      MODULES_REPAIR_SHA: a21f9352e70a8685556582465309f8eb3fe401cb
+      MODULES_PARENT_SHA: 8e85947dfb9b9f7cf995c8fcba98b969d3a4506a
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave24-binder-stats-v2-ci1+
       PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave24-binder-stats-v2-ci1
 
@@ -1176,7 +1176,7 @@ jobs:
           target.chmod(0o755)
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'VENDOR_SHA=f318506796eb57527c2a6404b35706b6649b242a' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'VENDOR_SHA=a21f9352e70a8685556582465309f8eb3fe401cb' build-stage9b-task-sched-info-a14-stable.sh
           grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave24-binder-stats-v2-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
       - name: Build Wave 24 Android 14 BinderStats v2 kernel with stable builder
