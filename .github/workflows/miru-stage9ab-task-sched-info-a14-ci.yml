@@ -547,7 +547,7 @@ jobs:
       PARENT_SHA: cca96b1fe9f88f12bdc568f5c8a66e6a640cd817
       MODULES_REPAIR_BRANCH: miru-h40-wave19-audio-rt
       MODULES_REPAIR_SHA: a4d0d05f3b81024ea92c03dc697d7e2bf03c8cb9
-      MODULES_PARENT_SHA: e6451f4a563b3976f9b4b79496481935c425e71e
+      MODULES_PARENT_SHA: 1c9653ce78afaa97ffbad575245520198e5785f3
       EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave19-audio-rt-ci1+
       PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave19-audio-rt-ci1
 
