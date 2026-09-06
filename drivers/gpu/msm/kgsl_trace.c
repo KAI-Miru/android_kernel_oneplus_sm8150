@@ -20,7 +20,6 @@
 #define CREATE_TRACE_POINTS
 #include "kgsl_trace.h"
 #include "kgsl_trace_power.h"
-#include "kgsl_power_trace.h"
 
 EXPORT_TRACEPOINT_SYMBOL(kgsl_regwrite);
 EXPORT_TRACEPOINT_SYMBOL(kgsl_issueibcmds);

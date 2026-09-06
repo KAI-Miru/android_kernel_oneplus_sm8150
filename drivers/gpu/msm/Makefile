@@ -3,6 +3,7 @@ ccflags-y := -Iinclude/linux
 msm_kgsl_core-y = \
 	kgsl.o \
 	kgsl_trace.o \
+	kgsl_power_trace.o \
 	kgsl_drawobj.o \
 	kgsl_ioctl.o \
 	kgsl_sharedmem.o \
