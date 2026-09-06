@@ -113,7 +113,11 @@ jobs:
           curl -fsSL \
             'https://android.googlesource.com/kernel/prebuilts/build-tools/+/e905be252a53d20c52bd9e59df3ff8fdd46b9eab/linux-x86/bin/dtc?format=TEXT' \
             | base64 --decode > "${RUNNER_TEMP}/miru-dtc/dtc"
+          curl -fsSL \
+            'https://android.googlesource.com/kernel/prebuilts/build-tools/+/e905be252a53d20c52bd9e59df3ff8fdd46b9eab/linux-x86/lib64/libfdt.so?format=TEXT' \
+            | base64 --decode > "${RUNNER_TEMP}/miru-dtc/libfdt.so"
           chmod +x "${RUNNER_TEMP}/miru-dtc/dtc"
+          export LD_LIBRARY_PATH="${RUNNER_TEMP}/miru-dtc${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
           export EXTERNAL_DTC="${RUNNER_TEMP}/miru-dtc/dtc"
           bash ../build-wave25-stable.sh
 
