@@ -1,10 +1,10 @@
-name: Miru H.40 Wave 21 task identity and diagnostics build
+name: Miru H.40 Wave 22 GPU eBPF accounting build
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - miru-h40-wave21-task-identity-diagnostics-ci-trigger
+      - miru-h40-wave22-gpu-ebpf-accounting-ci-trigger
     paths:
       - '.github/workflows/miru-stage9ab-task-sched-info-a14-ci.yml'
 
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: miru-h40-wave21-task-identity-diagnostics
+  group: miru-h40-wave22-gpu-ebpf-accounting
   cancel-in-progress: true
 
 env:
@@ -538,21 +538,21 @@ jobs:
             build-diagnostics/**
             external-module-diagnostics/**
 
-  build-wave21:
+  build-wave22:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     env:
-      SOURCE_BRANCH: miru-h40-wave21-task-identity-diagnostics
-      SOURCE_SHA: bfe7889feab0828df202a2a1cbeea9f431770daa
-      PARENT_SHA: bc0e5786a6fd8f4dbd130aa4637009cdd3381dab
+      SOURCE_BRANCH: miru-h40-wave22-gpu-ebpf-accounting
+      SOURCE_SHA: 964aaa646f24e9211afb9c713951e25c38f4c12d
+      PARENT_SHA: bfe7889feab0828df202a2a1cbeea9f431770daa
       MODULES_REPAIR_BRANCH: miru-h40-wave21-task-identity-diagnostics
       MODULES_REPAIR_SHA: 8e85947dfb9b9f7cf995c8fcba98b969d3a4506a
       MODULES_PARENT_SHA: f0679cb337b85e2e0b992d9b16e356b1839945bd
-      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave21-task-identity-diagnostics-ci1+
-      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave21-task-identity-diagnostics-ci1
+      EXPECTED_RELEASE: 4.14.357-openela-miru-h40-wave22-gpu-ebpf-accounting-ci1+
+      PACKAGE_TAG: miru-v3-modules-dropin-4.14.357-openela-miru-h40-wave22-gpu-ebpf-accounting-ci1
 
     steps:
-      - name: Checkout Wave 21 task identity and diagnostics source
+      - name: Checkout Wave 22 GPU eBPF accounting source
         uses: actions/checkout@v4
         with:
           ref: ${{ env.SOURCE_SHA }}
@@ -567,7 +567,7 @@ jobs:
             local label="$1"
             shift
             if ! "$@"; then
-              echo "::error title=Wave 21 boundary check failed::${label}"
+              echo "::error title=Wave 22 boundary check failed::${label}"
               exit 1
             fi
             echo "boundary check passed: ${label}"
@@ -833,6 +833,14 @@ jobs:
           check wave21-sigkill-header-link-bytes test "$(git -C source cat-file -s HEAD:include/linux/sigkill_diagnosis)" = 68
           check wave21-sigkill-native-hook grep -Fq 'record_sigkill_reason(NULL, sig, current, p);' source/kernel/signal.c
           check wave21-summary grep -Fq 'tpp_unity_policy=donor-default-off-lazy-msmnile-topology' source/scripts/miru/verify_coloros14_procabi.sh
+          check wave22-gpu-mem-config grep -Fq 'select TRACE_GPU_MEM' source/drivers/gpu/msm/Kconfig
+          check wave22-gpu-mem-trace test -f source/include/trace/events/gpu_mem.h
+          check wave22-gpu-mem-callsite grep -Fq 'trace_gpu_mem_total(0, 0, total_size);' source/drivers/gpu/msm/kgsl_device.h
+          check wave22-gpu-work-trace test -f source/drivers/gpu/msm/kgsl_power_trace.h
+          check wave22-gpu-work-clock grep -Fq 'ktime_get_raw_ns()' source/drivers/gpu/msm/kgsl.c
+          check wave22-gpu-work-counter grep -Fq 'A6XX_CP_ALWAYS_ON_CONTEXT_LO' source/drivers/gpu/msm/adreno_ringbuffer.c
+          check wave22-gpu-work-retire grep -Fq 'kgsl_work_period_update(KGSL_DEVICE(adreno_dev),' source/drivers/gpu/msm/adreno_dispatch.c
+          check wave22-gpu-doc test -f source/Documentation/miru/wave22-gpu-ebpf-accounting.md
 
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
           check production-ref test "${live_production}" = "${PRODUCTION_SHA}"
@@ -854,7 +862,7 @@ jobs:
             echo "production_write=NONE"
           } | tee BUILD-BOUNDARIES.txt
 
-      - name: Prepare Wave 21 task identity and diagnostics H.40 config
+      - name: Prepare Wave 22 GPU eBPF accounting H.40 config
         shell: bash
         working-directory: source
         run: |
@@ -862,7 +870,7 @@ jobs:
           cp h40-repro/config/GM1911_11_H.40.config "${RUNNER_TEMP}/stage9b-task-sched-info-a14.config"
           bash scripts/miru/configure_mem_stage4.sh "${RUNNER_TEMP}/stage9b-task-sched-info-a14.config"
 
-      - name: Generate stable Wave 21 4.14.357 build driver
+      - name: Generate stable Wave 22 4.14.357 build driver
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -875,7 +883,7 @@ jobs:
 
           start = text.index('# Fetch only the distant commits required by the source-level sanity checks.')
           end = text.index("# GitHub's Ubuntu image contains most dependencies already")
-          gate = '''# Exact Wave 21 task identity and diagnostics source sanity gate.
+          gate = '''# Exact Wave 22 GPU eBPF accounting source sanity gate.
           source_head="$(git rev-parse HEAD)"
           test "${source_head}" = "${SOURCE_SHA}"
           test -z "$(git ls-files -u)"
@@ -1096,6 +1104,14 @@ jobs:
           test "$(git cat-file -s HEAD:include/linux/sigkill_diagnosis)" = 68
           grep -Fq 'record_sigkill_reason(NULL, sig, current, p);' kernel/signal.c
           grep -Fq 'athena_sigkill_diagnosis=donor-ring-native-4.14-signal-hook' scripts/miru/verify_coloros14_procabi.sh
+          grep -Fq 'select TRACE_GPU_MEM' drivers/gpu/msm/Kconfig
+          test -f include/trace/events/gpu_mem.h
+          grep -Fq 'trace_gpu_mem_total(0, 0, total_size);' drivers/gpu/msm/kgsl_device.h
+          test -f drivers/gpu/msm/kgsl_power_trace.h
+          grep -Fq 'ktime_get_raw_ns()' drivers/gpu/msm/kgsl.c
+          grep -Fq 'A6XX_CP_ALWAYS_ON_CONTEXT_LO' drivers/gpu/msm/adreno_ringbuffer.c
+          grep -Fq 'kgsl_work_period_update(KGSL_DEVICE(adreno_dev),' drivers/gpu/msm/adreno_dispatch.c
+          test -f Documentation/miru/wave22-gpu-ebpf-accounting.md
           live_production="$(git ls-remote "https://github.com/${GITHUB_REPOSITORY}.git" refs/heads/miru-h40 | awk 'NR == 1 {print $1}')"
           test "${live_production}" = "${PRODUCTION_SHA}"
           {
@@ -1117,16 +1133,16 @@ jobs:
               'printf \'%s\\n\' "${EXPECTED_RELEASE}" > "${ARTIFACT_DIR}/KERNEL-RELEASE.txt"',
               'printf \'%s\\n\' "${SOURCE_SHA}" > "${ARTIFACT_DIR}/SOURCE-SHA.txt"',
               'printf \'%s\\n\' "${MODULES_REPAIR_SHA}" > "${ARTIFACT_DIR}/VENDOR-SHA.txt"',
-              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/WAVE21-TASK-IDENTITY-DIAGNOSTICS-IMAGE-SHA256.txt"',
-              'echo "Wave 21 task identity and diagnostics kernel build: PASS"',
+              'sha256sum "${ARTIFACT_DIR}/${EXPECTED_RELEASE}-Image.gz-dtb" > "${ARTIFACT_DIR}/WAVE22-GPU-EBPF-ACCOUNTING-IMAGE-SHA256.txt"',
+              'echo "Wave 22 GPU eBPF accounting kernel build: PASS"',
           ])
 
           replacements = {
               'VENDOR_SHA=125ff7d0153cbb3aaa8f9fd618c33b7f728d7798': 'VENDOR_SHA=8e85947dfb9b9f7cf995c8fcba98b969d3a4506a',
-              '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Wave 21 task identity and diagnostics stable build ==',
-              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-wave21-task-identity-diagnostics-ci1',
-              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-wave21-task-identity-diagnostics-ci1"',
-              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-wave21-task-identity-diagnostics-ci1+' || true)\"",
+              '== Miru H.40 Android 4.14.190 CI build ==': '== Miru H.40 Wave 22 GPU eBPF accounting stable build ==',
+              'KERNEL_LOCALVERSION=-miru-h40-lts190-ci1': 'KERNEL_LOCALVERSION=-miru-h40-wave22-gpu-ebpf-accounting-ci1',
+              'CONFIG_LOCALVERSION="-miru-h40-lts190-ci1"': 'CONFIG_LOCALVERSION="-miru-h40-wave22-gpu-ebpf-accounting-ci1"',
+              "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 '^Linux version 4\\.14\\.190-' || true)\"": "banner=\"$(strings \"${OUT_DIR}/arch/arm64/boot/Image\" | grep -m1 -F 'Linux version 4.14.357-openela-miru-h40-wave22-gpu-ebpf-accounting-ci1+' || true)\"",
               'echo "Clean kernel build and output validation: PASS"': final,
           }
           for old, new in replacements.items():
@@ -1139,9 +1155,9 @@ jobs:
           PY
           bash -n build-stage9b-task-sched-info-a14-stable.sh
           grep -Fq 'VENDOR_SHA=8e85947dfb9b9f7cf995c8fcba98b969d3a4506a' build-stage9b-task-sched-info-a14-stable.sh
-          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave21-task-identity-diagnostics-ci1' build-stage9b-task-sched-info-a14-stable.sh
+          grep -Fq 'KERNEL_LOCALVERSION=-miru-h40-wave22-gpu-ebpf-accounting-ci1' build-stage9b-task-sched-info-a14-stable.sh
 
-      - name: Build Wave 21 task identity and diagnostics kernel with stable builder
+      - name: Build Wave 22 GPU eBPF accounting kernel with stable builder
         shell: bash
         working-directory: source
         env:
@@ -1149,7 +1165,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           bash ../build-stage9b-task-sched-info-a14-stable.sh
-          trap 'rc=$?; trap - ERR; echo "::error title=Wave 21 binary audit failed::line ${LINENO}: ${BASH_COMMAND} (exit ${rc})"; exit "${rc}"' ERR
+          trap 'rc=$?; trap - ERR; echo "::error title=Wave 22 binary audit failed::line ${LINENO}: ${BASH_COMMAND} (exit ${rc})"; exit "${rc}"' ERR
           # Quiet grep closes its input once it finds a match.  Do not treat a
           # producer's resulting SIGPIPE as an audit failure; grep's status is
           # the authoritative result for the legacy producer | grep checks.
@@ -1184,6 +1200,7 @@ jobs:
           grep -Fxq 'CONFIG_OPLUS_UX_IM_FLAG=y' "${cfg}"
           grep -Fxq 'CONFIG_OPLUS_CPU_AUDIO_PERF=y' "${cfg}"
           grep -Fxq 'CONFIG_OPLUS_FEATURE_AUDIO_OPT=y' "${cfg}"
+          grep -Fxq 'CONFIG_TRACE_GPU_MEM=y' "${cfg}"
           find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_assist/sched_assist_common.o' -print -quit | grep -q .
           find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_info/oplus_schedinfo.o' -print -quit | grep -q .
           find "${RUNNER_TEMP}/android-root/out/h40-kernel" -type f -path '*/sched_info/tasktrack.o' -print -quit | grep -q .
@@ -1268,6 +1285,10 @@ jobs:
           test -s "${out_dir}/vmlinux"
           grep -Eq '[[:space:]][Tt][[:space:]]account_task_time$' "${out_dir}/System.map"
           grep -Eq '[[:space:]][BbDd][[:space:]]sysctl_task_cpustats_enable$' "${out_dir}/System.map"
+          grep -Eq '[[:space:]][Dd][[:space:]]__tracepoint_gpu_mem_total$' "${out_dir}/System.map"
+          grep -Eq '[[:space:]][Dd][[:space:]]__tracepoint_gpu_work_period$' "${out_dir}/System.map"
+          grep -Eq '[[:space:]][Tt][[:space:]]kgsl_work_period_start$' "${out_dir}/System.map"
+          grep -Eq '[[:space:]][Tt][[:space:]]kgsl_work_period_update$' "${out_dir}/System.map"
           strings "${out_dir}/vmlinux" > "${strings_file}"
           sched_assist_audio_symbols="${RUNNER_TEMP}/wave21-task-identity-diagnostics.symbols"
           rt_relocs="${RUNNER_TEMP}/wave21-rt.relocs"
@@ -1747,6 +1768,30 @@ jobs:
             echo athena_sigkill_diagnosis=donor-ring-native-4.14-signal-hook
           } | tee "${artifact_dir}/WAVE21-TASK-IDENTITY-DIAGNOSTICS-BINARY-AUDIT.txt"
 
+          kgsl_obj="${out_dir}/drivers/gpu/msm/kgsl.o"
+          kgsl_trace_obj="${out_dir}/drivers/gpu/msm/kgsl_trace.o"
+          adreno_dispatch_obj="${out_dir}/drivers/gpu/msm/adreno_dispatch.o"
+          adreno_ringbuffer_obj="${out_dir}/drivers/gpu/msm/adreno_ringbuffer.o"
+          gpu_mem_trace_obj="${out_dir}/drivers/gpu/trace/trace_gpu_mem.o"
+          for object in "${kgsl_obj}" "${kgsl_trace_obj}" \
+            "${adreno_dispatch_obj}" "${adreno_ringbuffer_obj}" \
+            "${gpu_mem_trace_obj}"; do
+            test -s "${object}"
+          done
+          grep -Fq 'gpu_mem_total' "${strings_file}"
+          grep -Fq 'gpu_work_period' "${strings_file}"
+          {
+            echo result=PASS
+            echo config=CONFIG_TRACE_GPU_MEM=y
+            echo gpu_mem_tracepoint=present
+            echo gpu_mem_accounting=device-and-process-mapped-totals
+            echo gpu_work_tracepoint=present
+            echo gpu_work_accounting=uid-a6xx-context-active-periods
+            echo gpu_work_clock=CLOCK_MONOTONIC_RAW
+            echo gpu_work_period_ms=900
+            echo protected_work=excluded
+          } | tee "${artifact_dir}/WAVE22-GPU-EBPF-ACCOUNTING-BINARY-AUDIT.txt"
+
       - name: Build matching external modules with stable builder
         shell: bash
         working-directory: source
@@ -1937,7 +1982,7 @@ jobs:
               ('4.14.190-miru-h40-lts190-ci1+', release, 1),
               ('miru-v3-modules-dropin-4.14.190', package_tag, 4),
               ('Miru 4.14.190 rebuilt external module ABI report',
-               'Miru Wave 21 Android 14 task identity and diagnostics external module report', 1),
+               'Miru Wave 22 Android 14 GPU eBPF accounting external module report', 1),
           )
           for old, new, expected_count in replacements:
               actual = text.count(old)
@@ -2037,6 +2082,10 @@ jobs:
           test -s "${artifact_dir}/WAVE21-TASK-IDENTITY-DIAGNOSTICS-BINARY-AUDIT.txt"
           grep -Fxq 'tpp_unity_policy=donor-default-off-lazy-msmnile-topology' "${artifact_dir}/WAVE21-TASK-IDENTITY-DIAGNOSTICS-BINARY-AUDIT.txt"
           grep -Fxq 'athena_sigkill_diagnosis=donor-ring-native-4.14-signal-hook' "${artifact_dir}/WAVE21-TASK-IDENTITY-DIAGNOSTICS-BINARY-AUDIT.txt"
+          test -s "${artifact_dir}/WAVE22-GPU-EBPF-ACCOUNTING-BINARY-AUDIT.txt"
+          grep -Fxq 'gpu_mem_tracepoint=present' "${artifact_dir}/WAVE22-GPU-EBPF-ACCOUNTING-BINARY-AUDIT.txt"
+          grep -Fxq 'gpu_work_tracepoint=present' "${artifact_dir}/WAVE22-GPU-EBPF-ACCOUNTING-BINARY-AUDIT.txt"
+          grep -Fxq 'gpu_work_clock=CLOCK_MONOTONIC_RAW' "${artifact_dir}/WAVE22-GPU-EBPF-ACCOUNTING-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/CPU-JANK-REPORTING-BINARY-AUDIT.txt"
           grep -Fxq 'cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup' "${artifact_dir}/CPU-JANK-REPORTING-BINARY-AUDIT.txt"
           test -s "${artifact_dir}/CPU-JANK-HOTTHREAD-BINARY-AUDIT.txt"
@@ -2086,6 +2135,8 @@ jobs:
             echo task_identity=donor-comm-classification-per-task-proc
             echo tpp_unity_policy=donor-default-off-lazy-msmnile-topology
             echo athena_sigkill_diagnosis=donor-ring-native-4.14-signal-hook
+            echo gpu_mem_accounting=android-tracepoint-device-process-totals
+            echo gpu_work_accounting=uid-a6xx-context-active-raw-clock
             echo cpu_jank_reporting=donor-windowed-cputime-frequency-cgroup
             echo cpu_jank_hotthread=opt-in-bounded-workqueue-sampling
             echo cpu_jank_passive_controls=donor-enable-osi-debug-default-off
@@ -2117,11 +2168,11 @@ jobs:
             echo production_write=NONE
           } | tee "${artifact_dir}/FINAL-CANDIDATE-SUMMARY.txt"
 
-      - name: Upload Wave 21 task identity and diagnostics kernel and modules
+      - name: Upload Wave 22 GPU eBPF accounting kernel and modules
         uses: actions/upload-artifact@v4
         if: success()
         with:
-          name: miru-h40-wave21-task-identity-diagnostics-kernel-and-modules
+          name: miru-h40-wave22-gpu-ebpf-accounting-kernel-and-modules
           if-no-files-found: error
           retention-days: 30
           path: |
